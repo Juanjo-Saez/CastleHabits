@@ -15,8 +15,8 @@ export default defineConfig({
         name: 'Hábitos',
         short_name: 'Hábitos',
         description: 'Hábitos, tareas del hogar y recordatorios, gamificado',
-        theme_color: '#aa3bff',
-        background_color: '#16171d',
+        theme_color: '#6e0f1f',
+        background_color: '#0a0810',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
@@ -32,6 +32,22 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: { cacheName: 'google-fonts-stylesheets' },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-webfonts',
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+        ],
       },
     }),
   ],

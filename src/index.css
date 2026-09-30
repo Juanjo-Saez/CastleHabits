@@ -1,7 +1,43 @@
 @import "tailwindcss";
 
+@theme {
+  --font-display: "Cinzel Decorative", serif;
+  --font-heading: "Cinzel", serif;
+  --font-body: "EB Garamond", serif;
+
+  /* stone / crypt */
+  --color-crypt-950: #0a0810;
+  --color-crypt-900: #131019;
+  --color-crypt-800: #1d1925;
+  --color-crypt-700: #2a2433;
+  --color-crypt-600: #3b3444;
+  --color-crypt-500: #4f4658;
+
+  /* blood red */
+  --color-blood-700: #5c0e1d;
+  --color-blood-600: #7a1226;
+  --color-blood-500: #9a1b30;
+  --color-blood-400: #c0293f;
+
+  /* aged gold */
+  --color-gold-600: #8f7228;
+  --color-gold-500: #c9a24b;
+  --color-gold-400: #dabf74;
+  --color-gold-300: #e8d9a8;
+
+  /* arcane purple */
+  --color-arcane-600: #3c2657;
+  --color-arcane-500: #5a3a80;
+  --color-arcane-400: #8459b0;
+
+  /* parchment text */
+  --color-parchment-100: #f4ecd8;
+  --color-parchment-300: #dccfab;
+  --color-parchment-500: #a89a78;
+}
+
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 }
 
 html,
@@ -13,4 +49,28 @@ body,
 body {
   margin: 0;
   overscroll-behavior-y: contain;
+  background: radial-gradient(
+      ellipse 120% 80% at 50% -10%,
+      var(--color-crypt-700) 0%,
+      var(--color-crypt-950) 60%
+    ),
+    var(--color-crypt-950);
+  color: var(--color-parchment-100);
+  font-family: var(--font-body);
+}
+
+::selection {
+  background: var(--color-blood-600);
+  color: var(--color-parchment-100);
+}
+
+.ornate-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-gold-500) 20%,
+    var(--color-gold-500) 80%,
+    transparent
+  );
 }

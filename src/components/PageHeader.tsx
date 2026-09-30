@@ -1,18 +1,21 @@
 function PageHeader({
   title,
   subtitle,
-}: {
+}: Readonly<{
   title: string
   subtitle?: string
-}) {
+}>) {
   return (
-    <header className="sticky top-0 border-b border-slate-200 bg-white/95 px-4 py-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
-      <h1 className="text-xl font-semibold">{title}</h1>
+    <header className="sticky top-0 z-10 bg-crypt-950/95 px-5 pt-6 pb-4 backdrop-blur">
+      <h1 className="font-display text-2xl tracking-wide text-gold-400 [text-shadow:0_0_12px_rgba(201,162,75,0.35)]">
+        {title}
+      </h1>
       {subtitle && (
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        <p className="mt-1 font-body text-sm italic text-parchment-500">
           {subtitle}
         </p>
       )}
+      <div className="ornate-divider mt-4" />
     </header>
   )
 }
