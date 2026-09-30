@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
+import LevelUpCelebration from './components/LevelUpCelebration'
 import {
   countPendingToday,
   getNotificationPermission,
@@ -72,6 +73,7 @@ function App() {
 
   return (
     <div className="mx-auto flex h-full max-w-md flex-col border-x border-gold-600/30 bg-transparent">
+      <LevelUpCelebration />
       <main className="flex-1 overflow-y-auto pb-20">
         <Routes>
           <Route path="/" element={<HabitsPage />} />

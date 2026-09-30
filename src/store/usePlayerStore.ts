@@ -6,6 +6,9 @@ import type { PlayerProfile } from '../types'
 interface PlayerState {
   profile: PlayerProfile | null
   loading: boolean
+  /** Nivel recién alcanzado, pendiente de celebrar en la UI (null = nada pendiente). */
+  justLeveledUp: number | null
+  clearLevelUp: () => void
   load: () => Promise<void>
   awardCompletion: (xp: number, coins: number) => Promise<void>
   revertCompletion: (xp: number, coins: number) => Promise<void>
@@ -17,6 +20,9 @@ interface PlayerState {
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   profile: null,
   loading: true,
+  justLeveledUp: null,
+
+  clearLevelUp: () => set({ justLeveledUp: null }),
 
   load: async () => {
     const profile = await ensurePlayerProfile()
@@ -46,7 +52,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       coins: current.coins + coins,
     }
     await db.profile.put(updated)
-    set({ profile: updated })
+    set({ profile: updated, justLeveledUp: leveledUp ? level : get().justLeveledUp })
   },
 
   // Simplificado: no revierte subidas de nivel, solo resta XP/monedas dentro del nivel actual.
