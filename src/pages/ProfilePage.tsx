@@ -1,4 +1,5 @@
 import AchievementsList from '../components/AchievementsList'
+import BackupSettings from '../components/BackupSettings'
 import NotificationSettings from '../components/NotificationSettings'
 import PageHeader from '../components/PageHeader'
 import RewardsShop from '../components/RewardsShop'
@@ -76,6 +77,10 @@ function ProfilePage() {
 
       <div className="px-5 pb-8">
         <RewardsShop />
+      </div>
+
+      <div className="px-5 pb-8">
+        <BackupSettings />
       </div>
     </div>
   )
