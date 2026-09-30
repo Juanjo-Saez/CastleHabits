@@ -1,4 +1,5 @@
 import AchievementsList from '../components/AchievementsList'
+import NotificationSettings from '../components/NotificationSettings'
 import PageHeader from '../components/PageHeader'
 import RewardsShop from '../components/RewardsShop'
 import { getAvatarStage, xpToNextLevel } from '../lib/gamification'
@@ -63,6 +64,10 @@ function ProfilePage() {
       </div>
 
       <div className="px-5 pb-5">
+        <NotificationSettings />
+      </div>
+
+      <div className="px-5 pb-5">
         <h2 className="mb-2 font-heading text-xs tracking-widest text-parchment-500 uppercase">
           Logros
         </h2>
@@ -77,3 +82,4 @@ function ProfilePage() {
 }
 
 export default ProfilePage
+

@@ -1,5 +1,12 @@
 import { useEffect } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
+import {
+  countPendingToday,
+  getNotificationPermission,
+  hasRemindedToday,
+  markRemindedToday,
+  showReminder,
+} from './lib/notifications'
 import { computeMissedPenalties } from './lib/penalties'
 import ChoresPage from './pages/ChoresPage'
 import HabitsPage from './pages/HabitsPage'
@@ -46,6 +53,22 @@ function App() {
       })
     })()
   }, [loadItems, loadPlayer, loadAchievements, loadRewards])
+
+  useEffect(() => {
+    const checkReminder = async () => {
+      if (getNotificationPermission() !== 'granted' || hasRemindedToday()) return
+      const { items, completionsToday } = useItemsStore.getState()
+      const pending = countPendingToday(items, completionsToday)
+      if (pending > 0) {
+        await showReminder(pending)
+        markRemindedToday()
+      }
+    }
+
+    void checkReminder()
+    const interval = setInterval(() => void checkReminder(), 15 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <div className="mx-auto flex h-full max-w-md flex-col border-x border-gold-600/30 bg-transparent">
