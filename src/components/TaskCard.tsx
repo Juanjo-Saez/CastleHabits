@@ -1,11 +1,13 @@
 import { isToday, parseISO } from 'date-fns'
 import { DIFFICULTY_LABEL } from '../lib/gamification'
 import { describeRecurrence, isDueOn } from '../lib/recurrence'
+import { computeStreak } from '../lib/streak'
 import { useItemsStore } from '../store/useItemsStore'
 import type { Item } from '../types'
 
 function TaskCard({ item }: Readonly<{ item: Item }>) {
   const completion = useItemsStore((s) => s.completionsToday[item.id])
+  const history = useItemsStore((s) => s.completionsByItem[item.id]) ?? []
   const toggleBoolean = useItemsStore((s) => s.toggleBoolean)
   const adjustQuantity = useItemsStore((s) => s.adjustQuantity)
 
@@ -14,6 +16,7 @@ function TaskCard({ item }: Readonly<{ item: Item }>) {
   const qty = completion?.quantityDone ?? 0
   const done = isBoolean ? Boolean(completion) : qty >= goal
   const step = Math.max(1, Math.round(goal / 10))
+  const streak = computeStreak(item, history)
 
   const dueToday =
     item.type === 'chore'
@@ -25,15 +28,13 @@ function TaskCard({ item }: Readonly<{ item: Item }>) {
     !done &&
     parseISO(item.dueDate as string) < new Date(new Date().setHours(0, 0, 0, 0))
 
+  let borderClass = 'border-gold-600/20 bg-crypt-900/60'
+  if (done) borderClass = 'border-gold-500/60 bg-crypt-800/80'
+  else if (overdue) borderClass = 'border-blood-500/60 bg-crypt-900/60'
+
   return (
     <div
-      className={`flex items-center gap-3 rounded-sm border px-4 py-3 transition-colors ${
-        done
-          ? 'border-gold-500/60 bg-crypt-800/80'
-          : overdue
-            ? 'border-blood-500/60 bg-crypt-900/60'
-            : 'border-gold-600/20 bg-crypt-900/60'
-      }`}
+      className={`flex items-center gap-3 rounded-sm border px-4 py-3 transition-colors ${borderClass}`}
     >
       <span className="text-xl">{item.icon ?? (item.type === 'todo' ? '📌' : '🕸️')}</span>
 
@@ -58,6 +59,7 @@ function TaskCard({ item }: Readonly<{ item: Item }>) {
         <p className="text-xs italic text-parchment-500">
           {item.zone && `${item.zone} · `}
           {DIFFICULTY_LABEL[item.difficulty]}
+          {streak > 0 && ` · 🔥 ${streak}`}
           {item.type === 'chore' &&
             item.recurrenceRule &&
             ` · ${describeRecurrence(item.recurrenceRule)}`}

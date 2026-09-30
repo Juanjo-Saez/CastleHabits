@@ -29,6 +29,8 @@ interface ItemsState {
   items: Item[]
   /** Completions de hoy, indexadas por itemId. */
   completionsToday: Record<string, Completion>
+  /** Historial completo de completions, indexado por itemId (para rachas/score). */
+  completionsByItem: Record<string, Completion[]>
   loading: boolean
   load: () => Promise<void>
   addItem: (input: NewItemInput) => Promise<void>
@@ -37,21 +39,30 @@ interface ItemsState {
   adjustQuantity: (itemId: string, delta: number) => Promise<void>
 }
 
+async function refreshItemHistory(itemId: string) {
+  return db.completions.where('itemId').equals(itemId).toArray()
+}
+
 export const useItemsStore = create<ItemsState>((set, get) => ({
   items: [],
   completionsToday: {},
+  completionsByItem: {},
   loading: true,
 
   load: async () => {
-    const [items, completions] = await Promise.all([
+    const [items, allCompletions] = await Promise.all([
       db.items.toArray(),
-      db.completions.where('date').equals(todayKey()).toArray(),
+      db.completions.toArray(),
     ])
+    const today = todayKey()
     const completionsToday: Record<string, Completion> = {}
-    for (const completion of completions) {
-      completionsToday[completion.itemId] = completion
+    const completionsByItem: Record<string, Completion[]> = {}
+    for (const completion of allCompletions) {
+      if (completion.date === today) completionsToday[completion.itemId] = completion
+      if (!completionsByItem[completion.itemId]) completionsByItem[completion.itemId] = []
+      completionsByItem[completion.itemId].push(completion)
     }
-    set({ items, completionsToday, loading: false })
+    set({ items, completionsToday, completionsByItem, loading: false })
   },
 
   addItem: async (input) => {
@@ -86,7 +97,13 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
         .revertCompletion(existing.xpEarned, existing.coinsEarned)
       const next = { ...get().completionsToday }
       delete next[itemId]
-      set({ completionsToday: next })
+      set({
+        completionsToday: next,
+        completionsByItem: {
+          ...get().completionsByItem,
+          [itemId]: await refreshItemHistory(itemId),
+        },
+      })
       return
     }
 
@@ -102,7 +119,13 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     }
     await db.completions.add(completion)
     await usePlayerStore.getState().awardCompletion(xp, coins)
-    set({ completionsToday: { ...get().completionsToday, [itemId]: completion } })
+    set({
+      completionsToday: { ...get().completionsToday, [itemId]: completion },
+      completionsByItem: {
+        ...get().completionsByItem,
+        [itemId]: await refreshItemHistory(itemId),
+      },
+    })
   },
 
   adjustQuantity: async (itemId, delta) => {
@@ -131,7 +154,13 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
         await db.completions.delete(existing.id)
         const next = { ...get().completionsToday }
         delete next[itemId]
-        set({ completionsToday: next })
+        set({
+          completionsToday: next,
+          completionsByItem: {
+            ...get().completionsByItem,
+            [itemId]: await refreshItemHistory(itemId),
+          },
+        })
       }
       return
     }
@@ -146,6 +175,12 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       createdAt: existing?.createdAt ?? new Date().toISOString(),
     }
     await db.completions.put(completion)
-    set({ completionsToday: { ...get().completionsToday, [itemId]: completion } })
+    set({
+      completionsToday: { ...get().completionsToday, [itemId]: completion },
+      completionsByItem: {
+        ...get().completionsByItem,
+        [itemId]: await refreshItemHistory(itemId),
+      },
+    })
   },
 }))

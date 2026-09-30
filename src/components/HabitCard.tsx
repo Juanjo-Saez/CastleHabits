@@ -1,9 +1,11 @@
 import { DIFFICULTY_LABEL } from '../lib/gamification'
+import { computeStreak } from '../lib/streak'
 import { useItemsStore } from '../store/useItemsStore'
 import type { Item } from '../types'
 
 function HabitCard({ item }: Readonly<{ item: Item }>) {
   const completion = useItemsStore((s) => s.completionsToday[item.id])
+  const history = useItemsStore((s) => s.completionsByItem[item.id]) ?? []
   const toggleBoolean = useItemsStore((s) => s.toggleBoolean)
   const adjustQuantity = useItemsStore((s) => s.adjustQuantity)
 
@@ -12,6 +14,7 @@ function HabitCard({ item }: Readonly<{ item: Item }>) {
   const qty = completion?.quantityDone ?? 0
   const done = isBoolean ? Boolean(completion) : qty >= goal
   const step = Math.max(1, Math.round(goal / 10))
+  const streak = computeStreak(item, history)
 
   return (
     <div
@@ -31,6 +34,7 @@ function HabitCard({ item }: Readonly<{ item: Item }>) {
         </p>
         <p className="text-xs italic text-parchment-500">
           {DIFFICULTY_LABEL[item.difficulty]}
+          {streak > 0 && ` · 🔥 ${streak}`}
           {!isBoolean && ` · ${qty}/${goal} ${item.unit ?? ''}`.trimEnd()}
         </p>
         {!isBoolean && (
