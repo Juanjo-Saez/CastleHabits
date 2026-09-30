@@ -1,8 +1,11 @@
+import { useEffect } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
 import ChoresPage from './pages/ChoresPage'
 import HabitsPage from './pages/HabitsPage'
 import ProfilePage from './pages/ProfilePage'
 import StatsPage from './pages/StatsPage'
+import { useItemsStore } from './store/useItemsStore'
+import { usePlayerStore } from './store/usePlayerStore'
 
 const tabs = [
   { to: '/', label: 'Hábitos', icon: '🕯️', end: true },
@@ -12,6 +15,14 @@ const tabs = [
 ]
 
 function App() {
+  const loadItems = useItemsStore((s) => s.load)
+  const loadPlayer = usePlayerStore((s) => s.load)
+
+  useEffect(() => {
+    loadItems()
+    loadPlayer()
+  }, [loadItems, loadPlayer])
+
   return (
     <div className="mx-auto flex h-full max-w-md flex-col border-x border-gold-600/30 bg-transparent">
       <main className="flex-1 overflow-y-auto pb-20">
