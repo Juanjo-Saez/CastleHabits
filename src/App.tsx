@@ -1,11 +1,14 @@
 import { useEffect } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
+import { computeMissedPenalties } from './lib/penalties'
 import ChoresPage from './pages/ChoresPage'
 import HabitsPage from './pages/HabitsPage'
 import ProfilePage from './pages/ProfilePage'
 import StatsPage from './pages/StatsPage'
+import { useAchievementsStore } from './store/useAchievementsStore'
 import { useItemsStore } from './store/useItemsStore'
 import { usePlayerStore } from './store/usePlayerStore'
+import { useRewardsStore } from './store/useRewardsStore'
 
 const tabs = [
   { to: '/', label: 'Hábitos', icon: '🕯️', end: true },
@@ -17,11 +20,32 @@ const tabs = [
 function App() {
   const loadItems = useItemsStore((s) => s.load)
   const loadPlayer = usePlayerStore((s) => s.load)
+  const loadAchievements = useAchievementsStore((s) => s.load)
+  const loadRewards = useRewardsStore((s) => s.load)
 
   useEffect(() => {
-    loadItems()
-    loadPlayer()
-  }, [loadItems, loadPlayer])
+    void (async () => {
+      await Promise.all([loadItems(), loadPlayer(), loadAchievements(), loadRewards()])
+
+      const { items, completionsByItem } = useItemsStore.getState()
+      const profile = usePlayerStore.getState().profile
+      if (!profile) return
+
+      const { totalDamage, newLastChecked } = computeMissedPenalties(
+        items,
+        completionsByItem,
+        profile.lastPenaltyCheck,
+      )
+      if (totalDamage > 0) await usePlayerStore.getState().applyDamage(totalDamage)
+      await usePlayerStore.getState().setLastPenaltyCheck(newLastChecked)
+
+      await useAchievementsStore.getState().checkAndUnlock({
+        items,
+        completionsByItem,
+        profile: usePlayerStore.getState().profile!,
+      })
+    })()
+  }, [loadItems, loadPlayer, loadAchievements, loadRewards])
 
   return (
     <div className="mx-auto flex h-full max-w-md flex-col border-x border-gold-600/30 bg-transparent">

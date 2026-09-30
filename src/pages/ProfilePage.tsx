@@ -1,5 +1,7 @@
+import AchievementsList from '../components/AchievementsList'
 import PageHeader from '../components/PageHeader'
-import { xpToNextLevel } from '../lib/gamification'
+import RewardsShop from '../components/RewardsShop'
+import { getAvatarStage, xpToNextLevel } from '../lib/gamification'
 import { usePlayerStore } from '../store/usePlayerStore'
 
 function ProfilePage() {
@@ -10,6 +12,7 @@ function ProfilePage() {
   const xpNeeded = xpToNextLevel(profile.level)
   const xpPct = Math.min(100, (profile.xp / xpNeeded) * 100)
   const hpPct = Math.min(100, (profile.hp / profile.maxHp) * 100)
+  const avatar = getAvatarStage(profile.level)
 
   return (
     <div>
@@ -17,13 +20,13 @@ function ProfilePage() {
 
       <div className="flex flex-col gap-5 px-5 py-4">
         <div className="flex items-center gap-4 rounded-sm border border-gold-600/30 bg-crypt-900/60 p-4">
-          <span className="text-4xl">🧛</span>
+          <span className="text-4xl">{avatar.icon}</span>
           <div className="flex-1">
             <p className="font-display text-lg text-gold-400">
               Nivel {profile.level}
             </p>
             <p className="text-xs italic text-parchment-500">
-              {profile.coins} monedas
+              {avatar.title} · {profile.coins} monedas
             </p>
           </div>
         </div>
@@ -59,10 +62,15 @@ function ProfilePage() {
         </div>
       </div>
 
-      <div className="flex flex-col items-center gap-3 px-6 py-10 text-center text-parchment-500">
-        <p className="font-body italic">
-          Fase 5: logros, avatar evolutivo y tienda de recompensas.
-        </p>
+      <div className="px-5 pb-5">
+        <h2 className="mb-2 font-heading text-xs tracking-widest text-parchment-500 uppercase">
+          Logros
+        </h2>
+        <AchievementsList />
+      </div>
+
+      <div className="px-5 pb-8">
+        <RewardsShop />
       </div>
     </div>
   )

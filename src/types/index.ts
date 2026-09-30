@@ -43,6 +43,8 @@ export interface PlayerProfile {
   hp: number
   maxHp: number
   streakFreezes: number
+  /** Último día (yyyy-MM-dd) hasta el que ya se aplicó el daño por tareas vencidas. */
+  lastPenaltyCheck?: string
 }
 
 export interface Achievement {

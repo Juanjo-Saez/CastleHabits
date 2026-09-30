@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { db } from '../db/database'
 import { todayKey } from '../lib/date'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
+import { useAchievementsStore } from './useAchievementsStore'
 import { usePlayerStore } from './usePlayerStore'
 import type {
   Completion,
@@ -41,6 +42,15 @@ interface ItemsState {
 
 async function refreshItemHistory(itemId: string) {
   return db.completions.where('itemId').equals(itemId).toArray()
+}
+
+async function checkAchievements(
+  items: Item[],
+  completionsByItem: Record<string, Completion[]>,
+) {
+  const profile = usePlayerStore.getState().profile
+  if (!profile) return
+  await useAchievementsStore.getState().checkAndUnlock({ items, completionsByItem, profile })
 }
 
 export const useItemsStore = create<ItemsState>((set, get) => ({
@@ -119,13 +129,15 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     }
     await db.completions.add(completion)
     await usePlayerStore.getState().awardCompletion(xp, coins)
+    const completionsByItem = {
+      ...get().completionsByItem,
+      [itemId]: await refreshItemHistory(itemId),
+    }
     set({
       completionsToday: { ...get().completionsToday, [itemId]: completion },
-      completionsByItem: {
-        ...get().completionsByItem,
-        [itemId]: await refreshItemHistory(itemId),
-      },
+      completionsByItem,
     })
+    await checkAchievements(get().items, completionsByItem)
   },
 
   adjustQuantity: async (itemId, delta) => {
@@ -175,12 +187,16 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       createdAt: existing?.createdAt ?? new Date().toISOString(),
     }
     await db.completions.put(completion)
+    const completionsByItem = {
+      ...get().completionsByItem,
+      [itemId]: await refreshItemHistory(itemId),
+    }
     set({
       completionsToday: { ...get().completionsToday, [itemId]: completion },
-      completionsByItem: {
-        ...get().completionsByItem,
-        [itemId]: await refreshItemHistory(itemId),
-      },
+      completionsByItem,
     })
+    if (!wasComplete && isComplete) {
+      await checkAchievements(get().items, completionsByItem)
+    }
   },
 }))

@@ -9,6 +9,9 @@ interface PlayerState {
   load: () => Promise<void>
   awardCompletion: (xp: number, coins: number) => Promise<void>
   revertCompletion: (xp: number, coins: number) => Promise<void>
+  applyDamage: (amount: number) => Promise<void>
+  setLastPenaltyCheck: (date: string) => Promise<void>
+  spendCoins: (amount: number) => Promise<boolean>
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -58,5 +61,36 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
     await db.profile.put(updated)
     set({ profile: updated })
+  },
+
+  applyDamage: async (amount) => {
+    const current = get().profile
+    if (!current || amount <= 0) return
+
+    const updated: PlayerProfile = {
+      ...current,
+      hp: Math.max(0, current.hp - amount),
+    }
+    await db.profile.put(updated)
+    set({ profile: updated })
+  },
+
+  setLastPenaltyCheck: async (date) => {
+    const current = get().profile
+    if (!current) return
+
+    const updated: PlayerProfile = { ...current, lastPenaltyCheck: date }
+    await db.profile.put(updated)
+    set({ profile: updated })
+  },
+
+  spendCoins: async (amount) => {
+    const current = get().profile
+    if (!current || current.coins < amount) return false
+
+    const updated: PlayerProfile = { ...current, coins: current.coins - amount }
+    await db.profile.put(updated)
+    set({ profile: updated })
+    return true
   },
 }))
