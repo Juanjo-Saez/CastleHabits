@@ -1,26 +1,6 @@
 import { addDays, format, isBefore, parseISO, startOfDay } from 'date-fns'
-import { isDueOn } from './recurrence'
+import { isCompletedOn, isItemDueOn } from './recurrence'
 import type { Completion, Item } from '../types'
-
-function isItemDueOn(item: Item, date: Date): boolean {
-  if (item.type === 'todo') return false
-  // Los hábitos sin recurrenceRule se consideran diarios.
-  if (!item.recurrenceRule) return true
-  return isDueOn(item.recurrenceRule, date)
-}
-
-function isCompletedOn(
-  item: Item,
-  completions: Completion[],
-  dateKey: string,
-): boolean {
-  const completion = completions.find((c) => c.date === dateKey)
-  if (!completion) return false
-  if (item.trackingType === 'quantity') {
-    return (completion.quantityDone ?? 0) >= (item.quantityGoal ?? 0)
-  }
-  return true
-}
 
 /** Racha de días "debidos" consecutivos completados, terminando hoy o ayer. */
 export function computeStreak(item: Item, completions: Completion[]): number {

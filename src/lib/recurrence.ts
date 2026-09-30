@@ -1,4 +1,6 @@
+import { isBefore, parseISO, startOfDay } from 'date-fns'
 import { RRule } from 'rrule'
+import type { Completion, Item } from '../types'
 
 export type RecurrenceKind = 'daily' | 'interval' | 'weekdays' | 'monthly'
 
@@ -95,3 +97,26 @@ export function describeRecurrence(
     return ''
   }
 }
+
+/** ¿El item "debe" hacerse en esa fecha? Los hábitos sin recurrenceRule son diarios. */
+export function isItemDueOn(item: Item, date: Date): boolean {
+  if (item.type === 'todo') return false
+  if (isBefore(startOfDay(date), startOfDay(parseISO(item.createdAt)))) return false
+  if (!item.recurrenceRule) return true
+  return isDueOn(item.recurrenceRule, date)
+}
+
+/** ¿Se completó el item en esa fecha (yyyy-MM-dd), según su tipo de seguimiento? */
+export function isCompletedOn(
+  item: Item,
+  completions: Completion[],
+  dateKey: string,
+): boolean {
+  const completion = completions.find((c) => c.date === dateKey)
+  if (!completion) return false
+  if (item.trackingType === 'quantity') {
+    return (completion.quantityDone ?? 0) >= (item.quantityGoal ?? 0)
+  }
+  return true
+}
+

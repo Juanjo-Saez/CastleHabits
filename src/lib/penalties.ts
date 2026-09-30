@@ -1,26 +1,7 @@
 import { addDays, format, isBefore, parseISO, startOfDay } from 'date-fns'
 import { DIFFICULTY_DAMAGE } from './gamification'
-import { isDueOn } from './recurrence'
+import { isCompletedOn, isItemDueOn } from './recurrence'
 import type { Completion, Item } from '../types'
-
-function isItemDueOn(item: Item, date: Date): boolean {
-  if (item.type === 'todo') return false
-  if (!item.recurrenceRule) return true
-  return isDueOn(item.recurrenceRule, date)
-}
-
-function isCompletedOn(
-  item: Item,
-  completions: Completion[],
-  dateKey: string,
-): boolean {
-  const completion = completions.find((c) => c.date === dateKey)
-  if (!completion) return false
-  if (item.trackingType === 'quantity') {
-    return (completion.quantityDone ?? 0) >= (item.quantityGoal ?? 0)
-  }
-  return true
-}
 
 /**
  * Calcula el daño acumulado por tareas vencidas sin completar desde la última
