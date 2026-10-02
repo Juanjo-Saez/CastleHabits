@@ -1,90 +1,59 @@
-import AchievementsList from '../components/AchievementsList'
 import BackupSettings from '../components/BackupSettings'
+import HunterPortrait from '../components/HunterPortrait'
 import NotificationSettings from '../components/NotificationSettings'
 import PageHeader from '../components/PageHeader'
 import RewardsShop from '../components/RewardsShop'
+import SectionTitle from '../components/SectionTitle'
 import { getAvatarStage, xpToNextLevel } from '../lib/gamification'
 import { usePlayerStore } from '../store/usePlayerStore'
 
 function ProfilePage() {
   const profile = usePlayerStore((s) => s.profile)
 
-  if (!profile) return null
+  if (!profile) {
+    return <p className="p-8 text-center font-pixel text-xl text-silver-500">Cargando cazador...</p>
+  }
 
-  const xpNeeded = xpToNextLevel(profile.level)
-  const xpPct = Math.min(100, (profile.xp / xpNeeded) * 100)
-  const hpPct = Math.min(100, (profile.hp / profile.maxHp) * 100)
-  const avatar = getAvatarStage(profile.level)
+  const stage = getAvatarStage(profile.level)
+  const nextLevelXp = xpToNextLevel(profile.level)
+  const xpPercent = Math.min(100, (profile.xp / nextLevelXp) * 100)
+  const hpPercent = Math.min(100, (profile.hp / profile.maxHp) * 100)
 
   return (
-    <div>
-      <PageHeader title="El Cazador" subtitle="Nivel, vitalidad y reliquias" />
-
-      <div className="flex flex-col gap-5 px-5 py-4">
-        <div className="flex items-center gap-4 rounded-sm border border-gold-600/30 bg-crypt-900/60 p-4">
-          <span className="text-4xl">{avatar.icon}</span>
-          <div className="flex-1">
-            <p className="font-display text-lg text-gold-400">
-              Nivel {profile.level}
-            </p>
-            <p className="text-xs italic text-parchment-500">
-              {avatar.title} · {profile.coins} monedas
-            </p>
+    <>
+      <PageHeader title="El Cazador" subtitle="Tu progreso queda escrito en la piedra." />
+      <section className="relative z-10 flex flex-col gap-4 px-3">
+        <div className="cv-panel cv-panel--gold flex items-center gap-3 p-3">
+          <HunterPortrait level={profile.level} scale={4} />
+          <div className="min-w-0 flex-1">
+            <p className="cv-label">Nivel {profile.level}</p>
+            <h2 className="cv-shadow mt-1 font-pixel text-2xl leading-none text-gold-300">{stage.title}</h2>
+            <div className="mt-3">
+              <div className="mb-1 flex justify-between font-pixel text-sm text-silver-500">
+                <span>EXP</span><span>{profile.xp}/{nextLevelXp}</span>
+              </div>
+              <div className="cv-bar"><span className="cv-fill-mp" style={{ width: `${xpPercent}%` }} /></div>
+            </div>
+            <div className="mt-2">
+              <div className="mb-1 flex justify-between font-pixel text-sm text-silver-500">
+                <span>VITALIDAD</span><span>{profile.hp}/{profile.maxHp}</span>
+              </div>
+              <div className="cv-bar"><span className="cv-fill-hp" style={{ width: `${hpPercent}%` }} /></div>
+            </div>
           </div>
         </div>
 
-        <div>
-          <div className="mb-1 flex justify-between text-xs text-parchment-500">
-            <span>Experiencia</span>
-            <span>
-              {profile.xp} / {xpNeeded}
-            </span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-crypt-700">
-            <div
-              className="h-full bg-gradient-to-r from-arcane-500 to-gold-400"
-              style={{ width: `${xpPct}%` }}
-            />
-          </div>
-        </div>
-
-        <div>
-          <div className="mb-1 flex justify-between text-xs text-parchment-500">
-            <span>Vitalidad</span>
-            <span>
-              {profile.hp} / {profile.maxHp}
-            </span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-crypt-700">
-            <div
-              className="h-full bg-gradient-to-r from-blood-700 to-blood-400"
-              style={{ width: `${hpPct}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="px-5 pb-5">
-        <NotificationSettings />
-      </div>
-
-      <div className="px-5 pb-5">
-        <h2 className="mb-2 font-heading text-xs tracking-widest text-parchment-500 uppercase">
-          Logros
-        </h2>
-        <AchievementsList />
-      </div>
-
-      <div className="px-5 pb-8">
         <RewardsShop />
-      </div>
 
-      <div className="px-5 pb-8">
-        <BackupSettings />
-      </div>
-    </div>
+        <div className="cv-panel flex flex-col gap-3 p-3">
+          <SectionTitle>Configuración</SectionTitle>
+          <NotificationSettings />
+          <div className="ornate-divider" />
+          <BackupSettings />
+        </div>
+      </section>
+    </>
   )
 }
 
 export default ProfilePage
-

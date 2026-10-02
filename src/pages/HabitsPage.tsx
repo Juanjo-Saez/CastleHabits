@@ -1,47 +1,50 @@
 import { useState } from 'react'
-import HabitCard from '../components/HabitCard'
+import EmptyState from '../components/EmptyState'
+import ItemCard from '../components/ItemCard'
 import NewHabitForm from '../components/NewHabitForm'
 import PageHeader from '../components/PageHeader'
+import SectionTitle from '../components/SectionTitle'
 import { useItemsStore } from '../store/useItemsStore'
 
 function HabitsPage() {
   const items = useItemsStore((s) => s.items)
   const loading = useItemsStore((s) => s.loading)
   const [showForm, setShowForm] = useState(false)
-
-  const habits = items.filter((i) => i.type === 'habit' && !i.archived)
+  const habits = items.filter((item) => item.type === 'habit' && !item.archived)
 
   return (
-    <div>
-      <PageHeader title="Rituales Diarios" subtitle="Los hábitos que alimentan tu fuerza" />
-
-      <div className="flex justify-end px-5 pb-3">
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          className="font-heading text-xs tracking-wide text-gold-400 hover:text-gold-300"
+    <>
+      <PageHeader title="Rituales" subtitle="Enciende la vela y mantén tu pacto." />
+      <section className="relative z-10 flex flex-col gap-3 px-3">
+        <SectionTitle
+          action={
+            <button
+              type="button"
+              onClick={() => setShowForm((visible) => !visible)}
+              className="cv-btn cv-btn--gold px-2 py-1 text-base"
+            >
+              {showForm ? 'Cerrar' : '+ Nuevo'}
+            </button>
+          }
         >
-          {showForm ? 'Cerrar' : '+ Nuevo ritual'}
-        </button>
-      </div>
+          Hábitos diarios
+        </SectionTitle>
 
-      {showForm && <NewHabitForm onClose={() => setShowForm(false)} />}
+        {showForm && <NewHabitForm onClose={() => setShowForm(false)} />}
 
-      {!loading && habits.length === 0 && !showForm && (
-        <div className="flex flex-col items-center gap-3 px-6 py-16 text-center text-parchment-500">
-          <span className="text-3xl">🕯️</span>
-          <p className="font-body italic">
-            Aún no hay rituales grabados en el grimorio. Invoca el primero.
-          </p>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-2 px-5 pb-4">
-        {habits.map((item) => (
-          <HabitCard key={item.id} item={item} />
-        ))}
-      </div>
-    </div>
+        {loading ? (
+          <p className="py-8 text-center font-pixel text-xl text-silver-500">Cargando grimorio...</p>
+        ) : habits.length === 0 ? (
+          <EmptyState icon={<span className="text-4xl">🕯️</span>}>
+            No hay rituales. Añade un hábito para comenzar tu cacería diaria.
+          </EmptyState>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {habits.map((item) => <ItemCard key={item.id} item={item} />)}
+          </div>
+        )}
+      </section>
+    </>
   )
 }
 

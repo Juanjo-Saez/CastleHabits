@@ -11,32 +11,36 @@ function NotificationSettings() {
   )
 
   const handleEnable = async () => {
-    const result = await requestNotificationPermission()
-    setPermission(result)
+    setPermission(await requestNotificationPermission())
   }
 
-  let message = 'Actívalos para recibir un aviso si dejas tareas pendientes hoy.'
+  let status = 'Inactivos'
+  let hint = 'Recibe un aviso si quedan velas por encender.'
   if (!isNotificationSupported()) {
-    message = 'Este navegador no admite notificaciones.'
+    status = 'No disponible'
+    hint = 'Este navegador no admite notificaciones.'
   } else if (permission === 'granted') {
-    message = 'Activos mientras el Castillo permanezca abierto en una pestaña.'
+    status = 'Activos'
+    hint = 'Avisan mientras el castillo siga abierto en una pestaña.'
   } else if (permission === 'denied') {
-    message = 'Bloqueados. Actívalos desde los ajustes del navegador.'
+    status = 'Bloqueados'
+    hint = 'Actívalos desde los ajustes del navegador.'
   }
 
   return (
-    <div className="rounded-sm border border-gold-600/30 bg-crypt-900/60 p-4">
-      <p className="font-heading text-sm tracking-wide text-parchment-100">
-        Recordatorios
-      </p>
-      <p className="mt-1 text-xs italic text-parchment-500">{message}</p>
+    <div className="flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="cv-shadow font-pixel text-xl leading-none text-silver-100">
+          Recordatorios{' '}
+          <span className={permission === 'granted' ? 'text-gold-300' : 'text-silver-500'}>
+            [{status}]
+          </span>
+        </p>
+        <p className="mt-0.5 font-body text-sm text-silver-500 italic">{hint}</p>
+      </div>
       {isNotificationSupported() && permission === 'default' && (
-        <button
-          type="button"
-          onClick={() => void handleEnable()}
-          className="mt-3 rounded-sm border border-gold-500/60 bg-gold-500/10 px-4 py-1.5 font-heading text-xs tracking-wide text-gold-400 hover:bg-gold-500/20"
-        >
-          Activar recordatorios
+        <button type="button" onClick={() => void handleEnable()} className="cv-btn cv-btn--gold">
+          Activar
         </button>
       )}
     </div>

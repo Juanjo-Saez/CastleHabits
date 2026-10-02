@@ -28,3 +28,42 @@ export function playLevelUpChime(): void {
     // Silencioso si el navegador bloquea audio sin interacción previa del usuario.
   }
 }
+
+/** Chasquido de látigo: ráfaga de ruido con filtro que cae de agudo a grave. */
+export function playWhip(): void {
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext
+    const ctx = new AudioCtx()
+    const now = ctx.currentTime
+    const duration = 0.18
+
+    const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * duration), ctx.sampleRate)
+    const data = buffer.getChannelData(0)
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
+
+    const noise = ctx.createBufferSource()
+    noise.buffer = buffer
+    const filter = ctx.createBiquadFilter()
+    filter.type = 'bandpass'
+    filter.Q.value = 4
+    filter.frequency.setValueAtTime(5000, now)
+    filter.frequency.exponentialRampToValueAtTime(700, now + duration)
+    const gain = ctx.createGain()
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(0.5, now + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration)
+
+    noise.connect(filter)
+    filter.connect(gain)
+    gain.connect(ctx.destination)
+    noise.start(now)
+    noise.stop(now + duration)
+
+    setTimeout(() => void ctx.close(), 500)
+  } catch {
+    // Silencioso si el navegador bloquea audio.
+  }
+}

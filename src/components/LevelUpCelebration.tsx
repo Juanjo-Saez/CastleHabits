@@ -9,19 +9,18 @@ function LevelUpCelebration() {
   useEffect(() => {
     if (level === null) return
     playLevelUpChime()
-    const timeout = setTimeout(() => clearLevelUp(), 2600)
-    return () => clearTimeout(timeout)
+    const timeout = window.setTimeout(clearLevelUp, 2800)
+    return () => window.clearTimeout(timeout)
   }, [level, clearLevelUp])
 
   if (level === null) return null
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
-      <div className="animate-pulse rounded-sm border-2 border-gold-400 bg-crypt-950/95 px-8 py-6 text-center shadow-[0_0_40px_rgba(201,162,75,0.5)]">
-        <p className="font-display text-3xl text-gold-400">¡Subes de Nivel!</p>
-        <p className="mt-1 font-heading text-lg text-parchment-100">
-          Nivel {level}
-        </p>
+    <div className="pointer-events-none fixed inset-x-0 top-24 z-40 flex justify-center px-4">
+      <div className="cv-panel cv-panel--gold cv-float px-6 py-4 text-center">
+        <p className="cv-label text-gold-300">Ascensión</p>
+        <p className="cv-title mt-1 text-4xl">Nivel {level}</p>
+        <p className="mt-1 font-body text-silver-300 italic">El poder de la noche crece.</p>
       </div>
     </div>
   )

@@ -1,3 +1,6 @@
+import Hud from './Hud'
+import Ornament from './Ornament'
+
 function PageHeader({
   title,
   subtitle,
@@ -6,16 +9,15 @@ function PageHeader({
   subtitle?: string
 }>) {
   return (
-    <header className="sticky top-0 z-10 bg-crypt-950/95 px-5 pt-6 pb-4 backdrop-blur">
-      <h1 className="font-display text-2xl tracking-wide text-gold-400 [text-shadow:0_0_12px_rgba(201,162,75,0.35)]">
-        {title}
-      </h1>
+    <header className="sticky top-0 z-20 bg-gradient-to-b from-night-950 via-night-950/90 to-transparent px-4 pt-3 pb-5">
+      <Hud />
+      <h1 className="cv-title mt-4 text-center text-5xl">{title}</h1>
       {subtitle && (
-        <p className="mt-1 font-body text-sm italic text-parchment-500">
+        <p className="mt-1 text-center font-body text-sm text-silver-500 italic">
           {subtitle}
         </p>
       )}
-      <div className="ornate-divider mt-4" />
+      <Ornament className="mt-3" />
     </header>
   )
 }

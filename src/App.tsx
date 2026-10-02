@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
+import Backdrop from './components/Backdrop'
 import LevelUpCelebration from './components/LevelUpCelebration'
 import {
   countPendingToday,
@@ -72,9 +73,10 @@ function App() {
   }, [])
 
   return (
-    <div className="mx-auto flex h-full max-w-md flex-col border-x border-gold-600/30 bg-transparent">
+    <div className="relative mx-auto flex h-full max-w-md flex-col border-x border-gold-600/30 bg-transparent">
+      <Backdrop />
       <LevelUpCelebration />
-      <main className="flex-1 overflow-y-auto pb-20">
+      <main className="relative z-10 flex-1 overflow-y-auto pb-20">
         <Routes>
           <Route path="/" element={<HabitsPage />} />
           <Route path="/tareas" element={<ChoresPage />} />
@@ -83,7 +85,7 @@ function App() {
         </Routes>
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 mx-auto flex max-w-md border-t border-gold-600/40 bg-crypt-950/95 backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto flex max-w-md border-t border-gold-600/40 bg-crypt-950/95 backdrop-blur">
         <div className="ornate-divider absolute inset-x-0 top-0" />
         {tabs.map((tab) => (
           <NavLink

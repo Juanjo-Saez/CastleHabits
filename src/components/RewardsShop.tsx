@@ -1,9 +1,9 @@
 import { useState } from 'react'
+import { COIN, COIN_PALETTE } from '../lib/pixelArt'
 import { usePlayerStore } from '../store/usePlayerStore'
 import { useRewardsStore } from '../store/useRewardsStore'
-
-const inputClasses =
-  'rounded-sm border border-gold-600/30 bg-crypt-950 px-3 py-2 font-body text-sm text-parchment-100 placeholder:text-parchment-500/60 focus:border-gold-500 focus:outline-none'
+import PixelArt from './PixelArt'
+import SectionTitle from './SectionTitle'
 
 function RewardsShop() {
   const rewards = useRewardsStore((s) => s.rewards)
@@ -15,6 +15,7 @@ function RewardsShop() {
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [cost, setCost] = useState(10)
+  const [message, setMessage] = useState<string | null>(null)
 
   const handleAdd = async () => {
     if (!name.trim()) return
@@ -24,28 +25,37 @@ function RewardsShop() {
     setShowForm(false)
   }
 
+  const handleRedeem = async (rewardId: string, rewardName: string) => {
+    const ok = await redeem(rewardId)
+    setMessage(ok ? `«${rewardName}» es tuyo. Disfrútalo, cazador.` : null)
+  }
+
   return (
-    <div>
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="font-heading text-xs tracking-widest text-parchment-500 uppercase">
-          Reliquias y Recompensas
-        </h2>
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          className="font-heading text-xs tracking-wide text-gold-400 hover:text-gold-300"
-        >
-          {showForm ? 'Cerrar' : '+ Nueva'}
-        </button>
-      </div>
+    <div className="cv-panel p-3">
+      <SectionTitle
+        action={
+          <button
+            type="button"
+            onClick={() => setShowForm((v) => !v)}
+            className="cv-btn px-2 py-1 text-base"
+          >
+            {showForm ? 'Cerrar' : '+ Nueva'}
+          </button>
+        }
+      >
+        El Bibliotecario
+      </SectionTitle>
+      <p className="mb-3 font-body text-sm text-silver-500 italic">
+        «Tengo artículos muy raros... si puedes pagarlos.»
+      </p>
 
       {showForm && (
-        <div className="mb-3 flex flex-col gap-2 rounded-sm border border-gold-600/30 bg-crypt-900/80 p-3">
+        <div className="mb-3 flex flex-col gap-2">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Nombre de la recompensa..."
-            className={inputClasses}
+            placeholder="Ver un capítulo, un café, un capricho..."
+            className="cv-input"
           />
           <div className="flex gap-2">
             <input
@@ -53,66 +63,62 @@ function RewardsShop() {
               min={1}
               value={cost}
               onChange={(e) => setCost(Number(e.target.value))}
-              className={`${inputClasses} w-24`}
+              className="cv-input w-24"
+              aria-label="Precio en oro"
             />
             <button
               type="button"
               onClick={() => void handleAdd()}
-              className="flex-1 rounded-sm border border-gold-500/60 bg-gold-500/10 px-3 py-1.5 font-heading text-xs tracking-wide text-gold-400 hover:bg-gold-500/20"
+              className="cv-btn cv-btn--gold flex-1"
             >
-              Grabar en el grimorio
+              Añadir al catálogo
             </button>
           </div>
         </div>
       )}
 
       {rewards.length === 0 && !showForm && (
-        <p className="px-1 py-2 text-xs italic text-parchment-500">
-          Aún no has definido recompensas para canjear tus monedas.
-        </p>
+        <p className="py-2 font-pixel text-lg text-silver-700">— CATÁLOGO VACÍO —</p>
       )}
 
-      <div className="flex flex-col gap-2">
+      <ul className="flex flex-col divide-y divide-silver-700/30">
         {rewards.map((reward) => {
           const canAfford = coins >= reward.cost
           return (
-            <div
-              key={reward.id}
-              className="flex items-center gap-3 rounded-sm border border-gold-600/20 bg-crypt-900/60 px-4 py-3"
-            >
-              <span className="text-xl">💰</span>
-              <div className="min-w-0 flex-1">
-                <p className="font-heading text-sm tracking-wide text-parchment-100">
-                  {reward.name}
-                </p>
-                <p className="text-xs italic text-parchment-500">
-                  {reward.cost} monedas
-                </p>
-              </div>
+            <li key={reward.id} className="flex items-center gap-2 py-2">
+              <p
+                className={`cv-shadow min-w-0 flex-1 truncate font-pixel text-xl leading-none ${canAfford ? 'text-silver-100' : 'text-silver-500'}`}
+              >
+                {reward.name}
+              </p>
+              <span className="flex items-center gap-1 font-pixel text-xl leading-none text-gold-300">
+                <PixelArt rows={COIN} palette={COIN_PALETTE} scale={2} />
+                {reward.cost}
+              </span>
               <button
                 type="button"
                 disabled={!canAfford}
-                onClick={() => void redeem(reward.id)}
-                className={`rounded-sm border px-3 py-1.5 font-heading text-xs tracking-wide ${
-                  canAfford
-                    ? 'border-gold-500/60 bg-gold-500/10 text-gold-400 hover:bg-gold-500/20'
-                    : 'border-parchment-500/20 text-parchment-500/40'
-                }`}
+                onClick={() => void handleRedeem(reward.id, reward.name)}
+                className="cv-btn px-2 py-1 text-base"
               >
-                Canjear
+                Comprar
               </button>
               <button
                 type="button"
                 onClick={() => void removeReward(reward.id)}
-                className="text-parchment-500/50 hover:text-blood-400"
-                aria-label="Eliminar recompensa"
+                className="cv-btn cv-btn--ghost px-1 py-1 text-base hover:text-blood-400"
+                aria-label={`Eliminar ${reward.name}`}
               >
                 ✕
               </button>
-            </div>
+            </li>
           )
         })}
-      </div>
+      </ul>
+
+      {message && (
+        <p className="mt-2 font-body text-sm text-gold-300 italic">{message}</p>
+      )}
     </div>
   )
 }
