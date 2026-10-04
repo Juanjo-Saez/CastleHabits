@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { COIN, COIN_PALETTE } from '../lib/pixelArt'
+import { SYSTEM_RESOURCES } from '../lib/resources'
 import { usePlayerStore } from '../store/usePlayerStore'
 import { useRewardsStore } from '../store/useRewardsStore'
 import PixelArt from './PixelArt'
@@ -11,11 +12,22 @@ function RewardsShop() {
   const redeem = useRewardsStore((s) => s.redeem)
   const removeReward = useRewardsStore((s) => s.removeReward)
   const coins = usePlayerStore((s) => s.profile?.coins ?? 0)
+  const postponeTokens = usePlayerStore((s) => s.profile?.postponeTokens ?? 0)
+  const buyPostponeTokens = usePlayerStore((s) => s.buyPostponeTokens)
+  const vitalityPotions = usePlayerStore((s) => s.profile?.vitalityPotions ?? 0)
+  const hp = usePlayerStore((s) => s.profile?.hp ?? 0)
+  const maxHp = usePlayerStore((s) => s.profile?.maxHp ?? 0)
+  const buyVitalityPotion = usePlayerStore((s) => s.buyVitalityPotion)
+  const consumeVitalityPotion = usePlayerStore((s) => s.consumeVitalityPotion)
+  const streakFreezes = usePlayerStore((s) => s.profile?.streakFreezes ?? 0)
+  const buyStreakFreeze = usePlayerStore((s) => s.buyStreakFreeze)
 
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [cost, setCost] = useState(10)
   const [message, setMessage] = useState<string | null>(null)
+
+  const postponePacks = SYSTEM_RESOURCES.postponeToken.packPrices
 
   const handleAdd = async () => {
     if (!name.trim()) return
@@ -23,6 +35,27 @@ function RewardsShop() {
     setName('')
     setCost(10)
     setShowForm(false)
+  }
+
+  const handleBuyPostponeTokens = async (quantity: number, cost: number) => {
+    const ok = await buyPostponeTokens(quantity, cost)
+    const suffix = quantity === 1 ? '' : 's'
+    setMessage(ok ? `Has comprado ${quantity} sello${suffix} de aplazamiento.` : 'No tienes oro suficiente.')
+  }
+
+  const handleBuyVitalityPotion = async () => {
+    const ok = await buyVitalityPotion(SYSTEM_RESOURCES.vitalityPotion.cost)
+    setMessage(ok ? 'Has comprado una poción de vigor.' : 'No tienes oro suficiente.')
+  }
+
+  const handleUseVitalityPotion = async () => {
+    const ok = await consumeVitalityPotion()
+    setMessage(ok ? 'La poción restaura 10 puntos de vitalidad.' : 'No puedes usar una poción ahora.')
+  }
+
+  const handleBuyStreakFreeze = async () => {
+    const ok = await buyStreakFreeze(SYSTEM_RESOURCES.streakFreeze.cost)
+    setMessage(ok ? 'Has comprado una congelación de racha.' : 'No tienes oro suficiente.')
   }
 
   const handleRedeem = async (rewardId: string, rewardName: string) => {
@@ -48,6 +81,74 @@ function RewardsShop() {
       <p className="mb-3 font-body text-sm text-silver-500 italic">
         «Tengo artículos muy raros... si puedes pagarlos.»
       </p>
+
+      <div className="mb-3 border-y border-gold-600/30 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="cv-shadow font-pixel text-xl leading-none text-silver-100">
+              Sellos de aplazamiento
+            </p>
+            <p className="mt-1 font-body text-sm text-silver-500 italic">
+              Disponibles: {postponeTokens}. {SYSTEM_RESOURCES.postponeToken.description}
+            </p>
+          </div>
+        </div>
+        <div className="mt-2 grid grid-cols-3 gap-1.5">
+          {postponePacks.map((pack) => (
+            <button
+              key={pack.quantity}
+              type="button"
+              disabled={coins < pack.cost}
+              onClick={() => void handleBuyPostponeTokens(pack.quantity, pack.cost)}
+              className="cv-btn px-1 py-1 text-sm"
+            >
+              +{pack.quantity} · {pack.cost} oro
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-3 grid gap-2 border-b border-gold-600/30 pb-3 sm:grid-cols-2">
+        <div className="border border-silver-700/30 p-2">
+          <p className="cv-shadow font-pixel text-lg leading-none text-silver-100">Poción de vigor</p>
+          <p className="mt-1 font-body text-sm text-silver-500 italic">
+            Tienes {vitalityPotions}. {SYSTEM_RESOURCES.vitalityPotion.description}
+          </p>
+          <div className="mt-2 flex gap-1.5">
+            <button
+              type="button"
+              disabled={coins < SYSTEM_RESOURCES.vitalityPotion.cost}
+              onClick={() => void handleBuyVitalityPotion()}
+              className="cv-btn flex-1 px-1 py-1 text-sm"
+            >
+              Comprar · {SYSTEM_RESOURCES.vitalityPotion.cost}
+            </button>
+            <button
+              type="button"
+              disabled={vitalityPotions <= 0 || hp >= maxHp}
+              onClick={() => void handleUseVitalityPotion()}
+              className="cv-btn cv-btn--gold flex-1 px-1 py-1 text-sm"
+            >
+              Usar
+            </button>
+          </div>
+        </div>
+
+        <div className="border border-silver-700/30 p-2">
+          <p className="cv-shadow font-pixel text-lg leading-none text-silver-100">Congelación de racha</p>
+          <p className="mt-1 font-body text-sm text-silver-500 italic">
+            Disponibles: {streakFreezes}. {SYSTEM_RESOURCES.streakFreeze.description}
+          </p>
+          <button
+            type="button"
+            disabled={coins < SYSTEM_RESOURCES.streakFreeze.cost}
+            onClick={() => void handleBuyStreakFreeze()}
+            className="cv-btn mt-2 w-full px-1 py-1 text-sm"
+          >
+            Comprar · {SYSTEM_RESOURCES.streakFreeze.cost} oro
+          </button>
+        </div>
+      </div>
 
       {showForm && (
         <div className="mb-3 flex flex-col gap-2">

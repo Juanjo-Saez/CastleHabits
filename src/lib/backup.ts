@@ -1,30 +1,33 @@
 import { db } from '../db/database'
-import type { Achievement, Completion, Item, PlayerProfile, Reward } from '../types'
+import type { Achievement, Completion, Item, ItemEvent, PlayerProfile, Reward } from '../types'
 
 interface BackupData {
-  version: 1
+  version: 1 | 2
   exportedAt: string
   items: Item[]
   completions: Completion[]
+  itemEvents: ItemEvent[]
   profile: PlayerProfile[]
   achievements: Achievement[]
   rewards: Reward[]
 }
 
 export async function exportBackup(): Promise<void> {
-  const [items, completions, profile, achievements, rewards] = await Promise.all([
+  const [items, completions, itemEvents, profile, achievements, rewards] = await Promise.all([
     db.items.toArray(),
     db.completions.toArray(),
+    db.itemEvents.toArray(),
     db.profile.toArray(),
     db.achievements.toArray(),
     db.rewards.toArray(),
   ])
 
   const data: BackupData = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     items,
     completions,
+    itemEvents,
     profile,
     achievements,
     rewards,
@@ -43,15 +46,18 @@ export async function exportBackup(): Promise<void> {
 export async function importBackup(file: File): Promise<void> {
   const text = await file.text()
   const data = JSON.parse(text) as BackupData
-  if (data.version !== 1) throw new Error('Versión de backup no soportada')
+  if (data.version !== 1 && data.version !== 2) throw new Error('Versión de backup no soportada')
+
+  const itemEvents = data.version === 2 ? data.itemEvents : []
 
   await db.transaction(
     'rw',
-    [db.items, db.completions, db.profile, db.achievements, db.rewards],
+    [db.items, db.completions, db.itemEvents, db.profile, db.achievements, db.rewards],
     async () => {
       await Promise.all([
         db.items.clear(),
         db.completions.clear(),
+        db.itemEvents.clear(),
         db.profile.clear(),
         db.achievements.clear(),
         db.rewards.clear(),
@@ -59,6 +65,7 @@ export async function importBackup(file: File): Promise<void> {
       await Promise.all([
         db.items.bulkAdd(data.items),
         db.completions.bulkAdd(data.completions),
+        db.itemEvents.bulkAdd(itemEvents),
         db.profile.bulkAdd(data.profile),
         db.achievements.bulkAdd(data.achievements),
         db.rewards.bulkAdd(data.rewards),

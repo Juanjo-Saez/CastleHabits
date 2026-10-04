@@ -1,10 +1,11 @@
-import { isToday, parseISO } from 'date-fns'
+import { parseISO } from 'date-fns'
 import { useState } from 'react'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
-import { describeRecurrence, isDueOn, isObligation } from '../lib/recurrence'
+import { describeRecurrence, isItemDueOn, isObligation } from '../lib/recurrence'
 import { playWhip } from '../lib/sound'
 import { computeStreak } from '../lib/streak'
 import { useItemsStore } from '../store/useItemsStore'
+import { usePlayerStore } from '../store/usePlayerStore'
 import type { Item } from '../types'
 import Candle from './Candle'
 import Skulls from './Skulls'
@@ -16,9 +17,24 @@ interface RewardPopup {
 }
 
 function isDueTodayBadge(item: Item): boolean {
-  if (item.type === 'chore') return isDueOn(item.recurrenceRule, new Date())
-  if (item.type === 'todo') return Boolean(item.dueDate && isToday(parseISO(item.dueDate)))
-  return false
+  return item.type !== 'habit' && isItemDueOn(item, new Date())
+}
+
+function getItemMeta(item: Item, effectiveDueDate?: string | null): string[] {
+  const meta: string[] = []
+  if (item.zone) meta.push(item.zone)
+  if (item.type === 'chore' && item.recurrenceRule) meta.push(describeRecurrence(item.recurrenceRule))
+  if (item.type === 'todo' && effectiveDueDate) {
+    meta.push(`vence ${effectiveDueDate}`)
+    if (item.postponedUntil) meta.push('aplazada')
+  }
+  return meta
+}
+
+function getFrameClass(done: boolean, overdue: boolean): string {
+  if (done) return 'cv-panel--gold'
+  if (overdue) return 'cv-panel--blood'
+  return ''
 }
 
 function ItemCard({ item }: Readonly<{ item: Item }>) {
@@ -26,6 +42,8 @@ function ItemCard({ item }: Readonly<{ item: Item }>) {
   const history = useItemsStore((s) => s.completionsByItem[item.id]) ?? []
   const toggleBoolean = useItemsStore((s) => s.toggleBoolean)
   const adjustQuantity = useItemsStore((s) => s.adjustQuantity)
+  const postponeItem = useItemsStore((s) => s.postponeItem)
+  const postponeTokens = usePlayerStore((s) => s.profile?.postponeTokens ?? 0)
   const [popup, setPopup] = useState<RewardPopup | null>(null)
 
   const isBoolean = item.trackingType === 'boolean'
@@ -35,20 +53,16 @@ function ItemCard({ item }: Readonly<{ item: Item }>) {
   const step = Math.max(1, Math.round(goal / 10))
   const streak = computeStreak(item, history)
   const dueToday = isDueTodayBadge(item)
+  const effectiveDueDate = item.postponedUntil ?? item.dueDate
   const overdue =
     item.type === 'todo' &&
-    Boolean(item.dueDate) &&
+    Boolean(effectiveDueDate) &&
     !done &&
-    parseISO(item.dueDate as string) < new Date(new Date().setHours(0, 0, 0, 0))
+    parseISO(effectiveDueDate as string) < new Date(new Date().setHours(0, 0, 0, 0))
+  const canPostpone = isObligation(item) && dueToday && !done && postponeTokens > 0
 
-  let frameClass = ''
-  if (done) frameClass = 'cv-panel--gold'
-  else if (overdue) frameClass = 'cv-panel--blood'
-
-  const meta: string[] = []
-  if (item.zone) meta.push(item.zone)
-  if (item.type === 'chore' && item.recurrenceRule) meta.push(describeRecurrence(item.recurrenceRule))
-  if (item.type === 'todo' && item.dueDate) meta.push(`vence ${item.dueDate}`)
+  const frameClass = getFrameClass(done, overdue)
+  const meta = getItemMeta(item, effectiveDueDate)
 
   const showReward = (direction: 1 | -1) => {
     playWhip()
@@ -74,6 +88,10 @@ function ItemCard({ item }: Readonly<{ item: Item }>) {
   const handleSubtractQuantity = () => {
     if (qty >= goal && qty - step < goal) showReward(-1)
     void adjustQuantity(item.id, -step)
+  }
+
+  const handlePostpone = () => {
+    void postponeItem(item.id)
   }
 
   let candleLabel = done ? 'Apagar vela' : 'Encender vela'
@@ -126,6 +144,17 @@ function ItemCard({ item }: Readonly<{ item: Item }>) {
           </div>
         )}
       </div>
+
+      {canPostpone && (
+        <button
+          type="button"
+          onClick={handlePostpone}
+          className="cv-btn cv-btn--ghost shrink-0 px-2 py-1 text-sm"
+          aria-label={`Posponer ${item.title}`}
+        >
+          Mañana
+        </button>
+      )}
 
       {!isBoolean && (
         <button

@@ -6,6 +6,14 @@ export type TrackingType = 'boolean' | 'quantity'
 
 export type ItemCommitment = 'obligation' | 'sideQuest'
 
+export type ItemEventKind =
+  | 'completed'
+  | 'missed'
+  | 'lateRecovery'
+  | 'partialProgress'
+  | 'undone'
+  | 'postponed'
+
 export interface Item {
   id: string
   type: ItemType
@@ -24,6 +32,9 @@ export interface Item {
   unit?: string
   /** Solo para todos puntuales, ISO date. */
   dueDate?: string | null
+  /** Aplazamiento activo de la aparición actual, si existe. */
+  postponedFrom?: string
+  postponedUntil?: string
   archived: boolean
   createdAt: string
 }
@@ -39,11 +50,31 @@ export interface Completion {
   createdAt: string
 }
 
+export interface ItemEvent {
+  id: string
+  itemId: string
+  itemTitle: string
+  itemType: ItemType
+  commitment?: ItemCommitment
+  kind: ItemEventKind
+  /** Fecha de la aparición de la tarea, no necesariamente la fecha del evento. */
+  scheduledDate: string
+  occurredAt: string
+  quantityGoal?: number
+  quantityDone?: number
+  damage?: number
+  xpEarned?: number
+  coinsEarned?: number
+  postponedUntil?: string
+}
+
 export interface PlayerProfile {
   id: number
   level: number
   xp: number
   coins: number
+  postponeTokens: number
+  vitalityPotions: number
   hp: number
   maxHp: number
   streakFreezes: number

@@ -1,6 +1,7 @@
 import { addDays, format, isBefore, parseISO, startOfDay } from 'date-fns'
+import { buildItemEvent, itemEventId } from './itemEvents'
 import { isCompletedOn, isItemDueOn, isObligation } from './recurrence'
-import type { Completion, Item } from '../types'
+import type { Completion, Item, ItemEvent } from '../types'
 
 /**
  * Daño por una racha de incumplimientos: 1, 1, 2, 2, 3, 4, 5...
@@ -44,23 +45,50 @@ export function computeMissedPenalties(
   items: Item[],
   completionsByItem: Record<string, Completion[]>,
   lastCheckedDate: string | undefined,
-): { totalDamage: number; newLastChecked: string } {
+  availableStreakFreezes = 0,
+): { totalDamage: number; newLastChecked: string; missedEvents: ItemEvent[]; freezesUsed: number } {
   const yesterday = addDays(startOfDay(new Date()), -1)
   let cursor = lastCheckedDate ? addDays(parseISO(lastCheckedDate), 1) : yesterday
+  const streaks = new Map<string, number>()
 
   let totalDamage = 0
+  let freezesUsed = 0
+  const missedEvents: ItemEvent[] = []
+  for (const item of items) {
+    streaks.set(item.id, missedStreakBefore(item, cursor, completionsByItem[item.id] ?? []))
+  }
+
   while (!isBefore(yesterday, cursor)) {
     const key = format(cursor, 'yyyy-MM-dd')
     for (const item of items) {
       if (item.archived || !isObligation(item)) continue
       if (!isItemDueOn(item, cursor)) continue
-      if (!isCompletedOn(item, completionsByItem[item.id] ?? [], key)) {
-        const streak = missedStreakBefore(item, cursor, completionsByItem[item.id] ?? []) + 1
-        totalDamage += damageForMissedStreak(streak)
+      const completions = completionsByItem[item.id] ?? []
+      if (isCompletedOn(item, completions, key)) {
+        streaks.set(item.id, 0)
+        continue
       }
+
+      if (freezesUsed < availableStreakFreezes) {
+        freezesUsed += 1
+        continue
+      }
+
+      const streak = (streaks.get(item.id) ?? 0) + 1
+      streaks.set(item.id, streak)
+      const damage = damageForMissedStreak(streak)
+      totalDamage += damage
+      missedEvents.push(
+        buildItemEvent(item, 'missed', key, { damage }, itemEventId(item.id, key, 'missed')),
+      )
     }
     cursor = addDays(cursor, 1)
   }
 
-  return { totalDamage, newLastChecked: format(yesterday, 'yyyy-MM-dd') }
+  return {
+    totalDamage,
+    newLastChecked: format(yesterday, 'yyyy-MM-dd'),
+    missedEvents,
+    freezesUsed,
+  }
 }

@@ -3,6 +3,7 @@ import { NavLink, Route, Routes } from 'react-router-dom'
 import Backdrop from './components/Backdrop'
 import HardcoreDeath from './components/HardcoreDeath'
 import LevelUpCelebration from './components/LevelUpCelebration'
+import { db } from './db/database'
 import {
   countPendingToday,
   getNotificationPermission,
@@ -41,11 +42,16 @@ function App() {
       const profile = usePlayerStore.getState().profile
       if (!profile) return
 
-      const { totalDamage, newLastChecked } = computeMissedPenalties(
+      const { totalDamage, newLastChecked, missedEvents, freezesUsed } = computeMissedPenalties(
         items,
         completionsByItem,
         profile.lastPenaltyCheck,
+        profile.streakFreezes,
       )
+      if (missedEvents.length > 0) await db.itemEvents.bulkPut(missedEvents)
+      if (freezesUsed > 0) {
+        await usePlayerStore.getState().setStreakFreezes(profile.streakFreezes - freezesUsed)
+      }
       if (totalDamage > 0) await usePlayerStore.getState().applyDamage(totalDamage)
       await usePlayerStore.getState().setLastPenaltyCheck(newLastChecked)
 

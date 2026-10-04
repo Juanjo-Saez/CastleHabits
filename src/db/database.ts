@@ -3,6 +3,7 @@ import type {
   Achievement,
   Completion,
   Item,
+  ItemEvent,
   PlayerProfile,
   Reward,
 } from '../types'
@@ -12,6 +13,7 @@ const PLAYER_PROFILE_ID = 1
 export class AppDatabase extends Dexie {
   items!: Table<Item, string>
   completions!: Table<Completion, string>
+  itemEvents!: Table<ItemEvent, string>
   profile!: Table<PlayerProfile, number>
   achievements!: Table<Achievement, string>
   rewards!: Table<Reward, string>
@@ -21,6 +23,14 @@ export class AppDatabase extends Dexie {
     this.version(1).stores({
       items: 'id, type',
       completions: 'id, itemId, date, [itemId+date]',
+      profile: 'id',
+      achievements: 'id',
+      rewards: 'id',
+    })
+    this.version(2).stores({
+      items: 'id, type',
+      completions: 'id, itemId, date, [itemId+date]',
+      itemEvents: 'id, itemId, kind, scheduledDate, [itemId+scheduledDate+kind]',
       profile: 'id',
       achievements: 'id',
       rewards: 'id',
@@ -39,6 +49,8 @@ export async function ensurePlayerProfile(): Promise<PlayerProfile> {
     level: 1,
     xp: 0,
     coins: 0,
+    postponeTokens: 0,
+    vitalityPotions: 0,
     hp: 50,
     maxHp: 50,
     streakFreezes: 0,

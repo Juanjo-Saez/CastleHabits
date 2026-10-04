@@ -1,4 +1,4 @@
-import { isBefore, isSameDay, parseISO, startOfDay } from 'date-fns'
+import { format, isBefore, isSameDay, parseISO, startOfDay } from 'date-fns'
 import { RRule } from 'rrule'
 import type { Completion, Item } from '../types'
 
@@ -105,12 +105,25 @@ export function describeRecurrence(
 
 /** ¿El item "debe" hacerse en esa fecha? Los hábitos sin recurrenceRule son diarios. */
 export function isItemDueOn(item: Item, date: Date): boolean {
+  const dateKey = format(date, 'yyyy-MM-dd')
+  if (item.postponedUntil === dateKey) return true
+  if (item.postponedFrom === dateKey && item.postponedUntil !== dateKey) return false
   if (item.type === 'todo') {
     return Boolean(item.dueDate && isSameDay(parseISO(item.dueDate), date))
   }
   if (isBefore(startOfDay(date), startOfDay(parseISO(item.createdAt)))) return false
   if (!item.recurrenceRule) return true
   return isDueOn(item.recurrenceRule, date)
+}
+
+/** Fecha de la aparición original representada por la tarea en una fecha concreta. */
+export function scheduledDateFor(item: Item, date: Date): string {
+  const dateKey = format(date, 'yyyy-MM-dd')
+  if (item.postponedFrom && item.postponedUntil && dateKey >= item.postponedUntil) {
+    return item.postponedFrom
+  }
+  if (item.type === 'todo' && item.dueDate) return item.dueDate
+  return dateKey
 }
 
 /** ¿Se completó el item en esa fecha (yyyy-MM-dd), según su tipo de seguimiento? */
