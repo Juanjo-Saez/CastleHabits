@@ -1,7 +1,7 @@
 import { isToday, parseISO } from 'date-fns'
 import { useState } from 'react'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
-import { describeRecurrence, isDueOn } from '../lib/recurrence'
+import { describeRecurrence, isDueOn, isObligation } from '../lib/recurrence'
 import { playWhip } from '../lib/sound'
 import { computeStreak } from '../lib/streak'
 import { useItemsStore } from '../store/useItemsStore'
@@ -99,6 +99,7 @@ function ItemCard({ item }: Readonly<{ item: Item }>) {
             {item.title}
           </p>
           {dueToday && !done && <span className="cv-tag cv-tag--gold">Hoy</span>}
+          {!isObligation(item) && <span className="cv-tag cv-tag--gold">Misión</span>}
           {overdue && <span className="cv-tag cv-tag--blood">Vencida</span>}
         </div>
 

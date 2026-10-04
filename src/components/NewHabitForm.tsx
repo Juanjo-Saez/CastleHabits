@@ -16,6 +16,7 @@ function NewHabitForm({ onClose }: Readonly<{ onClose: () => void }>) {
     if (!title.trim()) return
     await addItem({
       type: 'habit',
+      commitment: 'sideQuest',
       title: title.trim(),
       difficulty,
       trackingType,
@@ -33,7 +34,7 @@ function NewHabitForm({ onClose }: Readonly<{ onClose: () => void }>) {
       }}
       className="cv-panel flex flex-col gap-3 p-3"
     >
-      <SectionTitle>Nuevo ritual</SectionTitle>
+      <SectionTitle>Nueva misión secundaria</SectionTitle>
 
       <label className="flex flex-col gap-1">
         <span className="cv-label">Nombre</span>

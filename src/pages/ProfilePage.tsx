@@ -45,6 +45,20 @@ function ProfilePage() {
 
         <RewardsShop />
 
+        <div className="cv-panel cv-panel--blood p-3">
+          <SectionTitle>Modo de juego</SectionTitle>
+          <div className="mt-2 flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="cv-shadow font-pixel text-xl leading-none text-silver-100">
+                Hardcore [ACTIVO]
+              </p>
+              <p className="mt-1 font-body text-sm text-silver-500 italic">
+                Es una regla permanente: si la vitalidad llega a cero, la expedición termina y tendrás que renacer desde el nivel 1.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="cv-panel flex flex-col gap-3 p-3">
           <SectionTitle>Configuración</SectionTitle>
           <NotificationSettings />

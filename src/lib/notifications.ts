@@ -1,5 +1,5 @@
 import { todayKey } from './date'
-import { isItemDueOn } from './recurrence'
+import { isItemDueOn, isObligation } from './recurrence'
 import type { Completion, Item } from '../types'
 
 const LAST_REMINDER_KEY = 'habitos:lastReminderDate'
@@ -47,7 +47,7 @@ export function markRemindedToday(): void {
   localStorage.setItem(LAST_REMINDER_KEY, new Date().toDateString())
 }
 
-/** Cuenta hábitos, tareas y todos debidos hoy que aún no se han completado. */
+/** Cuenta obligaciones debidas hoy; las misiones secundarias no generan deuda. */
 export function countPendingToday(
   items: Item[],
   completionsToday: Record<string, Completion>,
@@ -57,7 +57,7 @@ export function countPendingToday(
   let pending = 0
 
   for (const item of items) {
-    if (item.archived) continue
+    if (item.archived || !isObligation(item)) continue
 
     if (item.type === 'todo') {
       if (item.dueDate && item.dueDate <= key && !completionsToday[item.id]) {

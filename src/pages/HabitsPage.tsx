@@ -14,7 +14,7 @@ function HabitsPage() {
 
   return (
     <>
-      <PageHeader title="Rituales" subtitle="Enciende la vela y mantén tu pacto." />
+      <PageHeader title="Misiones" subtitle="Mejora tu poder sin convertirlo en una deuda." />
       <section className="relative z-10 flex flex-col gap-3 px-3">
         <SectionTitle
           action={
@@ -27,7 +27,7 @@ function HabitsPage() {
             </button>
           }
         >
-          Hábitos diarios
+          Misiones secundarias
         </SectionTitle>
 
         {showForm && <NewHabitForm onClose={() => setShowForm(false)} />}
@@ -36,7 +36,7 @@ function HabitsPage() {
           <p className="py-8 text-center font-pixel text-xl text-silver-500">Cargando grimorio...</p>
         ) : habits.length === 0 ? (
           <EmptyState icon={<span className="text-4xl">🕯️</span>}>
-            No hay rituales. Añade un hábito para comenzar tu cacería diaria.
+            No hay misiones secundarias. Añade ejercicio, lectura u ocio para ganar recompensas.
           </EmptyState>
         ) : (
           <div className="flex flex-col gap-2">

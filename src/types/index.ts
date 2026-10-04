@@ -4,9 +4,13 @@ export type Difficulty = 'trivial' | 'easy' | 'medium' | 'hard'
 
 export type TrackingType = 'boolean' | 'quantity'
 
+export type ItemCommitment = 'obligation' | 'sideQuest'
+
 export interface Item {
   id: string
   type: ItemType
+  /** Las misiones secundarias recompensan, pero nunca causan daño por incumplimiento. */
+  commitment?: ItemCommitment
   title: string
   icon?: string
   /** Solo para chores: zona/estancia del castillo (ej. "Cocina"). */
@@ -43,6 +47,9 @@ export interface PlayerProfile {
   hp: number
   maxHp: number
   streakFreezes: number
+  /** Modo Hardcore: al llegar a 0 HP la partida termina. */
+  hardcore: boolean
+  dead: boolean
   /** Último día (yyyy-MM-dd) hasta el que ya se aplicó el daño por tareas vencidas. */
   lastPenaltyCheck?: string
 }

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { db, ensurePlayerProfile } from '../db/database'
+import { todayKey } from '../lib/date'
 import { xpToNextLevel } from '../lib/gamification'
 import type { PlayerProfile } from '../types'
 
@@ -13,6 +14,7 @@ interface PlayerState {
   awardCompletion: (xp: number, coins: number) => Promise<void>
   revertCompletion: (xp: number, coins: number) => Promise<void>
   applyDamage: (amount: number) => Promise<void>
+  restartRun: () => Promise<void>
   setLastPenaltyCheck: (date: string) => Promise<void>
   spendCoins: (amount: number) => Promise<boolean>
 }
@@ -26,12 +28,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   load: async () => {
     const profile = await ensurePlayerProfile()
-    set({ profile, loading: false })
+    const normalized = {
+      ...profile,
+      hardcore: true,
+      dead: Boolean(profile.dead),
+    }
+    if (normalized.hardcore !== profile.hardcore || normalized.dead !== profile.dead) {
+      await db.profile.put(normalized)
+    }
+    set({ profile: normalized, loading: false })
   },
 
   awardCompletion: async (xp, coins) => {
     const current = get().profile
-    if (!current) return
+    if (!current || current.dead) return
 
     let { level, xp: currentXp, maxHp } = current
     currentXp += xp
@@ -58,7 +68,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   // Simplificado: no revierte subidas de nivel, solo resta XP/monedas dentro del nivel actual.
   revertCompletion: async (xp, coins) => {
     const current = get().profile
-    if (!current) return
+    if (!current || current.dead) return
 
     const updated: PlayerProfile = {
       ...current,
@@ -71,14 +81,37 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   applyDamage: async (amount) => {
     const current = get().profile
-    if (!current || amount <= 0) return
+    if (!current || current.dead || amount <= 0) return
+
+    const nextHp = Math.max(0, current.hp - amount)
+    const died = nextHp === 0
 
     const updated: PlayerProfile = {
       ...current,
-      hp: Math.max(0, current.hp - amount),
+      hp: nextHp,
+      dead: died,
     }
     await db.profile.put(updated)
     set({ profile: updated })
+  },
+
+  restartRun: async () => {
+    const current = get().profile
+    if (!current) return
+
+    const updated: PlayerProfile = {
+      ...current,
+      level: 1,
+      xp: 0,
+      coins: 0,
+      hp: 50,
+      maxHp: 50,
+      streakFreezes: 0,
+      dead: false,
+      lastPenaltyCheck: todayKey(),
+    }
+    await db.profile.put(updated)
+    set({ profile: updated, justLeveledUp: null })
   },
 
   setLastPenaltyCheck: async (date) => {
@@ -92,7 +125,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   spendCoins: async (amount) => {
     const current = get().profile
-    if (!current || current.coins < amount) return false
+    if (!current || current.dead || current.coins < amount) return false
 
     const updated: PlayerProfile = { ...current, coins: current.coins - amount }
     await db.profile.put(updated)

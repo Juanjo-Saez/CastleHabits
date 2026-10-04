@@ -1,8 +1,13 @@
-import { isBefore, parseISO, startOfDay } from 'date-fns'
+import { isBefore, isSameDay, parseISO, startOfDay } from 'date-fns'
 import { RRule } from 'rrule'
 import type { Completion, Item } from '../types'
 
 export type RecurrenceKind = 'daily' | 'interval' | 'weekdays' | 'monthly'
+
+/** Los registros antiguos no tienen commitment y se conservan como obligaciones. */
+export function isObligation(item: Item): boolean {
+  return item.commitment !== 'sideQuest'
+}
 
 export interface RecurrenceInput {
   kind: RecurrenceKind
@@ -100,7 +105,9 @@ export function describeRecurrence(
 
 /** ¿El item "debe" hacerse en esa fecha? Los hábitos sin recurrenceRule son diarios. */
 export function isItemDueOn(item: Item, date: Date): boolean {
-  if (item.type === 'todo') return false
+  if (item.type === 'todo') {
+    return Boolean(item.dueDate && isSameDay(parseISO(item.dueDate), date))
+  }
   if (isBefore(startOfDay(date), startOfDay(parseISO(item.createdAt)))) return false
   if (!item.recurrenceRule) return true
   return isDueOn(item.recurrenceRule, date)

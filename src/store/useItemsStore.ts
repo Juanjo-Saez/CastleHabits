@@ -9,12 +9,14 @@ import type {
   Completion,
   Difficulty,
   Item,
+  ItemCommitment,
   ItemType,
   TrackingType,
 } from '../types'
 
 export interface NewItemInput {
   type: ItemType
+  commitment?: ItemCommitment
   title: string
   icon?: string
   zone?: string

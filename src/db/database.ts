@@ -42,6 +42,8 @@ export async function ensurePlayerProfile(): Promise<PlayerProfile> {
     hp: 50,
     maxHp: 50,
     streakFreezes: 0,
+    hardcore: true,
+    dead: false,
   }
 
   try {

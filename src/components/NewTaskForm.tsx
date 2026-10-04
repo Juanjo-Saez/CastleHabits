@@ -38,6 +38,7 @@ function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
       )
       await addItem({
         type: 'chore',
+        commitment: 'obligation',
         title: title.trim(),
         zone: zone.trim() || undefined,
         difficulty,
@@ -47,6 +48,7 @@ function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
     } else {
       await addItem({
         type: 'todo',
+        commitment: 'obligation',
         title: title.trim(),
         difficulty,
         trackingType: 'boolean',

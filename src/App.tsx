@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
 import Backdrop from './components/Backdrop'
+import HardcoreDeath from './components/HardcoreDeath'
 import LevelUpCelebration from './components/LevelUpCelebration'
 import {
   countPendingToday,
@@ -76,6 +77,7 @@ function App() {
     <div className="relative mx-auto flex h-full max-w-md flex-col border-x border-gold-600/30 bg-transparent">
       <Backdrop />
       <LevelUpCelebration />
+      <HardcoreDeath />
       <main className="relative z-10 flex-1 overflow-y-auto pb-20">
         <Routes>
           <Route path="/" element={<HabitsPage />} />
