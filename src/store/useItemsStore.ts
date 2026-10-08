@@ -25,6 +25,7 @@ export interface NewItemInput {
   zone?: string
   difficulty: Difficulty
   recurrenceRule?: string | null
+  startDate?: string
   trackingType: TrackingType
   quantityGoal?: number
   unit?: string

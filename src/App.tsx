@@ -12,6 +12,7 @@ import {
   showReminder,
 } from './lib/notifications'
 import { computeMissedPenalties } from './lib/penalties'
+import CalendarPage from './pages/CalendarPage'
 import ChoresPage from './pages/ChoresPage'
 import HabitsPage from './pages/HabitsPage'
 import ProfilePage from './pages/ProfilePage'
@@ -24,6 +25,7 @@ import { useRewardsStore } from './store/useRewardsStore'
 const tabs = [
   { to: '/', label: 'Hábitos', icon: '🕯️', end: true },
   { to: '/tareas', label: 'Castillo', icon: '🏰' },
+  { to: '/calendario', label: 'Calendario', icon: '🗓️' },
   { to: '/stats', label: 'Crónicas', icon: '📜' },
   { to: '/perfil', label: 'Cazador', icon: '🧛' },
 ]
@@ -88,6 +90,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HabitsPage />} />
           <Route path="/tareas" element={<ChoresPage />} />
+          <Route path="/calendario" element={<CalendarPage />} />
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
         </Routes>

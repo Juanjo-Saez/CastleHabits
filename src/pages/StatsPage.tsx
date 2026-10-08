@@ -1,13 +1,23 @@
-import { format, subDays } from 'date-fns'
+import { format, parseISO, subDays } from 'date-fns'
+import { useState } from 'react'
+import DayDetail from '../components/DayDetail'
 import PageHeader from '../components/PageHeader'
 import RelicsGrid from '../components/RelicsGrid'
 import SectionTitle from '../components/SectionTitle'
 import { buildDailyStats } from '../lib/stats'
 import { useItemsStore } from '../store/useItemsStore'
 
+function intensityClass(ratio: number | null): string {
+  if (ratio === null) return 'bg-night-950'
+  if (ratio >= 0.8) return 'bg-gold-400'
+  if (ratio >= 0.5) return 'bg-gold-600'
+  return 'bg-blood-700'
+}
+
 function StatsPage() {
   const items = useItemsStore((s) => s.items)
   const completionsByItem = useItemsStore((s) => s.completionsByItem)
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const stats = buildDailyStats(items, completionsByItem, 35)
   const activeDays = stats.filter((day) => day.ratio !== null)
   const completed = stats.reduce((sum, day) => sum + day.completions, 0)
@@ -36,12 +46,17 @@ function StatsPage() {
           <SectionTitle>Mapa de constancia</SectionTitle>
           <div className="mt-3 grid grid-cols-7 gap-1.5">
             {stats.map((day) => {
-              const intensity = day.ratio === null ? 'bg-night-950' : day.ratio >= 0.8 ? 'bg-gold-400' : day.ratio >= 0.5 ? 'bg-gold-600' : 'bg-blood-700'
+              const label = `${format(parseISO(day.key), 'dd/MM')}: ${day.completions} completadas`
+              const border = selectedDay === day.key ? 'border-silver-100' : 'border-silver-700/40'
               return (
-                <div
+                <button
                   key={day.key}
-                  title={`${format(new Date(`${day.key}T12:00:00`), 'dd/MM')}: ${day.completions} completadas`}
-                  className={`aspect-square border border-silver-700/40 ${intensity}`}
+                  type="button"
+                  onClick={() => setSelectedDay((current) => (current === day.key ? null : day.key))}
+                  aria-pressed={selectedDay === day.key}
+                  aria-label={label}
+                  title={label}
+                  className={`aspect-square border ${border} ${intensityClass(day.ratio)}`}
                 />
               )
             })}
@@ -50,6 +65,11 @@ function StatsPage() {
             <span>{format(subDays(new Date(), 34), 'dd/MM')}</span>
             <span>Hoy</span>
           </div>
+          {selectedDay && (
+            <div className="mt-3 border-t border-gold-600/30 pt-3">
+              <DayDetail date={parseISO(selectedDay)} />
+            </div>
+          )}
         </div>
 
         <div className="cv-panel p-3">

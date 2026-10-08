@@ -1,5 +1,6 @@
-import { parseISO } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { useState } from 'react'
+import { describeDaysLeft } from '../lib/date'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
 import { describeRecurrence, isItemDueOn, isObligation } from '../lib/recurrence'
 import { playWhip } from '../lib/sound'
@@ -25,7 +26,7 @@ function getItemMeta(item: Item, effectiveDueDate?: string | null): string[] {
   if (item.zone) meta.push(item.zone)
   if (item.type === 'chore' && item.recurrenceRule) meta.push(describeRecurrence(item.recurrenceRule))
   if (item.type === 'todo' && effectiveDueDate) {
-    meta.push(`vence ${effectiveDueDate}`)
+    meta.push(describeDaysLeft(effectiveDueDate), `vence ${format(parseISO(effectiveDueDate), 'dd/MM')}`)
     if (item.postponedUntil) meta.push('aplazada')
   }
   return meta

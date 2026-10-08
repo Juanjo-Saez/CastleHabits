@@ -4,13 +4,17 @@ import ItemCard from '../components/ItemCard'
 import NewHabitForm from '../components/NewHabitForm'
 import PageHeader from '../components/PageHeader'
 import SectionTitle from '../components/SectionTitle'
+import { sortTasks } from '../lib/taskSort'
 import { useItemsStore } from '../store/useItemsStore'
 
 function HabitsPage() {
   const items = useItemsStore((s) => s.items)
   const loading = useItemsStore((s) => s.loading)
   const [showForm, setShowForm] = useState(false)
-  const habits = items.filter((item) => item.type === 'habit' && !item.archived)
+  const habits = sortTasks(
+    items.filter((item) => item.type === 'habit' && !item.archived),
+    'difficulty',
+  )
 
   return (
     <>

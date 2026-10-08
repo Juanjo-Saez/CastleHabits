@@ -26,6 +26,8 @@ export interface Item {
   difficulty: Difficulty
   /** Regla RRULE en texto. null/undefined para todos puntuales. */
   recurrenceRule?: string | null
+  /** Primer día (yyyy-MM-dd) en que la recurrencia entra en vigor; antes no cuenta como debida. */
+  startDate?: string
   trackingType: TrackingType
   /** Meta a alcanzar cuando trackingType es "quantity" (ej. 100 sentadillas). */
   quantityGoal?: number
