@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { COIN, COIN_PALETTE } from '../lib/pixelArt'
 import { SYSTEM_RESOURCES } from '../lib/resources'
+import { effectiveMaxHp, shopPrice } from '../lib/routes'
 import { usePlayerStore } from '../store/usePlayerStore'
 import { useRewardsStore } from '../store/useRewardsStore'
 import PixelArt from './PixelArt'
@@ -16,7 +17,8 @@ function RewardsShop() {
   const buyPostponeTokens = usePlayerStore((s) => s.buyPostponeTokens)
   const vitalityPotions = usePlayerStore((s) => s.profile?.vitalityPotions ?? 0)
   const hp = usePlayerStore((s) => s.profile?.hp ?? 0)
-  const maxHp = usePlayerStore((s) => s.profile?.maxHp ?? 0)
+  const maxHp = usePlayerStore((s) => (s.profile ? effectiveMaxHp(s.profile) : 0))
+  const profile = usePlayerStore((s) => s.profile)
   const buyVitalityPotion = usePlayerStore((s) => s.buyVitalityPotion)
   const consumeVitalityPotion = usePlayerStore((s) => s.consumeVitalityPotion)
   const streakFreezes = usePlayerStore((s) => s.profile?.streakFreezes ?? 0)
@@ -27,7 +29,12 @@ function RewardsShop() {
   const [cost, setCost] = useState(10)
   const [message, setMessage] = useState<string | null>(null)
 
-  const postponePacks = SYSTEM_RESOURCES.postponeToken.packPrices
+  const postponePacks = SYSTEM_RESOURCES.postponeToken.packPrices.map((pack) => ({
+    quantity: pack.quantity,
+    cost: shopPrice(pack.cost, profile),
+  }))
+  const potionCost = shopPrice(SYSTEM_RESOURCES.vitalityPotion.cost, profile)
+  const freezeCost = shopPrice(SYSTEM_RESOURCES.streakFreeze.cost, profile)
 
   const handleAdd = async () => {
     if (!name.trim()) return
@@ -44,7 +51,7 @@ function RewardsShop() {
   }
 
   const handleBuyVitalityPotion = async () => {
-    const ok = await buyVitalityPotion(SYSTEM_RESOURCES.vitalityPotion.cost)
+    const ok = await buyVitalityPotion(potionCost)
     setMessage(ok ? 'Has comprado una poción de vigor.' : 'No tienes oro suficiente.')
   }
 
@@ -54,7 +61,7 @@ function RewardsShop() {
   }
 
   const handleBuyStreakFreeze = async () => {
-    const ok = await buyStreakFreeze(SYSTEM_RESOURCES.streakFreeze.cost)
+    const ok = await buyStreakFreeze(freezeCost)
     setMessage(ok ? 'Has comprado una congelación de racha.' : 'No tienes oro suficiente.')
   }
 
@@ -117,11 +124,11 @@ function RewardsShop() {
           <div className="mt-2 flex gap-1.5">
             <button
               type="button"
-              disabled={coins < SYSTEM_RESOURCES.vitalityPotion.cost}
+              disabled={coins < potionCost}
               onClick={() => void handleBuyVitalityPotion()}
               className="cv-btn flex-1 px-1 py-1 text-sm"
             >
-              Comprar · {SYSTEM_RESOURCES.vitalityPotion.cost}
+              Comprar · {potionCost}
             </button>
             <button
               type="button"
@@ -141,11 +148,11 @@ function RewardsShop() {
           </p>
           <button
             type="button"
-            disabled={coins < SYSTEM_RESOURCES.streakFreeze.cost}
+            disabled={coins < freezeCost}
             onClick={() => void handleBuyStreakFreeze()}
             className="cv-btn mt-2 w-full px-1 py-1 text-sm"
           >
-            Comprar · {SYSTEM_RESOURCES.streakFreeze.cost} oro
+            Comprar · {freezeCost} oro
           </button>
         </div>
       </div>
@@ -184,7 +191,8 @@ function RewardsShop() {
 
       <ul className="flex flex-col divide-y divide-silver-700/30">
         {rewards.map((reward) => {
-          const canAfford = coins >= reward.cost
+          const price = shopPrice(reward.cost, profile)
+          const canAfford = coins >= price
           return (
             <li key={reward.id} className="flex items-center gap-2 py-2">
               <p
@@ -194,7 +202,7 @@ function RewardsShop() {
               </p>
               <span className="flex items-center gap-1 font-pixel text-xl leading-none text-gold-300">
                 <PixelArt rows={COIN} palette={COIN_PALETTE} scale={2} />
-                {reward.cost}
+                {price}
               </span>
               <button
                 type="button"

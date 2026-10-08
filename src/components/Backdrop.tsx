@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { BAT_A, BAT_B, BAT_PALETTE } from '../lib/pixelArt'
+import { effectiveMaxHp } from '../lib/routes'
 import { usePlayerStore } from '../store/usePlayerStore'
 import PixelArt from './PixelArt'
 
@@ -67,7 +68,7 @@ function CastleSilhouette() {
 
 function Backdrop() {
   const hpRatio = usePlayerStore((s) =>
-    s.profile ? s.profile.hp / s.profile.maxHp : 1,
+    s.profile ? s.profile.hp / effectiveMaxHp(s.profile) : 1,
   )
   const bloodMoon = hpRatio < 0.3
 

@@ -1,7 +1,31 @@
 import { addDays, format, isBefore, parseISO, startOfDay } from 'date-fns'
 import { buildItemEvent, itemEventId } from './itemEvents'
 import { isCompletedOn, isItemDueOn, isObligation } from './recurrence'
+import { SHIELD_RECHARGE_DAYS } from './routes'
 import type { Completion, Item, ItemEvent } from '../types'
+
+interface Protection {
+  freezes: number
+  shieldEnabled: boolean
+  shieldReadyOn?: string
+}
+
+/** Consume el escudo (si está listo) o una congelación para absorber un fallo. */
+function absorbMiss(protection: Protection, dateKey: string): boolean {
+  const shieldReady = !protection.shieldReadyOn || protection.shieldReadyOn <= dateKey
+  if (protection.shieldEnabled && shieldReady) {
+    protection.shieldReadyOn = format(
+      addDays(parseISO(dateKey), SHIELD_RECHARGE_DAYS),
+      'yyyy-MM-dd',
+    )
+    return true
+  }
+  if (protection.freezes > 0) {
+    protection.freezes -= 1
+    return true
+  }
+  return false
+}
 
 /**
  * Daño por una racha de incumplimientos: 1, 1, 2, 2, 3, 4, 5...
@@ -46,13 +70,24 @@ export function computeMissedPenalties(
   completionsByItem: Record<string, Completion[]>,
   lastCheckedDate: string | undefined,
   availableStreakFreezes = 0,
-): { totalDamage: number; newLastChecked: string; missedEvents: ItemEvent[]; freezesUsed: number } {
+  shield: { enabled: boolean; readyOn?: string } = { enabled: false },
+): {
+  totalDamage: number
+  newLastChecked: string
+  missedEvents: ItemEvent[]
+  freezesUsed: number
+  shieldReadyOn?: string
+} {
   const yesterday = addDays(startOfDay(new Date()), -1)
   let cursor = lastCheckedDate ? addDays(parseISO(lastCheckedDate), 1) : yesterday
   const streaks = new Map<string, number>()
+  const protection: Protection = {
+    freezes: availableStreakFreezes,
+    shieldEnabled: shield.enabled,
+    shieldReadyOn: shield.readyOn,
+  }
 
   let totalDamage = 0
-  let freezesUsed = 0
   const missedEvents: ItemEvent[] = []
   for (const item of items) {
     streaks.set(item.id, missedStreakBefore(item, cursor, completionsByItem[item.id] ?? []))
@@ -69,10 +104,7 @@ export function computeMissedPenalties(
         continue
       }
 
-      if (freezesUsed < availableStreakFreezes) {
-        freezesUsed += 1
-        continue
-      }
+      if (absorbMiss(protection, key)) continue
 
       const streak = (streaks.get(item.id) ?? 0) + 1
       streaks.set(item.id, streak)
@@ -89,6 +121,7 @@ export function computeMissedPenalties(
     totalDamage,
     newLastChecked: format(yesterday, 'yyyy-MM-dd'),
     missedEvents,
-    freezesUsed,
+    freezesUsed: availableStreakFreezes - protection.freezes,
+    shieldReadyOn: protection.shieldReadyOn,
   }
 }

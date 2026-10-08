@@ -1,4 +1,5 @@
 import { COIN, COIN_PALETTE, HEART, HEART_PALETTE } from '../lib/pixelArt'
+import { effectiveMaxHp } from '../lib/routes'
 import { usePlayerStore } from '../store/usePlayerStore'
 import PixelArt from './PixelArt'
 
@@ -6,7 +7,8 @@ function Hud() {
   const profile = usePlayerStore((s) => s.profile)
   if (!profile) return null
 
-  const hpPct = Math.min(100, (profile.hp / profile.maxHp) * 100)
+  const maxHp = effectiveMaxHp(profile)
+  const hpPct = Math.min(100, (profile.hp / maxHp) * 100)
 
   return (
     <div className="cv-shadow flex items-center gap-3 font-pixel text-lg leading-none">
@@ -22,7 +24,7 @@ function Hud() {
         </div>
         <span className="text-silver-100">
           {profile.hp}
-          <span className="text-silver-500">/{profile.maxHp}</span>
+          <span className="text-silver-500">/{maxHp}</span>
         </span>
       </div>
 

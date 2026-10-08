@@ -2,8 +2,9 @@ import { create } from 'zustand'
 import { db, ensurePlayerProfile } from '../db/database'
 import { todayKey } from '../lib/date'
 import { xpToNextLevel } from '../lib/gamification'
+import { defaultRoutes, effectiveMaxHp, evaluateRoute, ROUTE_IDS, ROUTES } from '../lib/routes'
 import { SYSTEM_RESOURCES } from '../lib/resources'
-import type { PlayerProfile } from '../types'
+import type { Completion, Item, PlayerProfile, RouteId } from '../types'
 
 interface PlayerState {
   profile: PlayerProfile | null
@@ -21,6 +22,10 @@ interface PlayerState {
   consumeVitalityPotion: () => Promise<boolean>
   buyStreakFreeze: (cost: number) => Promise<boolean>
   setStreakFreezes: (quantity: number) => Promise<void>
+  startRoute: (routeId: RouteId) => Promise<boolean>
+  evaluateRoutes: (items: Item[], completionsByItem: Record<string, Completion[]>) => Promise<void>
+  equipRoute: (routeId: RouteId | null) => Promise<boolean>
+  setShieldReadyOn: (date: string | undefined) => Promise<void>
   restartRun: () => Promise<void>
   setLastPenaltyCheck: (date: string) => Promise<void>
   spendCoins: (amount: number) => Promise<boolean>
@@ -42,6 +47,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       postponeTokens: profile.postponeTokens ?? 0,
       vitalityPotions: profile.vitalityPotions ?? 0,
       streakFreezes: profile.streakFreezes ?? 0,
+      routes: { ...defaultRoutes(), ...profile.routes },
+      equippedRoute: profile.equippedRoute ?? null,
     }
     if (
       normalized.hardcore !== profile.hardcore ||
@@ -49,6 +56,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       normalized.postponeTokens !== profile.postponeTokens
       || normalized.vitalityPotions !== profile.vitalityPotions
       || normalized.streakFreezes !== profile.streakFreezes
+      || profile.routes === undefined
+      || profile.equippedRoute === undefined
     ) {
       await db.profile.put(normalized)
     }
@@ -74,7 +83,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       level,
       xp: currentXp,
       maxHp,
-      hp: leveledUp ? maxHp : current.hp,
+      hp: leveledUp ? effectiveMaxHp({ ...current, maxHp }) : current.hp,
       coins: current.coins + coins,
     }
     await db.profile.put(updated)
@@ -154,11 +163,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   consumeVitalityPotion: async () => {
     const current = get().profile
-    if (!current || current.dead || current.vitalityPotions <= 0 || current.hp >= current.maxHp) return false
+    const maxHp = current ? effectiveMaxHp(current) : 0
+    if (!current || current.dead || current.vitalityPotions <= 0 || current.hp >= maxHp) return false
 
     const updated: PlayerProfile = {
       ...current,
-      hp: Math.min(current.maxHp, current.hp + SYSTEM_RESOURCES.vitalityPotion.recovery),
+      hp: Math.min(maxHp, current.hp + SYSTEM_RESOURCES.vitalityPotion.recovery),
       vitalityPotions: current.vitalityPotions - 1,
     }
     await db.profile.put(updated)
@@ -189,6 +199,61 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ profile: updated })
   },
 
+  startRoute: async (routeId) => {
+    const current = get().profile
+    if (!current || current.dead || current.routes[routeId].windowStart) return false
+
+    const updated: PlayerProfile = {
+      ...current,
+      routes: { ...current.routes, [routeId]: { level: 0, windowStart: todayKey() } },
+    }
+    await db.profile.put(updated)
+    set({ profile: updated })
+    return true
+  },
+
+  evaluateRoutes: async (items, completionsByItem) => {
+    const current = get().profile
+    if (!current || current.dead) return
+
+    const today = todayKey()
+    const routes = { ...current.routes }
+    let changed = false
+    for (const id of ROUTE_IDS) {
+      const next = evaluateRoute(ROUTES[id], routes[id], items, completionsByItem, today)
+      if (next !== routes[id]) {
+        routes[id] = next
+        changed = true
+      }
+    }
+    if (!changed) return
+
+    const updated: PlayerProfile = { ...current, routes }
+    await db.profile.put(updated)
+    set({ profile: updated })
+  },
+
+  equipRoute: async (routeId) => {
+    const current = get().profile
+    if (!current || current.dead) return false
+    if (routeId && current.routes[routeId].level < 1) return false
+
+    const equipped: PlayerProfile = { ...current, equippedRoute: routeId }
+    const updated: PlayerProfile = { ...equipped, hp: Math.min(current.hp, effectiveMaxHp(equipped)) }
+    await db.profile.put(updated)
+    set({ profile: updated })
+    return true
+  },
+
+  setShieldReadyOn: async (date) => {
+    const current = get().profile
+    if (!current || current.shieldReadyOn === date) return
+
+    const updated: PlayerProfile = { ...current, shieldReadyOn: date }
+    await db.profile.put(updated)
+    set({ profile: updated })
+  },
+
   restartRun: async () => {
     const current = get().profile
     if (!current) return
@@ -203,6 +268,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       hp: 50,
       maxHp: 50,
       streakFreezes: 0,
+      routes: defaultRoutes(),
+      equippedRoute: null,
+      shieldReadyOn: undefined,
       dead: false,
       lastPenaltyCheck: todayKey(),
     }

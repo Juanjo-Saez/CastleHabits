@@ -1,6 +1,7 @@
 import { v4 as uuid } from 'uuid'
 import { create } from 'zustand'
 import { db } from '../db/database'
+import { shopPrice } from '../lib/routes'
 import { usePlayerStore } from './usePlayerStore'
 import type { Reward } from '../types'
 
@@ -36,7 +37,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
   redeem: async (rewardId) => {
     const reward = get().rewards.find((r) => r.id === rewardId)
     if (!reward) return false
-    return usePlayerStore.getState().spendCoins(reward.cost)
+    return usePlayerStore.getState().spendCoins(shopPrice(reward.cost, usePlayerStore.getState().profile))
   },
 
   removeReward: async (rewardId) => {

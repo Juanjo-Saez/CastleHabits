@@ -12,6 +12,7 @@ import {
   showReminder,
 } from './lib/notifications'
 import { computeMissedPenalties } from './lib/penalties'
+import { hasShield } from './lib/routes'
 import CalendarPage from './pages/CalendarPage'
 import ChoresPage from './pages/ChoresPage'
 import HabitsPage from './pages/HabitsPage'
@@ -44,18 +45,22 @@ function App() {
       const profile = usePlayerStore.getState().profile
       if (!profile) return
 
-      const { totalDamage, newLastChecked, missedEvents, freezesUsed } = computeMissedPenalties(
-        items,
-        completionsByItem,
-        profile.lastPenaltyCheck,
-        profile.streakFreezes,
-      )
+      const { totalDamage, newLastChecked, missedEvents, freezesUsed, shieldReadyOn } =
+        computeMissedPenalties(
+          items,
+          completionsByItem,
+          profile.lastPenaltyCheck,
+          profile.streakFreezes,
+          { enabled: hasShield(profile), readyOn: profile.shieldReadyOn },
+        )
       if (missedEvents.length > 0) await db.itemEvents.bulkPut(missedEvents)
       if (freezesUsed > 0) {
         await usePlayerStore.getState().setStreakFreezes(profile.streakFreezes - freezesUsed)
       }
+      await usePlayerStore.getState().setShieldReadyOn(shieldReadyOn)
       if (totalDamage > 0) await usePlayerStore.getState().applyDamage(totalDamage)
       await usePlayerStore.getState().setLastPenaltyCheck(newLastChecked)
+      await usePlayerStore.getState().evaluateRoutes(items, completionsByItem)
 
       await useAchievementsStore.getState().checkAndUnlock({
         items,

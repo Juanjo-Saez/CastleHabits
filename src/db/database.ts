@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie'
+import { defaultRoutes } from '../lib/routes'
 import type {
   Achievement,
   Completion,
@@ -54,6 +55,8 @@ export async function ensurePlayerProfile(): Promise<PlayerProfile> {
     hp: 50,
     maxHp: 50,
     streakFreezes: 0,
+    routes: defaultRoutes(),
+    equippedRoute: null,
     hardcore: true,
     dead: false,
   }

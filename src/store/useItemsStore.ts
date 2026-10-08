@@ -6,6 +6,7 @@ import { todayKey } from '../lib/date'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
 import { itemEventId, recordItemEvent } from '../lib/itemEvents'
 import { isItemDueOn, isObligation, scheduledDateFor } from '../lib/recurrence'
+import { xpWithBonus } from '../lib/routes'
 import { useAchievementsStore } from './useAchievementsStore'
 import { usePlayerStore } from './usePlayerStore'
 import type {
@@ -14,6 +15,7 @@ import type {
   Item,
   ItemCommitment,
   ItemType,
+  RouteId,
   TrackingType,
 } from '../types'
 
@@ -26,6 +28,7 @@ export interface NewItemInput {
   difficulty: Difficulty
   recurrenceRule?: string | null
   startDate?: string
+  routeId?: RouteId
   trackingType: TrackingType
   quantityGoal?: number
   unit?: string
@@ -144,7 +147,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       return
     }
 
-    const xp = DIFFICULTY_XP[item.difficulty]
+    const xp = xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile)
     const coins = DIFFICULTY_COINS[item.difficulty]
     const today = todayKey()
     const scheduledDate = scheduledDateFor(item, new Date())
@@ -189,6 +192,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       completionsToday: { ...get().completionsToday, [itemId]: completion },
       completionsByItem,
     })
+    await usePlayerStore.getState().evaluateRoutes(get().items, completionsByItem)
     await checkAchievements(get().items, completionsByItem)
   },
 
@@ -204,13 +208,15 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
 
     const wasComplete = prevQty >= goal
     const isComplete = nextQty >= goal
-    const xp = DIFFICULTY_XP[item.difficulty]
+    const xp = xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile)
     const coins = DIFFICULTY_COINS[item.difficulty]
 
     if (!wasComplete && isComplete) {
       await usePlayerStore.getState().awardCompletion(xp, coins)
     } else if (wasComplete && !isComplete) {
-      await usePlayerStore.getState().revertCompletion(xp, coins)
+      await usePlayerStore
+        .getState()
+        .revertCompletion(existing?.xpEarned ?? xp, existing?.coinsEarned ?? coins)
     }
 
     if (nextQty === 0) {
@@ -267,6 +273,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       completionsByItem,
     })
     if (!wasComplete && isComplete) {
+      await usePlayerStore.getState().evaluateRoutes(get().items, completionsByItem)
       await checkAchievements(get().items, completionsByItem)
     }
   },

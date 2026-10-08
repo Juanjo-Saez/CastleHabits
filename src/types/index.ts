@@ -6,6 +6,15 @@ export type TrackingType = 'boolean' | 'quantity'
 
 export type ItemCommitment = 'obligation' | 'sideQuest'
 
+export type RouteId = 'vampire-hunter' | 'technomancer' | 'castle-within'
+
+export interface RouteProgress {
+  /** Tramos completados; es el nivel de la pasiva (0 = bloqueada). */
+  level: number
+  /** Primer día (yyyy-MM-dd) de la ventana del tramo actual; ausente si la ruta no se ha iniciado. */
+  windowStart?: string
+}
+
 export type ItemEventKind =
   | 'completed'
   | 'missed'
@@ -28,6 +37,8 @@ export interface Item {
   recurrenceRule?: string | null
   /** Primer día (yyyy-MM-dd) en que la recurrencia entra en vigor; antes no cuenta como debida. */
   startDate?: string
+  /** Ruta a la que cuenta esta tarea. */
+  routeId?: RouteId
   trackingType: TrackingType
   /** Meta a alcanzar cuando trackingType es "quantity" (ej. 100 sentadillas). */
   quantityGoal?: number
@@ -80,6 +91,11 @@ export interface PlayerProfile {
   hp: number
   maxHp: number
   streakFreezes: number
+  routes: Record<RouteId, RouteProgress>
+  /** Oficio equipado: su pasiva es la única activa. */
+  equippedRoute: RouteId | null
+  /** Primer día (yyyy-MM-dd) en que el escudo de Castle Within vuelve a estar listo. */
+  shieldReadyOn?: string
   /** Modo Hardcore: al llegar a 0 HP la partida termina. */
   hardcore: boolean
   dead: boolean

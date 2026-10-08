@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { describeDaysLeft } from '../lib/date'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
 import { describeRecurrence, isItemDueOn, isObligation } from '../lib/recurrence'
+import { xpWithBonus } from '../lib/routes'
 import { playWhip } from '../lib/sound'
 import { computeStreak } from '../lib/streak'
 import { useItemsStore } from '../store/useItemsStore'
@@ -45,6 +46,7 @@ function ItemCard({ item }: Readonly<{ item: Item }>) {
   const adjustQuantity = useItemsStore((s) => s.adjustQuantity)
   const postponeItem = useItemsStore((s) => s.postponeItem)
   const postponeTokens = usePlayerStore((s) => s.profile?.postponeTokens ?? 0)
+  const profile = usePlayerStore((s) => s.profile)
   const [popup, setPopup] = useState<RewardPopup | null>(null)
 
   const isBoolean = item.trackingType === 'boolean'
@@ -70,7 +72,7 @@ function ItemCard({ item }: Readonly<{ item: Item }>) {
     const id = Date.now()
     setPopup({
       id,
-      xp: direction * DIFFICULTY_XP[item.difficulty],
+      xp: direction * xpWithBonus(DIFFICULTY_XP[item.difficulty], profile),
       coins: direction * DIFFICULTY_COINS[item.difficulty],
     })
     setTimeout(() => setPopup((p) => (p?.id === id ? null : p)), 1100)

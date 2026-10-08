@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useItemsStore } from '../store/useItemsStore'
-import type { Difficulty, TrackingType } from '../types'
+import type { Difficulty, RouteId, TrackingType } from '../types'
 import DifficultyPicker from './DifficultyPicker'
+import RoutePicker from './RoutePicker'
 import SectionTitle from './SectionTitle'
 
 function NewHabitForm({ onClose }: Readonly<{ onClose: () => void }>) {
@@ -11,6 +12,7 @@ function NewHabitForm({ onClose }: Readonly<{ onClose: () => void }>) {
   const [trackingType, setTrackingType] = useState<TrackingType>('boolean')
   const [quantityGoal, setQuantityGoal] = useState(10)
   const [unit, setUnit] = useState('reps')
+  const [routeId, setRouteId] = useState<RouteId | undefined>()
 
   const handleSubmit = async () => {
     if (!title.trim()) return
@@ -22,6 +24,7 @@ function NewHabitForm({ onClose }: Readonly<{ onClose: () => void }>) {
       trackingType,
       quantityGoal: trackingType === 'quantity' ? quantityGoal : undefined,
       unit: trackingType === 'quantity' ? unit : undefined,
+      routeId,
     })
     onClose()
   }
@@ -50,6 +53,8 @@ function NewHabitForm({ onClose }: Readonly<{ onClose: () => void }>) {
         <span className="cv-label">Dificultad</span>
         <DifficultyPicker value={difficulty} onChange={setDifficulty} />
       </div>
+
+      <RoutePicker value={routeId} onChange={setRouteId} />
 
       <div className="flex flex-col gap-1">
         <span className="cv-label">Registro</span>

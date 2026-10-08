@@ -6,9 +6,10 @@ import {
   ruleFromDraft,
 } from '../lib/recurrenceDraft'
 import { useItemsStore } from '../store/useItemsStore'
-import type { Difficulty } from '../types'
+import type { Difficulty, RouteId } from '../types'
 import DifficultyPicker from './DifficultyPicker'
 import RecurrencePicker from './RecurrencePicker'
+import RoutePicker from './RoutePicker'
 import SectionTitle from './SectionTitle'
 
 function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
@@ -19,6 +20,7 @@ function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
   const [difficulty, setDifficulty] = useState<Difficulty>('easy')
   const [recurrence, setRecurrence] = useState(defaultRecurrenceDraft)
   const [dueDate, setDueDate] = useState(todayKey())
+  const [routeId, setRouteId] = useState<RouteId | undefined>()
 
   const scheduleValid = kind === 'todo' ? Boolean(dueDate) : isDraftValid(recurrence)
   const canSubmit = Boolean(title.trim()) && scheduleValid
@@ -36,6 +38,7 @@ function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
         trackingType: 'boolean',
         recurrenceRule: ruleFromDraft(recurrence),
         startDate: recurrence.startDate,
+        routeId,
       })
     } else {
       await addItem({
@@ -103,6 +106,8 @@ function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
         <span className="cv-label">Dificultad</span>
         <DifficultyPicker value={difficulty} onChange={setDifficulty} />
       </div>
+
+      <RoutePicker value={routeId} onChange={setRouteId} />
 
       {kind === 'chore' ? (
         <RecurrencePicker value={recurrence} onChange={setRecurrence} />

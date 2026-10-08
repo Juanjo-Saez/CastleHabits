@@ -3,8 +3,10 @@ import HunterPortrait from '../components/HunterPortrait'
 import NotificationSettings from '../components/NotificationSettings'
 import PageHeader from '../components/PageHeader'
 import RewardsShop from '../components/RewardsShop'
+import RoutesPanel from '../components/RoutesPanel'
 import SectionTitle from '../components/SectionTitle'
 import { getAvatarStage, xpToNextLevel } from '../lib/gamification'
+import { effectiveMaxHp } from '../lib/routes'
 import { usePlayerStore } from '../store/usePlayerStore'
 
 function ProfilePage() {
@@ -17,7 +19,8 @@ function ProfilePage() {
   const stage = getAvatarStage(profile.level)
   const nextLevelXp = xpToNextLevel(profile.level)
   const xpPercent = Math.min(100, (profile.xp / nextLevelXp) * 100)
-  const hpPercent = Math.min(100, (profile.hp / profile.maxHp) * 100)
+  const maxHp = effectiveMaxHp(profile)
+  const hpPercent = Math.min(100, (profile.hp / maxHp) * 100)
 
   return (
     <>
@@ -36,12 +39,14 @@ function ProfilePage() {
             </div>
             <div className="mt-2">
               <div className="mb-1 flex justify-between font-pixel text-sm text-silver-500">
-                <span>VITALIDAD</span><span>{profile.hp}/{profile.maxHp}</span>
+                <span>VITALIDAD</span><span>{profile.hp}/{maxHp}</span>
               </div>
               <div className="cv-bar"><span className="cv-fill-hp" style={{ width: `${hpPercent}%` }} /></div>
             </div>
           </div>
         </div>
+
+        <RoutesPanel />
 
         <RewardsShop />
 
