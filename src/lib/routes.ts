@@ -27,6 +27,7 @@ export interface RouteDef {
   name: string
   icon: string
   summary: string
+  passiveName: string
   /** Texto de la pasiva para un porcentaje dado. */
   passive: (percent: number) => string
   /** Actividades distintas exigidas por d\u00eda en el primer tramo. */
@@ -40,6 +41,7 @@ export const ROUTES: Record<RouteId, RouteDef> = {
     name: 'Vampire Hunter',
     icon: '\u{1F5E1}\uFE0F',
     summary: 'Forja el cuerpo con ejercicio constante.',
+    passiveName: 'Favor del Mercader',
     passive: (percent) => `Precios de la tienda -${percent} %`,
     baseMinPerDay: 3,
     activities: [
@@ -55,6 +57,7 @@ export const ROUTES: Record<RouteId, RouteDef> = {
     name: 'Technomancer',
     icon: '\u{1F52E}',
     summary: 'Domina la programaci\u00f3n y construye esta aplicaci\u00f3n.',
+    passiveName: 'Resonancia Arcana',
     passive: (percent) => `+${percent} % de EXP`,
     baseMinPerDay: 2,
     activities: [
@@ -68,6 +71,7 @@ export const ROUTES: Record<RouteId, RouteDef> = {
     name: 'Castle Within',
     icon: '\u{1F54A}\uFE0F',
     summary: 'Cuida tu mente y tu mejora personal.',
+    passiveName: 'La Fortaleza Interior',
     passive: (percent) =>
       `+${percent} % de vida m\u00e1xima y un escudo que absorbe 1 fallo (se recarga en ${SHIELD_RECHARGE_DAYS} d\u00edas)`,
     baseMinPerDay: 2,

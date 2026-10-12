@@ -14,7 +14,12 @@ const UNITS: { value: RecurrenceUnit; label: string; singular: string; plural: s
 function RecurrencePicker({
   value,
   onChange,
-}: Readonly<{ value: RecurrenceDraft; onChange: (draft: RecurrenceDraft) => void }>) {
+  allowPastStartDate = false,
+}: Readonly<{
+  value: RecurrenceDraft
+  onChange: (draft: RecurrenceDraft) => void
+  allowPastStartDate?: boolean
+}>) {
   const unit = UNITS.find((u) => u.value === value.unit) ?? UNITS[0]
   const update = (patch: Partial<RecurrenceDraft>) => onChange({ ...value, ...patch })
 
@@ -25,7 +30,7 @@ function RecurrencePicker({
     update({ weekdays })
   }
 
-  const canSummarize = value.startDate >= todayKey()
+  const canSummarize = allowPastStartDate || value.startDate >= todayKey()
   const summary = canSummarize
     ? `${describeRecurrence(ruleFromDraft(value))} · desde ${format(parseISO(value.startDate), 'dd/MM/yyyy')}`
     : 'Elige una fecha de inicio válida.'
@@ -113,7 +118,7 @@ function RecurrencePicker({
         <span className="cv-label">Empieza el</span>
         <input
           type="date"
-          min={todayKey()}
+          min={allowPastStartDate ? undefined : todayKey()}
           value={value.startDate}
           onChange={(e) => update({ startDate: e.target.value })}
           className="cv-input"

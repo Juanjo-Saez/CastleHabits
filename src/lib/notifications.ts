@@ -31,11 +31,11 @@ export async function showReminder(pendingCount: number): Promise<void> {
   if (registration) {
     await registration.showNotification(title, {
       body,
-      icon: '/favicon.svg',
+      icon: '/app-icon.svg',
       tag: 'daily-reminder',
     })
   } else {
-    new Notification(title, { body, icon: '/favicon.svg' })
+    new Notification(title, { body, icon: '/app-icon.svg' })
   }
 }
 

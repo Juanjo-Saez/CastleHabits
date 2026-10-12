@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import EmptyState from '../components/EmptyState'
 import ItemCard from '../components/ItemCard'
+import ItemDetails from '../components/ItemDetails'
 import NewTaskForm from '../components/NewTaskForm'
 import PageHeader from '../components/PageHeader'
 import SectionTitle from '../components/SectionTitle'
@@ -16,6 +17,8 @@ function ChoresPage() {
   const loading = useItemsStore((s) => s.loading)
   const [showForm, setShowForm] = useState(false)
   const [sortKey, setSortKey] = useState<TaskSortKey>('difficulty')
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const selectedItem = items.find((item) => item.id === selectedItemId && !item.archived)
 
   const today = new Date()
   const key = todayKey()
@@ -64,7 +67,9 @@ function ChoresPage() {
               </EmptyState>
             ) : (
               <div className="flex flex-col gap-2">
-                {dueToday.map((item) => <ItemCard key={item.id} item={item} />)}
+                {dueToday.map((item) => (
+                  <ItemCard key={item.id} item={item} onOpen={() => setSelectedItemId(item.id)} />
+                ))}
               </div>
             )}
 
@@ -75,12 +80,15 @@ function ChoresPage() {
               </p>
             ) : (
               <div className="flex flex-col gap-2">
-                {scrolls.map((item) => <ItemCard key={item.id} item={item} />)}
+                {scrolls.map((item) => (
+                  <ItemCard key={item.id} item={item} onOpen={() => setSelectedItemId(item.id)} />
+                ))}
               </div>
             )}
           </>
         )}
       </section>
+      {selectedItem && <ItemDetails item={selectedItem} onClose={() => setSelectedItemId(null)} />}
     </>
   )
 }

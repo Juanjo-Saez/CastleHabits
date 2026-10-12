@@ -39,7 +39,7 @@ function getFrameClass(done: boolean, overdue: boolean): string {
   return ''
 }
 
-function ItemCard({ item }: Readonly<{ item: Item }>) {
+function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>) {
   const completion = useItemsStore((s) => s.completionsToday[item.id])
   const history = useItemsStore((s) => s.completionsByItem[item.id]) ?? []
   const toggleBoolean = useItemsStore((s) => s.toggleBoolean)
@@ -114,11 +114,22 @@ function ItemCard({ item }: Readonly<{ item: Item }>) {
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p
-            className={`cv-shadow font-pixel text-2xl leading-none ${done ? 'text-gold-300' : 'text-silver-100'}`}
+          <button
+            type="button"
+            onClick={onOpen}
+            className={`min-h-11 break-words py-1 text-left font-pixel text-2xl leading-none ${done ? 'text-gold-300' : 'text-silver-100'}`}
+            aria-label={`Abrir ${item.title}`}
           >
             {item.title}
-          </p>
+          </button>
+          <button
+            type="button"
+            onClick={onOpen}
+            className="cv-btn cv-btn--ghost min-h-11 shrink-0 px-2 py-1 text-sm"
+            aria-label={`Editar ${item.title}`}
+          >
+            Editar
+          </button>
           {dueToday && !done && <span className="cv-tag cv-tag--gold">Hoy</span>}
           {!isObligation(item) && <span className="cv-tag cv-tag--gold">Misión</span>}
           {overdue && <span className="cv-tag cv-tag--blood">Vencida</span>}

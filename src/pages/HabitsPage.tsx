@@ -1,20 +1,70 @@
 import { useState } from 'react'
 import EmptyState from '../components/EmptyState'
 import ItemCard from '../components/ItemCard'
+import ItemDetails from '../components/ItemDetails'
 import NewHabitForm from '../components/NewHabitForm'
 import PageHeader from '../components/PageHeader'
 import SectionTitle from '../components/SectionTitle'
 import { sortTasks } from '../lib/taskSort'
+import { ROUTE_IDS, ROUTES } from '../lib/routes'
 import { useItemsStore } from '../store/useItemsStore'
+import { usePlayerStore } from '../store/usePlayerStore'
+import type { Item, RouteId } from '../types'
+
+function inferLegacyRoute(item: Item, startedRoutes: RouteId[]): RouteId | undefined {
+  if (item.routeId && ROUTES[item.routeId]) return item.routeId
+
+  const matches = startedRoutes.filter((routeId) =>
+    ROUTES[routeId].activities.some((activity) =>
+      activity.title === item.title &&
+      activity.difficulty === item.difficulty &&
+      activity.trackingType === item.trackingType &&
+      activity.quantityGoal === item.quantityGoal &&
+      activity.unit === item.unit,
+    ),
+  )
+  return matches.length === 1 ? matches[0] : undefined
+}
+
+function routeAccent(routeId: RouteId): string {
+  switch (routeId) {
+    case 'vampire-hunter': return 'border-blood-500 text-blood-300'
+    case 'technomancer': return 'border-arcane-400 text-arcane-300'
+    case 'castle-within': return 'border-gold-400 text-gold-300'
+  }
+}
 
 function HabitsPage() {
   const items = useItemsStore((s) => s.items)
   const loading = useItemsStore((s) => s.loading)
+  const routes = usePlayerStore((s) => s.profile?.routes)
   const [showForm, setShowForm] = useState(false)
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const selectedItem = items.find((item) => item.id === selectedItemId && !item.archived)
   const habits = sortTasks(
     items.filter((item) => item.type === 'habit' && !item.archived),
     'difficulty',
   )
+  const startedRoutes = ROUTE_IDS.filter((routeId) => Boolean(routes?.[routeId]?.windowStart))
+  const routeByHabit = new Map(
+    habits.map((item) => [item.id, inferLegacyRoute(item, startedRoutes)]),
+  )
+  const groups = [
+    ...ROUTE_IDS.map((routeId) => ({
+      id: routeId,
+      title: `${ROUTES[routeId].icon} ${ROUTES[routeId].name}`,
+      accent: routeAccent(routeId),
+      items: habits.filter((item) => routeByHabit.get(item.id) === routeId),
+    })).filter((group) => group.items.length > 0),
+    {
+      id: 'unassigned',
+      title: 'Custom',
+      accent: 'border-silver-500 text-silver-300',
+      items: habits.filter((item) => !routeByHabit.get(item.id)),
+    },
+  ].filter((group) => group.items.length > 0)
+  const showEmpty = !loading && groups.length === 0
+  const showGroups = !loading && groups.length > 0
 
   return (
     <>
@@ -36,18 +86,35 @@ function HabitsPage() {
 
         {showForm && <NewHabitForm onClose={() => setShowForm(false)} />}
 
-        {loading ? (
+        {loading && (
           <p className="py-8 text-center font-pixel text-xl text-silver-500">Cargando grimorio...</p>
-        ) : habits.length === 0 ? (
+        )}
+        {showEmpty && (
           <EmptyState icon={<span className="text-4xl">🕯️</span>}>
             No hay misiones secundarias. Añade ejercicio, lectura u ocio para ganar recompensas.
           </EmptyState>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {habits.map((item) => <ItemCard key={item.id} item={item} />)}
+        )}
+        {showGroups && (
+          <div className="flex flex-col gap-4">
+            {groups.map((group) => (
+              <section key={group.id} aria-labelledby={`habit-group-${group.id}`} className="flex flex-col gap-2">
+                <h3
+                  id={`habit-group-${group.id}`}
+                  className={`border-l-4 bg-night-900/80 px-3 py-2 font-pixel text-xl leading-none ${group.accent}`}
+                >
+                  {group.title}
+                </h3>
+                <div className="flex flex-col gap-2">
+                  {group.items.map((item) => (
+                    <ItemCard key={item.id} item={item} onOpen={() => setSelectedItemId(item.id)} />
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
         )}
       </section>
+      {selectedItem && <ItemDetails item={selectedItem} onClose={() => setSelectedItemId(null)} />}
     </>
   )
 }

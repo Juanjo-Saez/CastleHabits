@@ -70,9 +70,9 @@ function CalendarPage() {
                   onClick={() => setSelected(day)}
                   aria-pressed={isSelected}
                   aria-label={`${format(day, "d 'de' MMMM", { locale: es })}: ${entry.lit} cumplidas, ${entry.unlit} previstas`}
-                  className={`flex min-h-16 flex-col items-center gap-1 border p-1 ${border} ${background} ${dim}`}
+                  className={`flex aspect-square min-w-0 flex-col items-center justify-between gap-0.5 overflow-hidden border p-[2px] ${border} ${background} ${dim}`}
                 >
-                  <span className={`font-pixel text-lg leading-none ${isToday ? 'text-gold-300' : 'text-silver-300'}`}>
+                  <span className={`font-pixel text-base leading-none ${isToday ? 'text-gold-300' : 'text-silver-300'}`}>
                     {format(day, 'd')}
                   </span>
                   <CandleStack lit={entry.lit} unlit={entry.unlit} />

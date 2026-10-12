@@ -40,8 +40,8 @@ export function ruleFromDraft(draft: RecurrenceDraft): string {
   )
 }
 
-export function isDraftValid(draft: RecurrenceDraft): boolean {
-  if (!draft.startDate || draft.startDate < todayKey()) return false
+export function isDraftValid(draft: RecurrenceDraft, allowPastStartDate = false): boolean {
+  if (!draft.startDate || (!allowPastStartDate && draft.startDate < todayKey())) return false
   if (draft.unit === 'week') return draft.weekdays.length > 0
   if (draft.unit === 'month') return draft.lastDay || (draft.monthDay >= 1 && draft.monthDay <= 31)
   return true

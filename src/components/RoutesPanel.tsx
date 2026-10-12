@@ -3,7 +3,6 @@ import { todayKey } from '../lib/date'
 import {
   hasShield,
   MAX_ROUTE_LEVEL,
-  passivePercent,
   ROUTE_IDS,
   ROUTES,
   routeStatus,
@@ -37,7 +36,6 @@ function RouteCard({ def }: Readonly<{ def: RouteDef }>) {
   const started = Boolean(progress.windowStart)
   const equipped = profile.equippedRoute === def.id
   const status = routeStatus(def, progress, items, completionsByItem, todayKey())
-  const nextPercent = passivePercent(progress.level + 1)
   const goodPct = Math.min(100, (status.goodDays / status.rule.goodDays) * 100)
 
   return (
@@ -53,8 +51,8 @@ function RouteCard({ def }: Readonly<{ def: RouteDef }>) {
 
       <p className="font-body text-sm text-silver-300">
         {progress.level > 0
-          ? `Nivel ${progress.level}/${MAX_ROUTE_LEVEL}: ${def.passive(passivePercent(progress.level))}`
-          : `Pasiva bloqueada: ${def.passive(passivePercent(1))} al completar el primer tramo.`}
+          ? `Pasiva: ${def.passiveName} · Nivel ${progress.level}/${MAX_ROUTE_LEVEL}`
+          : 'Recompensa del primer tramo: ???'}
       </p>
 
       {started ? (
@@ -64,13 +62,13 @@ function RouteCard({ def }: Readonly<{ def: RouteDef }>) {
           ) : (
             <div>
               <div className="mb-1 flex justify-between font-pixel text-sm text-silver-500">
-                <span>TRAMO {status.tier} · DÍA {status.dayInWindow}/{status.rule.windowDays}</span>
-                <span>{status.goodDays}/{status.rule.goodDays} días buenos</span>
+                Un día es bueno con {status.rule.minPerDay} actividades distintas (hoy {status.doneToday}).
+                {' La recompensa se revelará al desbloquearla.'}
               </div>
               <div className="cv-bar"><span className="cv-fill-mp" style={{ width: `${goodPct}%` }} /></div>
               <p className="mt-1 font-body text-sm text-silver-500 italic">
                 Un día es bueno con {status.rule.minPerDay} actividades distintas (hoy {status.doneToday}).
-                {` Al completar: ${def.passive(nextPercent)}.`}
+                {' La recompensa se revelará al desbloquearla.'}
               </p>
             </div>
           )}
