@@ -27,6 +27,7 @@ Estado revisado el 8 de octubre de 2026. Este documento refleja el punto actual 
 
 ### Historial
 
+- [x] Añadir un archivo consultable de tareas activas y archivadas con frecuencia, próxima fecha, configuración y completados desplegables; filtrar por frecuencia.
 - [x] Guardar en IndexedDB eventos de completado, fallo por vencimiento, recuperación tardía, progreso parcial, deshacer y aplazamiento.
 - [x] Conservar el título y los datos relevantes de la tarea en cada evento; guardar la cantidad exacta alcanzada en tareas cuantitativas.
 - [x] Incluir los eventos en las copias de seguridad.

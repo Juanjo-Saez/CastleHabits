@@ -33,6 +33,36 @@ export function computeStreak(item: Item, completions: Completion[]): number {
   return streak
 }
 
+/** Mejor racha histórica de apariciones consecutivas completadas. */
+export function computeBestStreak(item: Item, completions: Completion[]): number {
+  if (item.type === 'todo') return 0
+
+  const today = startOfDay(new Date())
+  let cursor = startOfDay(parseISO(item.createdAt))
+  const endDate =
+    isItemDueOn(item, today) &&
+    !isCompletedOn(item, completions, format(today, 'yyyy-MM-dd'))
+      ? addDays(today, -1)
+      : today
+
+  let current = 0
+  let best = 0
+  while (!isBefore(endDate, cursor)) {
+    const key = format(cursor, 'yyyy-MM-dd')
+    if (isItemDueOn(item, cursor)) {
+      if (isCompletedOn(item, completions, key)) {
+        current += 1
+        best = Math.max(best, current)
+      } else {
+        current = 0
+      }
+    }
+    cursor = addDays(cursor, 1)
+  }
+
+  return best
+}
+
 /** Puntuación 0-100 con media móvil suavizada (similar a Loop Habit Tracker). */
 export function computeScore(item: Item, completions: Completion[]): number {
   if (item.type === 'todo') return 0

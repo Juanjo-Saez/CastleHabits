@@ -16,6 +16,7 @@ import { hasShield } from './lib/routes'
 import CalendarPage from './pages/CalendarPage'
 import ChoresPage from './pages/ChoresPage'
 import HabitsPage from './pages/HabitsPage'
+import TaskArchivePage from './pages/TaskArchivePage'
 import ProfilePage from './pages/ProfilePage'
 import StatsPage from './pages/StatsPage'
 import { useAchievementsStore } from './store/useAchievementsStore'
@@ -27,6 +28,7 @@ const tabs = [
   { to: '/', label: 'Hábitos', icon: '🕯️', end: true },
   { to: '/tareas', label: 'Castillo', icon: '🏰' },
   { to: '/calendario', label: 'Calendario', icon: '🗓️' },
+  { to: '/archivo', label: 'Archivo', icon: '📖' },
   { to: '/stats', label: 'Crónicas', icon: '📜' },
   { to: '/perfil', label: 'Cazador', icon: '🧛' },
 ]
@@ -96,6 +98,7 @@ function App() {
           <Route path="/" element={<HabitsPage />} />
           <Route path="/tareas" element={<ChoresPage />} />
           <Route path="/calendario" element={<CalendarPage />} />
+          <Route path="/archivo" element={<TaskArchivePage />} />
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
         </Routes>
