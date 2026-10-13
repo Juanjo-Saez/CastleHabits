@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie'
 import { defaultRoutes } from '../lib/routes'
 import { todayKey } from '../lib/date'
+import { migrateLegacyZone } from '../lib/zones'
 import type {
   Achievement,
   Completion,
@@ -37,6 +38,24 @@ export class AppDatabase extends Dexie {
       achievements: 'id',
       rewards: 'id',
     })
+    this.version(3)
+      .stores({
+        items: 'id, type',
+        completions: 'id, itemId, date, [itemId+date]',
+        itemEvents: 'id, itemId, kind, scheduledDate, [itemId+scheduledDate+kind]',
+        profile: 'id',
+        achievements: 'id',
+        rewards: 'id',
+      })
+      .upgrade(async (transaction) => {
+        const items = (await transaction.table('items').toArray()) as Item[]
+        for (const item of items) {
+          const zone = migrateLegacyZone(item.zone)
+          if (zone !== item.zone) {
+            await transaction.table('items').update(item.id, { zone })
+          }
+        }
+      })
   }
 }
 

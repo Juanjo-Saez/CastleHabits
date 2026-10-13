@@ -11,6 +11,7 @@ import type { Difficulty, Item, RouteId, TrackingType } from '../types'
 import DifficultyPicker from './DifficultyPicker'
 import RecurrencePicker from './RecurrencePicker'
 import RoutePicker from './RoutePicker'
+import ZonePicker from './ZonePicker'
 
 function recurrenceDraftFor(item: Item): RecurrenceDraft {
   const startDate = item.startDate ?? item.createdAt.slice(0, 10)
@@ -128,10 +129,7 @@ function ItemDetails({ item, onClose }: Readonly<{ item: Item; onClose: () => vo
             </label>
 
             {item.type === 'chore' && (
-              <label className="flex flex-col gap-1">
-                <span className="cv-label">Estancia</span>
-                <input value={zone} onChange={(event) => setZone(event.target.value)} className="cv-input" />
-              </label>
+              <ZonePicker value={zone} onChange={setZone} />
             )}
 
             <div className="flex flex-col gap-1">

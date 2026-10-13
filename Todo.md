@@ -9,6 +9,7 @@ Estado revisado el 8 de octubre de 2026. Este documento refleja el punto actual 
 - [x] Separar obligaciones recurrentes del Castillo, tareas puntuales y misiones secundarias/hábitos.
 - [x] Mostrar solo las obligaciones recurrentes que vencen hoy. Las tareas puntuales pendientes muestran su fecha límite y los días restantes.
 - [x] Configurar recurrencias diarias, semanales o mensuales, con intervalos, días concretos y último día del mes.
+- [x] Usar zonas fijas con nombres góticos y mostrar sus equivalencias domésticas desde el icono de información.
 - [x] Definir cuándo empieza una recurrencia, incluyendo mañana o el mes siguiente; las apariciones anteriores al inicio no generan fallos.
 - [x] Ordenar por dificultad de forma predeterminada y también por vencimiento, estancia o ruta, según la lista.
 - [x] Base del calendario mensual: consultar carga prevista y actividad pasada, y abrir el detalle del día para ver tareas, EXP y monedas. La presentación uniforme de las celdas y velas sigue pendiente.

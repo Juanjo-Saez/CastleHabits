@@ -11,6 +11,7 @@ import DifficultyPicker from './DifficultyPicker'
 import RecurrencePicker from './RecurrencePicker'
 import RoutePicker from './RoutePicker'
 import SectionTitle from './SectionTitle'
+import ZonePicker from './ZonePicker'
 
 function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
   const addItem = useItemsStore((s) => s.addItem)
@@ -91,15 +92,7 @@ function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
       </label>
 
       {kind === 'chore' && (
-        <label className="flex flex-col gap-1">
-          <span className="cv-label">Estancia</span>
-          <input
-            value={zone}
-            onChange={(e) => setZone(e.target.value)}
-            placeholder="Cocina, Baño, Biblioteca..."
-            className="cv-input"
-          />
-        </label>
+        <ZonePicker value={zone} onChange={setZone} />
       )}
 
       <div className="flex flex-col gap-1">
