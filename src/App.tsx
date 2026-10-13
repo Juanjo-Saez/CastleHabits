@@ -28,7 +28,6 @@ const tabs = [
   { to: '/', label: 'Hábitos', icon: '🕯️', end: true },
   { to: '/tareas', label: 'Castillo', icon: '🏰' },
   { to: '/calendario', label: 'Calendario', icon: '🗓️' },
-  { to: '/archivo', label: 'Archivo', icon: '📖' },
   { to: '/stats', label: 'Crónicas', icon: '📜' },
   { to: '/perfil', label: 'Cazador', icon: '🧛' },
 ]

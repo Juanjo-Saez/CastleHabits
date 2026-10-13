@@ -274,7 +274,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       dead: false,
       lastPenaltyCheck: todayKey(),
     }
-    await db.profile.put(updated)
+    await db.transaction('rw', [db.items, db.profile], async () => {
+      const routeItems = (await db.items.toArray()).filter(
+        (item) => item.routeId && !item.archived,
+      )
+      if (routeItems.length > 0) {
+        await db.items.bulkPut(routeItems.map((item) => ({ ...item, archived: true })))
+      }
+      await db.profile.put(updated)
+    })
     set({ profile: updated, justLeveledUp: null })
   },
 

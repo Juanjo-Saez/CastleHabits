@@ -1,8 +1,8 @@
 import { usePlayerStore } from '../store/usePlayerStore'
+import { restartExpedition } from '../store/routeActions'
 
 function HardcoreDeath() {
   const profile = usePlayerStore((s) => s.profile)
-  const restartRun = usePlayerStore((s) => s.restartRun)
 
   if (!profile?.dead) return null
 
@@ -16,7 +16,7 @@ function HardcoreDeath() {
         </p>
         <button
           type="button"
-          onClick={() => void restartRun()}
+          onClick={() => void restartExpedition()}
           className="cv-btn cv-btn--gold mt-6 w-full"
         >
           Renacer en el nivel 1

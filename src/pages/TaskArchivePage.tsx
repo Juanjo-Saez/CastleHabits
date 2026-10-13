@@ -14,7 +14,7 @@ import type { Item } from '../types'
 type Frequency = 'all' | 'daily' | 'weekly' | 'monthly' | 'once' | 'other'
 
 const FREQUENCY_OPTIONS: { value: Frequency; label: string }[] = [
-  { value: 'all', label: 'Todas las frecuencias' },
+  { value: 'all', label: 'Todas' },
   { value: 'daily', label: 'Diarias' },
   { value: 'weekly', label: 'Semanales' },
   { value: 'monthly', label: 'Mensuales' },
@@ -91,20 +91,24 @@ function TaskArchivePage() {
   const completionsByItem = useItemsStore((state) => state.completionsByItem)
   const loading = useItemsStore((state) => state.loading)
   const [frequency, setFrequency] = useState<Frequency>('all')
+  const [hideRouteMissions, setHideRouteMissions] = useState(true)
 
   const sortedItems = [...items].sort((first, second) => {
     if (first.archived !== second.archived) return first.archived ? 1 : -1
     return first.title.localeCompare(second.title, 'es')
   })
-  const visibleItems = frequency === 'all'
+  const frequencyItems = frequency === 'all'
     ? sortedItems
     : sortedItems.filter((item) => getFrequency(item) === frequency)
+  const visibleItems = hideRouteMissions
+    ? frequencyItems.filter((item) => !item.routeId)
+    : frequencyItems
 
   return (
     <>
       <PageHeader title="Archivo de Tareas" subtitle="Cada compromiso, su ritmo y todo lo que ya cumpliste." />
       <section className="relative z-10 flex flex-col gap-3 px-3 pb-4">
-        <div className="flex items-end justify-between gap-3">
+        <div className="flex items-end gap-3">
           <label className="flex min-w-0 flex-1 flex-col gap-1">
             <span className="cv-label">Frecuencia</span>
             <select
@@ -117,8 +121,20 @@ function TaskArchivePage() {
               ))}
             </select>
           </label>
-          <p className="cv-label shrink-0 pb-2" aria-live="polite">
-            {visibleItems.length} / {items.length} tareas
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <label className="flex items-center gap-2 font-body text-sm text-parchment-100">
+            <input
+              type="checkbox"
+              checked={hideRouteMissions}
+              onChange={(event) => setHideRouteMissions(event.target.checked)}
+              className="accent-gold-400"
+            />
+            Ocultar misiones de ruta
+          </label>
+          <p className="cv-label shrink-0" aria-live="polite">
+            {visibleItems.length} / {items.length}
           </p>
         </div>
 
@@ -132,7 +148,9 @@ function TaskArchivePage() {
             <p className="mt-2 font-body text-silver-400">
               {items.length === 0
                 ? 'Cuando añadas tareas, sus frecuencias y registros aparecerán aquí.'
-                : 'Prueba con otra frecuencia para ver más tareas.'}
+                : hideRouteMissions && frequencyItems.some((item) => item.routeId)
+                  ? 'No hay tareas propias en este filtro. Puedes mostrar también las misiones vinculadas a rutas.'
+                  : 'Prueba con otra frecuencia para ver más tareas.'}
             </p>
           </div>
         ) : visibleItems.map((item) => {

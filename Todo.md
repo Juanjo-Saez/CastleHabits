@@ -13,6 +13,8 @@ Estado revisado el 8 de octubre de 2026. Este documento refleja el punto actual 
 - [x] Ordenar por dificultad de forma predeterminada y también por vencimiento, estancia o ruta, según la lista.
 - [x] Base del calendario mensual: consultar carga prevista y actividad pasada, y abrir el detalle del día para ver tareas, EXP y monedas. La presentación uniforme de las celdas y velas sigue pendiente.
 - [x] Abrir el detalle de un día desde el mapa de Constancia.
+- [x] Consultar el archivo de tareas desde Crónicas, con filtro de frecuencia y opción para ocultar tareas vinculadas a rutas.
+- [x] Al jubilarse o renacer, archivar las misiones vinculadas a rutas con su historial y crear fichas nuevas al iniciar la siguiente expedición.
 
 ### Progresión y recursos
 

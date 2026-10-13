@@ -9,6 +9,7 @@ import SectionTitle from '../components/SectionTitle'
 import { getAvatarStage, xpToNextLevel } from '../lib/gamification'
 import { clearReminderDate } from '../lib/notifications'
 import { effectiveMaxHp } from '../lib/routes'
+import { restartExpedition } from '../store/routeActions'
 import { resetAllAppData } from '../db/database'
 import { useAchievementsStore } from '../store/useAchievementsStore'
 import { useItemsStore } from '../store/useItemsStore'
@@ -17,7 +18,6 @@ import { useRewardsStore } from '../store/useRewardsStore'
 
 function ProfilePage() {
   const profile = usePlayerStore((s) => s.profile)
-  const restartRun = usePlayerStore((s) => s.restartRun)
   const clearLevelUp = usePlayerStore((s) => s.clearLevelUp)
   const [confirmRetirement, setConfirmRetirement] = useState(false)
   const [confirmFullReset, setConfirmFullReset] = useState(false)
@@ -95,7 +95,7 @@ function ProfilePage() {
             {confirmRetirement ? (
               <div role="alertdialog" aria-label="Confirmar jubilación" className="flex flex-col gap-3">
                 <p className="font-body text-silver-100">
-                  Empezarás otra expedición en nivel 1. Se reiniciarán nivel, monedas, recursos y rutas; tus tareas, recompensas y todo el historial se conservarán.
+                  Empezarás otra expedición en nivel 1. Se reiniciarán nivel, monedas, recursos y progreso de rutas. Las misiones vinculadas a rutas se archivarán con su historial; tus demás tareas y recompensas se conservarán.
                 </p>
                 <div className="flex justify-end gap-2">
                   <button
@@ -108,7 +108,7 @@ function ProfilePage() {
                   <button
                     type="button"
                     onClick={() => {
-                      void restartRun()
+                      void restartExpedition()
                       setConfirmRetirement(false)
                     }}
                     className="cv-btn cv-btn--blood"

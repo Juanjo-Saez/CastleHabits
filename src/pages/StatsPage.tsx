@@ -1,4 +1,5 @@
 import { format, parseISO, subDays } from 'date-fns'
+import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import DayDetail from '../components/DayDetail'
 import PageHeader from '../components/PageHeader'
@@ -71,6 +72,16 @@ function StatsPage() {
             </div>
           )}
         </div>
+
+        <Link to="/archivo" className="cv-panel flex items-center justify-between gap-3 p-3 transition-colors hover:border-gold-400/60">
+          <div>
+            <SectionTitle>Archivo de tareas</SectionTitle>
+            <p className="mt-1 font-body text-sm text-silver-500 italic">
+              Consulta tus tareas, frecuencias y registros.
+            </p>
+          </div>
+          <span aria-hidden="true" className="font-pixel text-xl text-gold-300">›</span>
+        </Link>
 
         <div className="cv-panel p-3">
           <SectionTitle>Reliquias</SectionTitle>
