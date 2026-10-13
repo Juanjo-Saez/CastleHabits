@@ -10,7 +10,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'app-icon.svg'],
+      includeAssets: ['favicon.svg', 'app-icon.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'Hábitos',
         short_name: 'Hábitos',
@@ -21,13 +21,15 @@ export default defineConfig({
         orientation: 'portrait',
         start_url: '/',
         icons: [
-          { src: 'app-icon.svg', sizes: 'any', type: 'image/svg+xml' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
           {
-            src: 'app-icon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: 'icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'maskable',
           },
+          { src: 'app-icon.svg', sizes: 'any', type: 'image/svg+xml' },
         ],
       },
       workbox: {
