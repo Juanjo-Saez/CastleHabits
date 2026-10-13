@@ -122,14 +122,6 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
           >
             {item.title}
           </button>
-          <button
-            type="button"
-            onClick={onOpen}
-            className="cv-btn cv-btn--ghost min-h-11 shrink-0 px-2 py-1 text-sm"
-            aria-label={`Editar ${item.title}`}
-          >
-            Editar
-          </button>
           {dueToday && !done && <span className="cv-tag cv-tag--gold">Hoy</span>}
           {!isObligation(item) && <span className="cv-tag cv-tag--gold">Misión</span>}
           {overdue && <span className="cv-tag cv-tag--blood">Vencida</span>}

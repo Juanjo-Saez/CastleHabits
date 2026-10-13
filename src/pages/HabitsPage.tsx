@@ -58,7 +58,7 @@ function HabitsPage() {
     })).filter((group) => group.items.length > 0),
     {
       id: 'unassigned',
-      title: 'Custom',
+      title: 'Hábitos',
       accent: 'border-silver-500 text-silver-300',
       items: habits.filter((item) => !routeByHabit.get(item.id)),
     },

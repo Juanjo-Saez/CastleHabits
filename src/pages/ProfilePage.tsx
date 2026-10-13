@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import BackupSettings from '../components/BackupSettings'
 import HunterPortrait from '../components/HunterPortrait'
 import NotificationSettings from '../components/NotificationSettings'
@@ -11,6 +12,8 @@ import { usePlayerStore } from '../store/usePlayerStore'
 
 function ProfilePage() {
   const profile = usePlayerStore((s) => s.profile)
+  const restartRun = usePlayerStore((s) => s.restartRun)
+  const [confirmRetirement, setConfirmRetirement] = useState(false)
 
   if (!profile) {
     return <p className="p-8 text-center font-pixel text-xl text-silver-500">Cargando cazador...</p>
@@ -61,6 +64,42 @@ function ProfilePage() {
                 Es una regla permanente: si la vitalidad llega a cero, la expedición termina y tendrás que renacer desde el nivel 1.
               </p>
             </div>
+          </div>
+          <div className="mt-3 border-t border-blood-700/40 pt-3">
+            {confirmRetirement ? (
+              <div role="alertdialog" aria-label="Confirmar jubilación" className="flex flex-col gap-3">
+                <p className="font-body text-silver-100">
+                  Empezarás otra expedición en nivel 1. Se reiniciarán nivel, monedas, recursos y rutas; tus tareas, recompensas y todo el historial se conservarán.
+                </p>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmRetirement(false)}
+                    className="cv-btn cv-btn--ghost"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void restartRun()
+                      setConfirmRetirement(false)
+                    }}
+                    className="cv-btn cv-btn--blood"
+                  >
+                    Jubilar y renacer
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmRetirement(true)}
+                className="cv-btn cv-btn--ghost text-blood-300"
+              >
+                Jubilar personaje
+              </button>
+            )}
           </div>
         </div>
 
