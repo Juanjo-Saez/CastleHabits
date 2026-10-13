@@ -17,7 +17,7 @@ function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
   const addItem = useItemsStore((s) => s.addItem)
   const [kind, setKind] = useState<'chore' | 'todo'>('chore')
   const [title, setTitle] = useState('')
-  const [zone, setZone] = useState('')
+  const [zone, setZone] = useState('Castle')
   const [difficulty, setDifficulty] = useState<Difficulty>('easy')
   const [recurrence, setRecurrence] = useState(defaultRecurrenceDraft)
   const [dueDate, setDueDate] = useState(todayKey())

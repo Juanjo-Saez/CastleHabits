@@ -211,7 +211,7 @@ function TaskArchivePage() {
                 )}
                 {item.zone && (
                   <>
-                    <dt className="text-silver-500">Zona</dt>
+                    <dt className="text-silver-500">Estancia</dt>
                     <dd className="text-right text-parchment-100">{item.zone}</dd>
                   </>
                 )}

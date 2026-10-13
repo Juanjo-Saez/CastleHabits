@@ -52,7 +52,7 @@ function ItemDetails({ item, onClose }: Readonly<{ item: Item; onClose: () => vo
   const [title, setTitle] = useState(item.title)
   const [difficulty, setDifficulty] = useState<Difficulty>(item.difficulty)
   const [routeId, setRouteId] = useState<RouteId | undefined>(item.routeId)
-  const [zone, setZone] = useState(item.zone ?? '')
+  const [zone, setZone] = useState(item.zone ?? 'Castle')
   const [dueDate, setDueDate] = useState(item.dueDate ?? todayKey())
   const [recurrence, setRecurrence] = useState(() => recurrenceDraftFor(item))
   const [trackingType, setTrackingType] = useState<TrackingType>(item.trackingType)

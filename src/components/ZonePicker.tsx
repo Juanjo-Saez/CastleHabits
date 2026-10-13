@@ -15,17 +15,17 @@ function ZonePicker({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between gap-2">
-        <label htmlFor={id} className="cv-label">Zona</label>
+        <label htmlFor={id} className="cv-label">Estancia</label>
         <button
           type="button"
           onClick={() => setShowLegend((visible) => !visible)}
-          aria-label="Mostrar equivalencias de las zonas"
+          aria-label={showLegend ? 'Ocultar equivalencias de las estancias' : 'Mostrar equivalencias de las estancias'}
           aria-expanded={showLegend}
           aria-controls={`${id}-legend`}
-          title="Equivalencias de las zonas"
-          className="flex size-7 items-center justify-center border border-gold-600/50 font-pixel text-sm text-gold-300 hover:border-gold-400 hover:text-gold-200"
+          title="Equivalencias de las estancias"
+          className="cv-btn cv-btn--gold flex size-7 items-center justify-center !p-0 text-xl"
         >
-          ⓘ
+          ?
         </button>
       </div>
       <select
@@ -34,7 +34,6 @@ function ZonePicker({
         onChange={(event) => onChange(event.target.value)}
         className="cv-input"
       >
-        <option value="">Sin zona</option>
         {isLegacyZone && <option value={value}>Anterior: {value}</option>}
         {ZONES.map((zone) => (
           <option key={zone.name} value={zone.name}>{zone.name}</option>

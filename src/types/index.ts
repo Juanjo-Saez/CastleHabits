@@ -30,7 +30,7 @@ export interface Item {
   commitment?: ItemCommitment
   title: string
   icon?: string
-  /** Solo para chores: zona/estancia del castillo (ej. "Cocina"). */
+  /** Solo para chores: estancia del castillo (ej. "Alchemy Laboratory"). */
   zone?: string
   difficulty: Difficulty
   /** Regla RRULE en texto. null/undefined para todos puntuales. */
