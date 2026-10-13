@@ -40,6 +40,9 @@ function HabitsPage() {
   const routes = usePlayerStore((s) => s.profile?.routes)
   const [showForm, setShowForm] = useState(false)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    () => new Set(ROUTE_IDS),
+  )
   const selectedItem = items.find((item) => item.id === selectedItemId && !item.archived)
   const habits = sortTasks(
     items.filter((item) => item.type === 'habit' && !item.archived),
@@ -97,14 +100,32 @@ function HabitsPage() {
         {showGroups && (
           <div className="flex flex-col gap-4">
             {groups.map((group) => (
-              <section key={group.id} aria-labelledby={`habit-group-${group.id}`} className="flex flex-col gap-2">
-                <h3
-                  id={`habit-group-${group.id}`}
-                  className={`border-l-4 bg-night-900/80 px-3 py-2 font-pixel text-xl leading-none ${group.accent}`}
-                >
-                  {group.title}
+              <section key={group.id} className="flex flex-col gap-2">
+                <h3 className="m-0">
+                  <button
+                    id={`habit-group-${group.id}`}
+                    type="button"
+                    aria-expanded={!collapsedGroups.has(group.id)}
+                    aria-controls={`habit-items-${group.id}`}
+                    onClick={() => setCollapsedGroups((current) => {
+                      const next = new Set(current)
+                      if (next.has(group.id)) next.delete(group.id)
+                      else next.add(group.id)
+                      return next
+                    })}
+                    className={`flex w-full items-center gap-3 border-l-4 bg-night-900/80 px-3 py-2 text-left font-pixel text-xl leading-none ${group.accent}`}
+                  >
+                    <span className="min-w-0 flex-1">{group.title}</span>
+                    <span className="text-base" aria-hidden="true">
+                      {collapsedGroups.has(group.id) ? '＋' : '−'}
+                    </span>
+                  </button>
                 </h3>
-                <div className="flex flex-col gap-2">
+                <div
+                  id={`habit-items-${group.id}`}
+                  hidden={collapsedGroups.has(group.id)}
+                  className="flex flex-col gap-2"
+                >
                   {group.items.map((item) => (
                     <ItemCard key={item.id} item={item} onOpen={() => setSelectedItemId(item.id)} />
                   ))}
