@@ -100,16 +100,23 @@ function RewardsShop() {
             </p>
           </div>
         </div>
-        <div className="mt-2 grid grid-cols-3 gap-1.5">
+        <div className="mt-3 grid grid-cols-3 gap-2">
           {postponePacks.map((pack) => (
             <button
               key={pack.quantity}
               type="button"
               disabled={coins < pack.cost}
               onClick={() => void handleBuyPostponeTokens(pack.quantity, pack.cost)}
-              className="cv-btn px-1 py-1 text-sm"
+              className="cv-panel flex min-h-20 flex-col items-center justify-center gap-1 border-gold-600/30 px-1.5 py-2 text-center transition-colors hover:border-gold-400/70 hover:bg-night-800/90 disabled:cursor-not-allowed disabled:opacity-45"
+              aria-label={`Comprar ${pack.quantity} ${pack.quantity === 1 ? 'sello' : 'sellos'} por ${pack.cost} de oro`}
             >
-              +{pack.quantity} · {pack.cost} oro
+              <span className="font-pixel text-2xl leading-none text-gold-300">
+                {pack.quantity} {pack.quantity === 1 ? 'sello' : 'sellos'}
+              </span>
+              <span className="flex items-center gap-1 font-body text-sm text-silver-300">
+                <PixelArt rows={COIN} palette={COIN_PALETTE} scale={1} />
+                {pack.cost} oro
+              </span>
             </button>
           ))}
         </div>

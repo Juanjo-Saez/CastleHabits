@@ -61,10 +61,6 @@ function RouteCard({ def }: Readonly<{ def: RouteDef }>) {
             <p className="font-pixel text-lg leading-none text-gold-300">Ruta al máximo</p>
           ) : (
             <div>
-              <div className="mb-1 flex justify-between font-pixel text-sm text-silver-500">
-                Un día es bueno con {status.rule.minPerDay} actividades distintas (hoy {status.doneToday}).
-                {' La recompensa se revelará al desbloquearla.'}
-              </div>
               <div className="cv-bar"><span className="cv-fill-mp" style={{ width: `${goodPct}%` }} /></div>
               <p className="mt-1 font-body text-sm text-silver-500 italic">
                 Un día es bueno con {status.rule.minPerDay} actividades distintas (hoy {status.doneToday}).
