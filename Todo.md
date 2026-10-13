@@ -1,6 +1,6 @@
 # Hoja de ruta de Hábitos
 
-Estado revisado el 8 de octubre de 2026. Este documento refleja el punto actual de la app: lo marcado como implementado describe la base existente; el resto es trabajo pendiente o ideas por decidir.
+Estado revisado el 13 de octubre de 2026. Este documento refleja el punto actual de la app: lo marcado como implementado describe la base existente; el resto es trabajo pendiente o ideas por decidir.
 
 ## Ya implementado
 
@@ -10,12 +10,15 @@ Estado revisado el 8 de octubre de 2026. Este documento refleja el punto actual 
 - [x] Mostrar solo las obligaciones recurrentes que vencen hoy. Las tareas puntuales pendientes muestran su fecha límite y los días restantes.
 - [x] Configurar recurrencias diarias, semanales o mensuales, con intervalos, días concretos y último día del mes.
 - [x] Usar zonas fijas con nombres góticos y mostrar sus equivalencias domésticas desde el icono de información.
+- [x] Migrar los nombres antiguos de las estancias al nuevo catálogo de zonas sin perder las tareas existentes.
 - [x] Definir cuándo empieza una recurrencia, incluyendo mañana o el mes siguiente; las apariciones anteriores al inicio no generan fallos.
 - [x] Ordenar por dificultad de forma predeterminada y también por vencimiento, estancia o ruta, según la lista.
-- [x] Base del calendario mensual: consultar carga prevista y actividad pasada, y abrir el detalle del día para ver tareas, EXP y monedas. La presentación uniforme de las celdas y velas sigue pendiente.
+- [x] Base del calendario mensual: consultar carga prevista y actividad pasada, y abrir el detalle del día para ver tareas, EXP y monedas, con celdas cuadradas uniformes y velas de tamaño estable.
 - [x] Abrir el detalle de un día desde el mapa de Constancia.
 - [x] Consultar el archivo de tareas desde Crónicas, con filtro de frecuencia y opción para ocultar tareas vinculadas a rutas.
 - [x] Al jubilarse o renacer, archivar las misiones vinculadas a rutas con su historial y crear fichas nuevas al iniciar la siguiente expedición.
+- [x] Evitar que las misiones vinculadas a rutas se dupliquen al jubilarse o iniciar una nueva expedición.
+- [x] Generar y publicar iconos PWA de 192 y 512 píxeles junto con el icono de la aplicación.
 
 ### Progresión y recursos
 
@@ -40,7 +43,7 @@ Estado revisado el 8 de octubre de 2026. Este documento refleja el punto actual 
 ### 1. Mejoras de interfaz y gestión de tareas
 
 - [x] En la vista del Cazador, ocultar el efecto mecánico de cada pasiva y mostrar solo un nombre sugerente; la recompensa bloqueada no se revela antes de desbloquearla.
-- [x] En Hábitos, agrupar las actividades bajo su ruta visible y conservar el orden por dificultad dentro de cada grupo; las misiones sin ruta aparecen en “Otras misiones”.
+- [x] En Hábitos, agrupar las actividades bajo su ruta visible, mantener el orden por dificultad y mostrar los grupos plegados inicialmente; las misiones sin ruta aparecen en “Hábitos”.
 - [x] Mantener celdas cuadradas de tamaño uniforme en el calendario y reservar espacio para seis velas pequeñas del mismo tamaño.
 - [x] Cuando hay más de seis apariciones, mostrar por separado velas encendidas con el número de tareas cumplidas y velas apagadas con el número pendiente.
 - [x] Abrir el detalle de una tarea desde su título y permitir editar sus campos o iniciar su eliminación.
@@ -96,12 +99,12 @@ Estado revisado el 8 de octubre de 2026. Este documento refleja el punto actual 
 - [ ] Cuando existan cuentas, jugadores y amistades, explorar prestar o compartir temporalmente un oficio para ayudar en el mundo de otra persona.
 - [ ] Definir permisos, duración, beneficios y límites antes de construir funciones entre jugadores.
 
+## Próxima fase
+
+- [x] Continuar con el cierre de la base de historial y la señalización de fallos recientes; después abordar el primer boss.
+
 ## Decisiones abiertas
 
-- ¿Con qué continuamos primero: las mejoras de interfaz y gestión de tareas, cerrar estadísticas y crear el primer boss, o profundizar las misiones ramificadas de las rutas?
-- Para las tareas de una ruta en Hábitos, ¿te basta con encabezados/grupos plegables por ruta o quieres además filtros para mostrar una ruta concreta?
-- Al eliminar una tarea, ¿debería desaparecer de inmediato aunque tenga historial, o archivarse por defecto dejando una acción explícita de borrado definitivo?
-- En el calendario con más de seis apariciones, ¿el contador de velas apagadas debe contar todas las pendientes del día o solo las que aún no se han completado?
 - Para el primer boss, ¿prefieres un desafío de tareas durante varios días o una pregunta basada en el historial? Se pueden añadir ambos formatos más adelante.
 - ¿Quieres mantener las estadísticas ocultas hasta desbloquear una reliquia/poder, o debería existir una vista básica desde el principio?
 - ¿Las rutas de inicio actuales son las adecuadas y qué actividades concretas quieres asociar a cada una? ¿Qué requisitos te gustaría usar para bloquear o esconder rutas?
