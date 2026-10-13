@@ -47,6 +47,10 @@ export function markRemindedToday(): void {
   localStorage.setItem(LAST_REMINDER_KEY, new Date().toDateString())
 }
 
+export function clearReminderDate(): void {
+  localStorage.removeItem(LAST_REMINDER_KEY)
+}
+
 /** Cuenta obligaciones debidas hoy; las misiones secundarias no generan deuda. */
 export function countPendingToday(
   items: Item[],

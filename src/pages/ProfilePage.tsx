@@ -7,13 +7,39 @@ import RewardsShop from '../components/RewardsShop'
 import RoutesPanel from '../components/RoutesPanel'
 import SectionTitle from '../components/SectionTitle'
 import { getAvatarStage, xpToNextLevel } from '../lib/gamification'
+import { clearReminderDate } from '../lib/notifications'
 import { effectiveMaxHp } from '../lib/routes'
+import { resetAllAppData } from '../db/database'
+import { useAchievementsStore } from '../store/useAchievementsStore'
+import { useItemsStore } from '../store/useItemsStore'
 import { usePlayerStore } from '../store/usePlayerStore'
+import { useRewardsStore } from '../store/useRewardsStore'
 
 function ProfilePage() {
   const profile = usePlayerStore((s) => s.profile)
   const restartRun = usePlayerStore((s) => s.restartRun)
+  const clearLevelUp = usePlayerStore((s) => s.clearLevelUp)
   const [confirmRetirement, setConfirmRetirement] = useState(false)
+  const [confirmFullReset, setConfirmFullReset] = useState(false)
+  const [resetError, setResetError] = useState(false)
+
+  async function resetEverything() {
+    try {
+      await resetAllAppData()
+      clearReminderDate()
+      clearLevelUp()
+      await Promise.all([
+        useItemsStore.getState().load(),
+        usePlayerStore.getState().load(),
+        useAchievementsStore.getState().load(),
+        useRewardsStore.getState().load(),
+      ])
+      setConfirmFullReset(false)
+      setResetError(false)
+    } catch {
+      setResetError(true)
+    }
+  }
 
   if (!profile) {
     return <p className="p-8 text-center font-pixel text-xl text-silver-500">Cargando cazador...</p>
@@ -98,6 +124,47 @@ function ProfilePage() {
                 className="cv-btn cv-btn--ghost text-blood-300"
               >
                 Jubilar personaje
+              </button>
+            )}
+          </div>
+          <div className="mt-3 border-t border-blood-700/40 pt-3">
+            {confirmFullReset ? (
+              <div role="alertdialog" aria-label="Confirmar reinicio total" aria-modal="true" className="flex flex-col gap-3">
+                <p className="font-body text-silver-100">
+                  Se borrarán de este navegador todas las tareas, completados, eventos e historial, además del progreso del personaje, logros y recompensas personalizadas. Esta acción no se puede deshacer.
+                </p>
+                {resetError && (
+                  <p role="alert" className="font-body text-blood-300">
+                    No se pudieron borrar los datos. Inténtalo de nuevo.
+                  </p>
+                )}
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmFullReset(false)
+                      setResetError(false)
+                    }}
+                    className="cv-btn cv-btn--ghost"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void resetEverything()}
+                    className="cv-btn cv-btn--blood"
+                  >
+                    Borrar todo y empezar de cero
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmFullReset(true)}
+                className="cv-btn cv-btn--ghost text-blood-300"
+              >
+                Reiniciar todos los datos
               </button>
             )}
           </div>

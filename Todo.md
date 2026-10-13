@@ -20,6 +20,7 @@ Estado revisado el 8 de octubre de 2026. Este documento refleja el punto actual 
 - [x] Añadir sellos de aplazamiento, pociones de vigor y congelaciones de racha a la tienda de recursos del sistema.
 - [x] Permitir aplazar una obligación elegible hasta mañana sin encadenar aplazamientos sobre la misma aparición.
 - [x] Mantener Hardcore: al llegar a 0 HP termina la expedición y se puede empezar otra desde nivel 1. También se puede jubilar el personaje manualmente desde el perfil. El reinicio de expedición conserva tareas, recompensas e historial global.
+- [x] Añadir un reinicio total independiente para borrar los datos locales de prueba y empezar de cero; requiere confirmación y no altera el comportamiento de jubilar.
 - [x] Añadir las rutas iniciales Cazavampiros, Tecnomancer y Fortaleza Interior, con actividades vinculadas, progreso por tramos y oficios equipables.
 - [x] Desbloquear y equipar una pasiva asociada al oficio.
 - [x] Mostrar las rutas disponibles en la vista del Cazador.

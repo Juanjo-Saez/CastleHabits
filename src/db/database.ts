@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import { defaultRoutes } from '../lib/routes'
+import { todayKey } from '../lib/date'
 import type {
   Achievement,
   Completion,
@@ -70,4 +71,23 @@ export async function ensurePlayerProfile(): Promise<PlayerProfile> {
     if (createdByRace) return createdByRace
     throw new Error('No se pudo crear el perfil del jugador')
   }
+}
+
+export async function resetAllAppData(): Promise<void> {
+  await db.transaction(
+    'rw',
+    [db.items, db.completions, db.itemEvents, db.profile, db.achievements, db.rewards],
+    async () => {
+      await Promise.all([
+        db.items.clear(),
+        db.completions.clear(),
+        db.itemEvents.clear(),
+        db.profile.clear(),
+        db.achievements.clear(),
+        db.rewards.clear(),
+      ])
+      const profile = await ensurePlayerProfile()
+      await db.profile.put({ ...profile, lastPenaltyCheck: todayKey() })
+    },
+  )
 }
