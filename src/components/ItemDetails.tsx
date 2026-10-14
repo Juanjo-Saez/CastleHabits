@@ -3,8 +3,14 @@ import { RRule } from 'rrule'
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react'
 import { todayKey } from '../lib/date'
 import { DIFFICULTY_LABEL } from '../lib/gamification'
-import { describeRecurrence } from '../lib/recurrence'
-import { defaultRecurrenceDraft, isDraftValid, ruleFromDraft, type RecurrenceDraft } from '../lib/recurrenceDraft'
+import { describeRecurrence, describeWindow } from '../lib/recurrence'
+import {
+  defaultRecurrenceDraft,
+  isDraftValid,
+  ruleFromDraft,
+  windowFromDraft,
+  type RecurrenceDraft,
+} from '../lib/recurrenceDraft'
 import { ROUTES } from '../lib/routes'
 import { useItemsStore } from '../store/useItemsStore'
 import type { Difficulty, Item, RouteId, TrackingType } from '../types'
@@ -30,6 +36,7 @@ function recurrenceDraftFor(item: Item): RecurrenceDraft {
       weekdays: options.byweekday ?? draft.weekdays,
       monthDay: options.bymonthday?.[0] ?? 1,
       lastDay: options.bynmonthday?.includes(-1) ?? false,
+      windowDays: item.windowDays ?? 1,
     }
   } catch {
     return draft
@@ -86,6 +93,7 @@ function ItemDetails({ item, onClose }: Readonly<{ item: Item; onClose: () => vo
       changes.zone = zone.trim() || undefined
       changes.recurrenceRule = ruleFromDraft(recurrence)
       changes.startDate = recurrence.startDate
+      changes.windowDays = windowFromDraft(recurrence)
     }
     if (item.type === 'todo') changes.dueDate = dueDate
 
@@ -189,7 +197,7 @@ function ItemDetails({ item, onClose }: Readonly<{ item: Item; onClose: () => vo
               <dd className="text-silver-100">{DIFFICULTY_LABEL[item.difficulty]}</dd>
               {item.zone && <><dt className="text-silver-500">Estancia</dt><dd className="text-silver-100">{item.zone}</dd></>}
               {item.routeId && <><dt className="text-silver-500">Ruta</dt><dd className="text-silver-100">{ROUTES[item.routeId].name}</dd></>}
-              {item.type === 'chore' && <><dt className="text-silver-500">Frecuencia</dt><dd className="text-silver-100">{describeRecurrence(item.recurrenceRule)}</dd></>}
+              {item.type === 'chore' && <><dt className="text-silver-500">Frecuencia</dt><dd className="text-silver-100">{describeRecurrence(item.recurrenceRule)}{describeWindow(item) ? ` · ${describeWindow(item)}` : ''}</dd></>}
               {item.type === 'todo' && item.dueDate && <><dt className="text-silver-500">Vence</dt><dd className="text-silver-100">{format(new Date(`${item.dueDate}T12:00:00`), 'dd/MM/yyyy')}</dd></>}
               {item.trackingType === 'quantity' && <><dt className="text-silver-500">Meta</dt><dd className="text-silver-100">{item.quantityGoal} {item.unit}</dd></>}
             </dl>

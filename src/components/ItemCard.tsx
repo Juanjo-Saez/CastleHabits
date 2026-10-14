@@ -1,8 +1,16 @@
 import { format, parseISO } from 'date-fns'
 import { useState } from 'react'
-import { describeDaysLeft } from '../lib/date'
+import { describeDaysLeft, todayKey } from '../lib/date'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
-import { describeRecurrence, isItemDueOn, isObligation } from '../lib/recurrence'
+import {
+  completionInWindow,
+  describeRecurrence,
+  describeWindow,
+  isItemDueOn,
+  isObligation,
+  isWindowClosingOn,
+  windowDaysOf,
+} from '../lib/recurrence'
 import { xpWithBonus } from '../lib/routes'
 import { playWhip } from '../lib/sound'
 import { computeStreak } from '../lib/streak'
@@ -26,6 +34,8 @@ function getItemMeta(item: Item, effectiveDueDate?: string | null): string[] {
   const meta: string[] = []
   if (item.zone) meta.push(item.zone)
   if (item.type === 'chore' && item.recurrenceRule) meta.push(describeRecurrence(item.recurrenceRule))
+  const windowText = describeWindow(item)
+  if (windowText) meta.push(windowText)
   if (item.type === 'todo' && effectiveDueDate) {
     meta.push(describeDaysLeft(effectiveDueDate), `vence ${format(parseISO(effectiveDueDate), 'dd/MM')}`)
     if (item.postponedUntil) meta.push('aplazada')
@@ -52,7 +62,8 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
   const isBoolean = item.trackingType === 'boolean'
   const goal = item.quantityGoal ?? 0
   const qty = completion?.quantityDone ?? 0
-  const done = isBoolean ? Boolean(completion) : qty >= goal
+  // Con margen, la tarea cuenta como hecha si se cumplió en cualquier día de su ventana.
+  const done = isBoolean ? Boolean(completionInWindow(item, history, todayKey())) : qty >= goal
   const step = Math.max(1, Math.round(goal / 10))
   const streak = computeStreak(item, history)
   const dueToday = isDueTodayBadge(item)
@@ -62,7 +73,11 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
     Boolean(effectiveDueDate) &&
     !done &&
     parseISO(effectiveDueDate as string) < new Date(new Date().setHours(0, 0, 0, 0))
-  const canPostpone = isObligation(item) && dueToday && !done && postponeTokens > 0
+  const canPostpone =
+    isObligation(item) && dueToday && !done && postponeTokens > 0 && windowDaysOf(item) === 1
+  // Solo en tareas con margen: avisa de que hoy es el último día para cumplirla.
+  const lastWindowDay =
+    windowDaysOf(item) > 1 && !done && isWindowClosingOn(item, new Date())
 
   const frameClass = getFrameClass(done, overdue)
   const meta = getItemMeta(item, effectiveDueDate)
@@ -125,6 +140,7 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
           {dueToday && !done && <span className="cv-tag cv-tag--gold">Hoy</span>}
           {!isObligation(item) && <span className="cv-tag cv-tag--gold">Misión</span>}
           {overdue && <span className="cv-tag cv-tag--blood">Vencida</span>}
+          {lastWindowDay && <span className="cv-tag cv-tag--blood">¡Último día!</span>}
         </div>
 
         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">

@@ -5,7 +5,7 @@ import { db } from '../db/database'
 import { todayKey } from '../lib/date'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
 import { itemEventId, recordItemEvent } from '../lib/itemEvents'
-import { isItemDueOn, isObligation, scheduledDateFor } from '../lib/recurrence'
+import { completionInWindow, isItemDueOn, isObligation, scheduledDateFor, windowDaysOf } from '../lib/recurrence'
 import { xpWithBonus } from '../lib/routes'
 import { useAchievementsStore } from './useAchievementsStore'
 import { usePlayerStore } from './usePlayerStore'
@@ -28,6 +28,7 @@ export interface NewItemInput {
   difficulty: Difficulty
   recurrenceRule?: string | null
   startDate?: string
+  windowDays?: number
   routeId?: RouteId
   trackingType: TrackingType
   quantityGoal?: number
@@ -134,7 +135,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     const item = get().items.find((i) => i.id === itemId)
     if (item?.trackingType !== 'boolean') return
 
-    const existing = get().completionsToday[itemId]
+    const existing = completionInWindow(item, get().completionsByItem[itemId] ?? [], todayKey())
     if (existing) {
       await db.completions.delete(existing.id)
       await recordItemEvent(item, 'undone', existing.date, {
@@ -295,6 +296,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       !isObligation(item) ||
       get().completionsToday[itemId] ||
       item.postponedUntil === today ||
+      windowDaysOf(item) > 1 ||
       !isItemDueOn(item, new Date())
     ) return false
 

@@ -1,5 +1,5 @@
 import { todayKey } from './date'
-import { isItemDueOn, isObligation } from './recurrence'
+import { completionInWindow, isItemDueOn, isObligation, isWindowCompleted } from './recurrence'
 import type { Completion, Item } from '../types'
 
 const LAST_REMINDER_KEY = 'habitos:lastReminderDate'
@@ -54,7 +54,7 @@ export function clearReminderDate(): void {
 /** Cuenta obligaciones debidas hoy; las misiones secundarias no generan deuda. */
 export function countPendingToday(
   items: Item[],
-  completionsToday: Record<string, Completion>,
+  completionsByItem: Record<string, Completion[]>,
 ): number {
   const today = new Date()
   const key = todayKey()
@@ -62,21 +62,18 @@ export function countPendingToday(
 
   for (const item of items) {
     if (item.archived || !isObligation(item)) continue
+    const history = completionsByItem[item.id] ?? []
 
     if (item.type === 'todo') {
-      if (item.dueDate && item.dueDate <= key && !completionsToday[item.id]) {
+      if (item.dueDate && item.dueDate <= key && !completionInWindow(item, history, key)) {
         pending += 1
       }
       continue
     }
 
+    // Con margen, la obligación sigue pendiente durante toda su ventana hasta cumplirla.
     if (!isItemDueOn(item, today)) continue
-    const completion = completionsToday[item.id]
-    const done =
-      item.trackingType === 'quantity'
-        ? (completion?.quantityDone ?? 0) >= (item.quantityGoal ?? 0)
-        : Boolean(completion)
-    if (!done) pending += 1
+    if (!isWindowCompleted(item, history, key)) pending += 1
   }
 
   return pending

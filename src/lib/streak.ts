@@ -1,5 +1,5 @@
 import { addDays, format, isBefore, parseISO, startOfDay } from 'date-fns'
-import { isCompletedOn, isItemDueOn } from './recurrence'
+import { isWindowClosingOn, isWindowCompleted } from './recurrence'
 import type { Completion, Item } from '../types'
 
 /** Racha de días "debidos" consecutivos completados, terminando hoy o ayer. */
@@ -12,16 +12,16 @@ export function computeStreak(item: Item, completions: Completion[]): number {
 
   // Si hoy toca pero aún no se ha completado, no rompemos la racha: empezamos desde ayer.
   if (
-    isItemDueOn(item, cursor) &&
-    !isCompletedOn(item, completions, format(cursor, 'yyyy-MM-dd'))
+    isWindowClosingOn(item, cursor) &&
+    !isWindowCompleted(item, completions, format(cursor, 'yyyy-MM-dd'))
   ) {
     cursor = addDays(cursor, -1)
   }
 
   while (!isBefore(cursor, createdAt)) {
     const key = format(cursor, 'yyyy-MM-dd')
-    if (isItemDueOn(item, cursor)) {
-      if (isCompletedOn(item, completions, key)) {
+    if (isWindowClosingOn(item, cursor)) {
+      if (isWindowCompleted(item, completions, key)) {
         streak += 1
       } else {
         break
@@ -40,8 +40,8 @@ export function computeBestStreak(item: Item, completions: Completion[]): number
   const today = startOfDay(new Date())
   let cursor = startOfDay(parseISO(item.createdAt))
   const endDate =
-    isItemDueOn(item, today) &&
-    !isCompletedOn(item, completions, format(today, 'yyyy-MM-dd'))
+    isWindowClosingOn(item, today) &&
+    !isWindowCompleted(item, completions, format(today, 'yyyy-MM-dd'))
       ? addDays(today, -1)
       : today
 
@@ -49,8 +49,8 @@ export function computeBestStreak(item: Item, completions: Completion[]): number
   let best = 0
   while (!isBefore(endDate, cursor)) {
     const key = format(cursor, 'yyyy-MM-dd')
-    if (isItemDueOn(item, cursor)) {
-      if (isCompletedOn(item, completions, key)) {
+    if (isWindowClosingOn(item, cursor)) {
+      if (isWindowCompleted(item, completions, key)) {
         current += 1
         best = Math.max(best, current)
       } else {
@@ -74,8 +74,8 @@ export function computeScore(item: Item, completions: Completion[]): number {
 
   while (!isBefore(today, cursor)) {
     const key = format(cursor, 'yyyy-MM-dd')
-    if (isItemDueOn(item, cursor)) {
-      const done = isCompletedOn(item, completions, key)
+    if (isWindowClosingOn(item, cursor)) {
+      const done = isWindowCompleted(item, completions, key)
       score += SMOOTHING * ((done ? 1 : 0) - score)
     }
     cursor = addDays(cursor, 1)

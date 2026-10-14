@@ -1,6 +1,6 @@
 import { addDays, format, isBefore, parseISO, startOfDay } from 'date-fns'
 import { buildItemEvent, itemEventId } from './itemEvents'
-import { isCompletedOn, isItemDueOn, isObligation } from './recurrence'
+import { isObligation, isWindowClosingOn, isWindowCompleted, windowDaysOf } from './recurrence'
 import { SHIELD_RECHARGE_DAYS } from './routes'
 import type { Completion, Item, ItemEvent } from '../types'
 
@@ -50,8 +50,8 @@ function missedStreakBefore(
 
   while (!isBefore(dayBefore, cursor)) {
     const key = format(cursor, 'yyyy-MM-dd')
-    if (isItemDueOn(item, cursor)) {
-      streak = isCompletedOn(item, completions, key) ? 0 : streak + 1
+    if (isWindowClosingOn(item, cursor)) {
+      streak = isWindowCompleted(item, completions, key) ? 0 : streak + 1
     }
     cursor = addDays(cursor, 1)
   }
@@ -97,9 +97,9 @@ export function computeMissedPenalties(
     const key = format(cursor, 'yyyy-MM-dd')
     for (const item of items) {
       if (item.archived || !isObligation(item)) continue
-      if (!isItemDueOn(item, cursor)) continue
+      if (!isWindowClosingOn(item, cursor)) continue
       const completions = completionsByItem[item.id] ?? []
-      if (isCompletedOn(item, completions, key)) {
+      if (isWindowCompleted(item, completions, key)) {
         streaks.set(item.id, 0)
         continue
       }
@@ -110,8 +110,10 @@ export function computeMissedPenalties(
       streaks.set(item.id, streak)
       const damage = damageForMissedStreak(streak)
       totalDamage += damage
+      // El evento se registra en la fecha de apertura de la ventana, no en su cierre.
+      const scheduledKey = format(addDays(cursor, -(windowDaysOf(item) - 1)), 'yyyy-MM-dd')
       missedEvents.push(
-        buildItemEvent(item, 'missed', key, { damage }, itemEventId(item.id, key, 'missed')),
+        buildItemEvent(item, 'missed', scheduledKey, { damage }, itemEventId(item.id, scheduledKey, 'missed')),
       )
     }
     cursor = addDays(cursor, 1)

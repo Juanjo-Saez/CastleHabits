@@ -4,6 +4,7 @@ import ItemCard from '../components/ItemCard'
 import ItemDetails from '../components/ItemDetails'
 import NewTaskForm from '../components/NewTaskForm'
 import PageHeader from '../components/PageHeader'
+import RemindersPanel from '../components/RemindersPanel'
 import SectionTitle from '../components/SectionTitle'
 import SortPicker from '../components/SortPicker'
 import { todayKey } from '../lib/date'
@@ -72,6 +73,8 @@ function ChoresPage() {
                 ))}
               </div>
             )}
+
+            <RemindersPanel />
 
             <SectionTitle>Pergaminos</SectionTitle>
             {scrolls.length === 0 ? (

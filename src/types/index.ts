@@ -37,6 +37,8 @@ export interface Item {
   recurrenceRule?: string | null
   /** Primer día (yyyy-MM-dd) en que la recurrencia entra en vigor; antes no cuenta como debida. */
   startDate?: string
+  /** Margen en días tras abrirse la aparición para cumplirla; ausente o 1 = solo ese día. */
+  windowDays?: number
   /** Ruta a la que cuenta esta tarea. */
   routeId?: RouteId
   trackingType: TrackingType
@@ -101,6 +103,23 @@ export interface PlayerProfile {
   dead: boolean
   /** Último día (yyyy-MM-dd) hasta el que ya se aplicó el daño por tareas vencidas. */
   lastPenaltyCheck?: string
+}
+
+export type ReminderUnit = 'day' | 'month'
+
+/** Aviso periódico independiente: no genera tareas, ni daño, ni EXP. */
+export interface Reminder {
+  id: string
+  title: string
+  /** Cada cuántos días o meses vuelve a avisar (mínimo 1). */
+  every: number
+  unit: ReminderUnit
+  /** Última vez que se hizo (yyyy-MM-dd); si falta, cuenta desde la creación. */
+  lastDoneOn?: string
+  /** No avisar hasta este día (yyyy-MM-dd) tras pulsar "Más tarde". */
+  snoozedUntil?: string
+  archived: boolean
+  createdAt: string
 }
 
 export interface Achievement {

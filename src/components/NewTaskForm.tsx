@@ -4,6 +4,7 @@ import {
   defaultRecurrenceDraft,
   isDraftValid,
   ruleFromDraft,
+  windowFromDraft,
 } from '../lib/recurrenceDraft'
 import { useItemsStore } from '../store/useItemsStore'
 import type { Difficulty, RouteId } from '../types'
@@ -39,6 +40,7 @@ function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
         trackingType: 'boolean',
         recurrenceRule: ruleFromDraft(recurrence),
         startDate: recurrence.startDate,
+        windowDays: windowFromDraft(recurrence),
         routeId,
       })
     } else {

@@ -1,29 +1,40 @@
 import { db } from '../db/database'
-import type { Achievement, Completion, Item, ItemEvent, PlayerProfile, Reward } from '../types'
+import type {
+  Achievement,
+  Completion,
+  Item,
+  ItemEvent,
+  PlayerProfile,
+  Reminder,
+  Reward,
+} from '../types'
 
 interface BackupData {
-  version: 1 | 2
+  version: 1 | 2 | 3
   exportedAt: string
   items: Item[]
   completions: Completion[]
-  itemEvents: ItemEvent[]
+  itemEvents?: ItemEvent[]
   profile: PlayerProfile[]
   achievements: Achievement[]
   rewards: Reward[]
+  reminders?: Reminder[]
 }
 
 export async function exportBackup(): Promise<void> {
-  const [items, completions, itemEvents, profile, achievements, rewards] = await Promise.all([
-    db.items.toArray(),
-    db.completions.toArray(),
-    db.itemEvents.toArray(),
-    db.profile.toArray(),
-    db.achievements.toArray(),
-    db.rewards.toArray(),
-  ])
+  const [items, completions, itemEvents, profile, achievements, rewards, reminders] =
+    await Promise.all([
+      db.items.toArray(),
+      db.completions.toArray(),
+      db.itemEvents.toArray(),
+      db.profile.toArray(),
+      db.achievements.toArray(),
+      db.rewards.toArray(),
+      db.reminders.toArray(),
+    ])
 
   const data: BackupData = {
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     items,
     completions,
@@ -31,6 +42,7 @@ export async function exportBackup(): Promise<void> {
     profile,
     achievements,
     rewards,
+    reminders,
   }
 
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -46,13 +58,25 @@ export async function exportBackup(): Promise<void> {
 export async function importBackup(file: File): Promise<void> {
   const text = await file.text()
   const data = JSON.parse(text) as BackupData
-  if (data.version !== 1 && data.version !== 2) throw new Error('Versión de backup no soportada')
+  if (data.version !== 1 && data.version !== 2 && data.version !== 3) {
+    throw new Error('Versión de backup no soportada')
+  }
 
-  const itemEvents = data.version === 2 ? data.itemEvents : []
+  // Los backups v1 y v2 no incluyen eventos ni recordatorios: se importan vacíos.
+  const itemEvents = data.itemEvents ?? []
+  const reminders = data.reminders ?? []
 
   await db.transaction(
     'rw',
-    [db.items, db.completions, db.itemEvents, db.profile, db.achievements, db.rewards],
+    [
+      db.items,
+      db.completions,
+      db.itemEvents,
+      db.profile,
+      db.achievements,
+      db.rewards,
+      db.reminders,
+    ],
     async () => {
       await Promise.all([
         db.items.clear(),
@@ -61,6 +85,7 @@ export async function importBackup(file: File): Promise<void> {
         db.profile.clear(),
         db.achievements.clear(),
         db.rewards.clear(),
+        db.reminders.clear(),
       ])
       await Promise.all([
         db.items.bulkAdd(data.items),
@@ -69,6 +94,7 @@ export async function importBackup(file: File): Promise<void> {
         db.profile.bulkAdd(data.profile),
         db.achievements.bulkAdd(data.achievements),
         db.rewards.bulkAdd(data.rewards),
+        db.reminders.bulkAdd(reminders),
       ])
     },
   )

@@ -1,6 +1,6 @@
 # Hoja de ruta de Hábitos
 
-Estado revisado el 13 de octubre de 2026. Este documento refleja el punto actual de la app: lo marcado como implementado describe la base existente; el resto es trabajo pendiente o ideas por decidir.
+Estado revisado el 14 de octubre de 2026. Este documento refleja el punto actual de la app: lo marcado como implementado describe la base existente; el resto es trabajo pendiente o ideas por decidir.
 
 ## Ya implementado
 
@@ -99,12 +99,38 @@ Estado revisado el 13 de octubre de 2026. Este documento refleja el punto actual
 - [ ] Cuando existan cuentas, jugadores y amistades, explorar prestar o compartir temporalmente un oficio para ayudar en el mundo de otra persona.
 - [ ] Definir permisos, duración, beneficios y límites antes de construir funciones entre jugadores.
 
-## Próxima fase
+## Próxima fase: recurrencias con margen y recordatorios
 
-- [x] Continuar con el cierre de la base de historial y la señalización de fallos recientes; después abordar el primer boss.
+Orden de implementación propuesto.
+
+### 1. Corrección del selector de día del mes
+
+- [x] Permitir borrar y reescribir el día del mes en la recurrencia mensual. Hoy el campo usa `Number(valor) || 1`, así que al vaciarlo vuelve a 1 de inmediato y no se pueden elegir días como 20 o 30. Validar 1–31 al salir del campo o al guardar.
+
+### 2. Ventana de margen en obligaciones recurrentes
+
+- [x] Permitir que una obligación recurrente tenga una ventana de realización: aparece al inicio de la ventana y puede completarse hasta su último día sin fallar (por ejemplo, limpiar los cristales una vez al mes con 7 días de margen).
+- [x] Mostrar un aviso “¡Último día!” en la tarjeta de la tarea cuando la ventana llega a su último día.
+- [x] Penalizar solo si la ventana termina sin completarse; tras cumplirla, la siguiente aparición empieza en su ciclo normal.
+- [x] Definir cómo se combina la ventana con la recurrencia actual (intervalo, días concretos, último día del mes) y con los aplazamientos existentes.
+- [x] Reflejar la ventana en el calendario y en el detalle de la tarea.
+
+### 3. Recordatorios sin tarea
+
+- [x] Crear recordatorios de posibles tareas que no generan obligaciones ni penalizaciones, por ejemplo “lavar la cafetera” cada mes desde la última vez.
+- [x] Al cumplirse el plazo, mostrar el recordatorio en una sección propia, separada de obligaciones y misiones.
+- [x] Permitir marcarlo como hecho (reinicia el contador) o descartarlo (lo vuelve a sugerir más adelante sin registrar fallo).
+- [ ] Evaluar una notificación del navegador reutilizando el sistema de notificaciones existente.
+
+### Después de esta fase
+
+- Cierre de la base de historial y señalización de fallos recientes (sección 2 de la etapa anterior), y después el primer boss.
 
 ## Decisiones abiertas
 
+- Resuelto: el margen está disponible en cualquier recurrencia y su máximo es la separación mínima entre apariciones (cada día no admite margen; cada 3 días, hasta 3; mensual, hasta 28).
+- Resuelto: los recordatorios son independientes y se marcan a mano.
+- Resuelto: marcar un recordatorio como hecho es solo un aviso, sin EXP ni monedas.
 - Para el primer boss, ¿prefieres un desafío de tareas durante varios días o una pregunta basada en el historial? Se pueden añadir ambos formatos más adelante.
 - ¿Quieres mantener las estadísticas ocultas hasta desbloquear una reliquia/poder, o debería existir una vista básica desde el principio?
 - ¿Las rutas de inicio actuales son las adecuadas y qué actividades concretas quieres asociar a cada una? ¿Qué requisitos te gustaría usar para bloquear o esconder rutas?

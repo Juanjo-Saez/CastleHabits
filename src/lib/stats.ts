@@ -1,5 +1,5 @@
 import { addDays, format, startOfDay } from 'date-fns'
-import { isCompletedOn, isItemDueOn } from './recurrence'
+import { isWindowClosingOn, isWindowCompleted } from './recurrence'
 import type { Completion, Item } from '../types'
 
 export interface DayStat {
@@ -25,9 +25,9 @@ export function buildDailyStats(
     let due = 0
     let done = 0
     for (const item of trackable) {
-      if (!isItemDueOn(item, date)) continue
+      if (!isWindowClosingOn(item, date)) continue
       due += 1
-      if (isCompletedOn(item, completionsByItem[item.id] ?? [], key)) done += 1
+      if (isWindowCompleted(item, completionsByItem[item.id] ?? [], key)) done += 1
     }
     stats.push({ key, ratio: due > 0 ? done / due : null, completions: done })
   }

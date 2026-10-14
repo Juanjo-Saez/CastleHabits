@@ -1,4 +1,4 @@
-import { format, isBefore, isSameDay, parseISO, setHours, startOfDay } from 'date-fns'
+import { addDays, format, isBefore, isSameDay, parseISO, setHours, startOfDay } from 'date-fns'
 import { RRule } from 'rrule'
 import type { Completion, Item } from '../types'
 
@@ -118,7 +118,54 @@ export function describeRecurrence(
   }
 }
 
-/** ¿El item "debe" hacerse en esa fecha? Los hábitos sin recurrenceRule son diarios. */
+const DAY_MS = 86_400_000
+const UNBOUNDED_WINDOW_DAYS = 365
+const MAX_WINDOW_OCCURRENCES = 366
+const maxWindowCache = new Map<string, number>()
+
+/** Margen máximo: la menor separación entre apariciones, para que dos ventanas no se solapen. */
+export function maxWindowForRule(recurrenceRule: string): number {
+  const cached = maxWindowCache.get(recurrenceRule)
+  if (cached !== undefined) return cached
+  let max = UNBOUNDED_WINDOW_DAYS
+  try {
+    const dates = RRule.fromString(recurrenceRule).all((_, i) => i < MAX_WINDOW_OCCURRENCES)
+    for (let i = 1; i < dates.length; i += 1) {
+      const gap = Math.round((dates[i].getTime() - dates[i - 1].getTime()) / DAY_MS)
+      max = Math.min(max, gap)
+    }
+  } catch {
+    max = 1
+  }
+  maxWindowCache.set(recurrenceRule, max)
+  return max
+}
+
+/** Días de margen de la obligación: 1 si no tiene ventana, acotados por la separación entre apariciones. */
+export function windowDaysOf(item: Item): number {
+  if (!item.recurrenceRule || !item.windowDays || item.windowDays < 2) return 1
+  return Math.min(maxWindowForRule(item.recurrenceRule), Math.floor(item.windowDays))
+}
+
+/** Descripción del margen para la tarjeta y el detalle; null si no tiene ventana. */
+export function describeWindow(item: Item): string | null {
+  const window = windowDaysOf(item)
+  return window > 1 ? `margen de ${window} días` : null
+}
+
+/** ¿Cae una aparición de la regla exactamente ese día? */
+function occursOn(item: Item, date: Date): boolean {
+  const dateKey = format(date, 'yyyy-MM-dd')
+  if (isBefore(startOfDay(date), startOfDay(parseISO(item.createdAt)))) return false
+  if (item.startDate && dateKey < item.startDate) return false
+  if (!item.recurrenceRule) return true
+  return isDueOn(item.recurrenceRule, date)
+}
+
+/**
+ * ¿El item "debe" hacerse en esa fecha? Los hábitos sin recurrenceRule son diarios.
+ * Con margen, la obligación está activa desde que abre su ventana hasta su último día.
+ */
 export function isItemDueOn(item: Item, date: Date): boolean {
   const dateKey = format(date, 'yyyy-MM-dd')
   if (item.postponedUntil === dateKey) return true
@@ -126,10 +173,20 @@ export function isItemDueOn(item: Item, date: Date): boolean {
   if (item.type === 'todo') {
     return Boolean(item.dueDate && isSameDay(parseISO(item.dueDate), date))
   }
-  if (isBefore(startOfDay(date), startOfDay(parseISO(item.createdAt)))) return false
-  if (item.startDate && dateKey < item.startDate) return false
-  if (!item.recurrenceRule) return true
-  return isDueOn(item.recurrenceRule, date)
+  for (let offset = 0; offset < windowDaysOf(item); offset += 1) {
+    if (occursOn(item, addDays(date, -offset))) return true
+  }
+  return false
+}
+
+/**
+ * ¿Es ese día el último de la obligación, el momento en que se evalúa si se cumplió?
+ * Sin margen coincide con isItemDueOn.
+ */
+export function isWindowClosingOn(item: Item, date: Date): boolean {
+  const window = windowDaysOf(item)
+  if (window === 1) return isItemDueOn(item, date)
+  return occursOn(item, addDays(date, -(window - 1)))
 }
 
 /** Fecha de la aparición original representada por la tarea en una fecha concreta. */
@@ -139,6 +196,10 @@ export function scheduledDateFor(item: Item, date: Date): string {
     return item.postponedFrom
   }
   if (item.type === 'todo' && item.dueDate) return item.dueDate
+  for (let offset = 0; offset < windowDaysOf(item); offset += 1) {
+    const day = addDays(date, -offset)
+    if (occursOn(item, day)) return format(day, 'yyyy-MM-dd')
+  }
   return dateKey
 }
 
@@ -151,13 +212,42 @@ export function isTodoClosedBefore(
   return item.type === 'todo' && completions.some((c) => c.date < dateKey)
 }
 
-/** ¿Se completó el item en esa fecha (yyyy-MM-dd), según su tipo de seguimiento? */
+/** ¿Se completó el item exactamente en esa fecha (yyyy-MM-dd), según su tipo de seguimiento? */
 export function isCompletedOn(
   item: Item,
   completions: Completion[],
   dateKey: string,
 ): boolean {
   const completion = completions.find((c) => c.date === dateKey)
+  if (!completion) return false
+  if (item.trackingType === 'quantity') {
+    return (completion.quantityDone ?? 0) >= (item.quantityGoal ?? 0)
+  }
+  return true
+}
+
+/** Primer día de la ventana que termina en `dateKey` (igual a dateKey sin margen). */
+function windowStartKey(item: Item, dateKey: string): string {
+  return format(addDays(parseISO(dateKey), -(windowDaysOf(item) - 1)), 'yyyy-MM-dd')
+}
+
+/** Completado que cubre la obligación vigente en `dateKey`: el de cualquier día de su ventana. */
+export function completionInWindow(
+  item: Item,
+  completions: Completion[],
+  dateKey: string,
+): Completion | undefined {
+  const from = windowStartKey(item, dateKey)
+  return completions.find((c) => c.date >= from && c.date <= dateKey)
+}
+
+/** ¿Se cumplió la obligación vigente en `dateKey` (dentro de su ventana, si la tiene)? */
+export function isWindowCompleted(
+  item: Item,
+  completions: Completion[],
+  dateKey: string,
+): boolean {
+  const completion = completionInWindow(item, completions, dateKey)
   if (!completion) return false
   if (item.trackingType === 'quantity') {
     return (completion.quantityDone ?? 0) >= (item.quantityGoal ?? 0)

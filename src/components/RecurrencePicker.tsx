@@ -1,7 +1,15 @@
 import { format, parseISO } from 'date-fns'
 import { todayKey } from '../lib/date'
 import { describeRecurrence, type RecurrenceUnit } from '../lib/recurrence'
-import { ruleFromDraft, startDatePresets, type RecurrenceDraft } from '../lib/recurrenceDraft'
+import {
+  DEFAULT_WINDOW_DAYS,
+  maxWindowFromDraft,
+  ruleFromDraft,
+  startDatePresets,
+  windowFromDraft,
+  type RecurrenceDraft,
+} from '../lib/recurrenceDraft'
+import NumberField from './NumberField'
 
 const WEEKDAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 
@@ -21,7 +29,11 @@ function RecurrencePicker({
   allowPastStartDate?: boolean
 }>) {
   const unit = UNITS.find((u) => u.value === value.unit) ?? UNITS[0]
-  const update = (patch: Partial<RecurrenceDraft>) => onChange({ ...value, ...patch })
+  const maxWindow = maxWindowFromDraft(value)
+  const update = (patch: Partial<RecurrenceDraft>) => {
+    const next = { ...value, ...patch }
+    onChange({ ...next, windowDays: Math.min(next.windowDays, maxWindowFromDraft(next)) })
+  }
 
   const toggleWeekday = (day: number) => {
     const weekdays = value.weekdays.includes(day)
@@ -31,8 +43,9 @@ function RecurrencePicker({
   }
 
   const canSummarize = allowPastStartDate || value.startDate >= todayKey()
+  const windowDays = windowFromDraft(value)
   const summary = canSummarize
-    ? `${describeRecurrence(ruleFromDraft(value))} · desde ${format(parseISO(value.startDate), 'dd/MM/yyyy')}`
+    ? `${describeRecurrence(ruleFromDraft(value))}${windowDays ? ` · margen de ${windowDays} días` : ''} · desde ${format(parseISO(value.startDate), 'dd/MM/yyyy')}`
     : 'Elige una fecha de inicio válida.'
 
   return (
@@ -55,14 +68,12 @@ function RecurrencePicker({
 
       <div className="flex items-center gap-2">
         <span className="cv-label">Cada</span>
-        <input
-          type="number"
+        <NumberField
+          value={value.interval}
           min={1}
           max={99}
-          value={value.interval}
-          onChange={(e) => update({ interval: Math.min(99, Math.max(1, Number(e.target.value) || 1)) })}
-          className="cv-input w-20"
-          aria-label={`Cada cuántos ${unit.plural}`}
+          onCommit={(interval) => update({ interval })}
+          ariaLabel={`Cada cuántos ${unit.plural}`}
         />
         <span className="font-body text-silver-300">
           {value.interval === 1 ? unit.singular : unit.plural}
@@ -92,15 +103,13 @@ function RecurrencePicker({
         <div className="flex flex-col gap-1">
           <span className="cv-label">Día del mes</span>
           <div className="flex gap-2">
-            <input
-              type="number"
+            <NumberField
+              value={value.monthDay}
               min={1}
               max={31}
-              value={value.monthDay}
               disabled={value.lastDay}
-              onChange={(e) => update({ monthDay: Math.min(31, Math.max(1, Number(e.target.value) || 1)) })}
-              className="cv-input w-20"
-              aria-label="Día del mes"
+              onCommit={(monthDay) => update({ monthDay })}
+              ariaLabel="Día del mes"
             />
             <button
               type="button"
@@ -113,6 +122,43 @@ function RecurrencePicker({
           </div>
         </div>
       )}
+
+      <div className="flex flex-col gap-1">
+        <span className="cv-label">Margen</span>
+        {maxWindow > 1 ? (
+          <>
+            <button
+              type="button"
+              onClick={() => update({ windowDays: value.windowDays > 1 ? 1 : DEFAULT_WINDOW_DAYS })}
+              className={`cv-btn ${value.windowDays > 1 ? 'cv-btn--active' : ''}`}
+              aria-pressed={value.windowDays > 1}
+            >
+              Con margen para cumplirla
+            </button>
+            {value.windowDays > 1 && (
+              <div className="flex items-center gap-2">
+                <NumberField
+                  value={value.windowDays}
+                  min={2}
+                  max={maxWindow}
+                  onCommit={(windowDays) => update({ windowDays })}
+                  ariaLabel="Días de margen"
+                />
+                <span className="font-body text-silver-300">días para cumplirla</span>
+              </div>
+            )}
+            {value.windowDays > 1 && (
+              <p className="font-body text-sm text-silver-500 italic">
+                Puede cumplirse en cualquier día del margen, hasta la siguiente aparición (máximo {maxWindow} días). El último día se avisa y, si no se cumple, cuenta como daño.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="font-body text-sm text-silver-500 italic">
+            Sin margen posible: las apariciones van seguidas.
+          </p>
+        )}
+      </div>
 
       <div className="flex flex-col gap-1">
         <span className="cv-label">Empieza el</span>

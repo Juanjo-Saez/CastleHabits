@@ -8,6 +8,7 @@ import type {
   Item,
   ItemEvent,
   PlayerProfile,
+  Reminder,
   Reward,
 } from '../types'
 
@@ -20,6 +21,7 @@ export class AppDatabase extends Dexie {
   profile!: Table<PlayerProfile, number>
   achievements!: Table<Achievement, string>
   rewards!: Table<Reward, string>
+  reminders!: Table<Reminder, string>
 
   constructor() {
     super('habitos-db')
@@ -56,6 +58,15 @@ export class AppDatabase extends Dexie {
           }
         }
       })
+    this.version(4).stores({
+      items: 'id, type',
+      completions: 'id, itemId, date, [itemId+date]',
+      itemEvents: 'id, itemId, kind, scheduledDate, [itemId+scheduledDate+kind]',
+      profile: 'id',
+      achievements: 'id',
+      rewards: 'id',
+      reminders: 'id',
+    })
   }
 }
 
@@ -95,7 +106,15 @@ export async function ensurePlayerProfile(): Promise<PlayerProfile> {
 export async function resetAllAppData(): Promise<void> {
   await db.transaction(
     'rw',
-    [db.items, db.completions, db.itemEvents, db.profile, db.achievements, db.rewards],
+    [
+      db.items,
+      db.completions,
+      db.itemEvents,
+      db.profile,
+      db.achievements,
+      db.rewards,
+      db.reminders,
+    ],
     async () => {
       await Promise.all([
         db.items.clear(),
@@ -104,6 +123,7 @@ export async function resetAllAppData(): Promise<void> {
         db.profile.clear(),
         db.achievements.clear(),
         db.rewards.clear(),
+        db.reminders.clear(),
       ])
       const profile = await ensurePlayerProfile()
       await db.profile.put({ ...profile, lastPenaltyCheck: todayKey() })

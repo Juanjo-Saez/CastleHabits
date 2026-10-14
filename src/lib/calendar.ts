@@ -1,5 +1,5 @@
 import { addDays, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from 'date-fns'
-import { isCompletedOn, isItemDueOn, isObligation } from './recurrence'
+import { isCompletedOn, isObligation, isWindowClosingOn, isWindowCompleted } from './recurrence'
 import type { Completion, Item } from '../types'
 
 /** Todos los días visibles de un mes, en semanas completas que empiezan en lunes. */
@@ -45,8 +45,8 @@ export function buildCandlesByDay(
     const history = completionsByItem[item.id] ?? []
     for (const day of days) {
       const key = format(day, 'yyyy-MM-dd')
-      if (key < todayKey || !isItemDueOn(item, day)) continue
-      if (isCompletedOn(item, history, key)) continue
+      if (key < todayKey || !isWindowClosingOn(item, day)) continue
+      if (isWindowCompleted(item, history, key)) continue
       const entry = result.get(key)
       if (entry) entry.unlit += 1
     }
@@ -93,7 +93,12 @@ export function buildDaySummary(
         quantityDone: item.trackingType === 'quantity' ? completion.quantityDone : undefined,
         unit: item.unit,
       })
-    } else if (!item.archived && isObligation(item) && isItemDueOn(item, date)) {
+    } else if (
+      !item.archived &&
+      isObligation(item) &&
+      isWindowClosingOn(item, date) &&
+      !isWindowCompleted(item, history, key)
+    ) {
       open.push(item)
     }
   }

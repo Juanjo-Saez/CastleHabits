@@ -22,6 +22,7 @@ import StatsPage from './pages/StatsPage'
 import { useAchievementsStore } from './store/useAchievementsStore'
 import { useItemsStore } from './store/useItemsStore'
 import { usePlayerStore } from './store/usePlayerStore'
+import { useRemindersStore } from './store/useRemindersStore'
 import { useRewardsStore } from './store/useRewardsStore'
 
 const tabs = [
@@ -37,10 +38,17 @@ function App() {
   const loadPlayer = usePlayerStore((s) => s.load)
   const loadAchievements = useAchievementsStore((s) => s.load)
   const loadRewards = useRewardsStore((s) => s.load)
+  const loadReminders = useRemindersStore((s) => s.load)
 
   useEffect(() => {
     void (async () => {
-      await Promise.all([loadItems(), loadPlayer(), loadAchievements(), loadRewards()])
+      await Promise.all([
+        loadItems(),
+        loadPlayer(),
+        loadAchievements(),
+        loadRewards(),
+        loadReminders(),
+      ])
 
       const { items, completionsByItem } = useItemsStore.getState()
       const profile = usePlayerStore.getState().profile
@@ -69,13 +77,13 @@ function App() {
         profile: usePlayerStore.getState().profile!,
       })
     })()
-  }, [loadItems, loadPlayer, loadAchievements, loadRewards])
+  }, [loadItems, loadPlayer, loadAchievements, loadRewards, loadReminders])
 
   useEffect(() => {
     const checkReminder = async () => {
       if (getNotificationPermission() !== 'granted' || hasRemindedToday()) return
-      const { items, completionsToday } = useItemsStore.getState()
-      const pending = countPendingToday(items, completionsToday)
+      const { items, completionsByItem } = useItemsStore.getState()
+      const pending = countPendingToday(items, completionsByItem)
       if (pending > 0) {
         await showReminder(pending)
         markRemindedToday()
