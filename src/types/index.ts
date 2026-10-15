@@ -35,7 +35,10 @@ export interface Item {
   difficulty: Difficulty
   /** Regla RRULE en texto. null/undefined para todos puntuales. */
   recurrenceRule?: string | null
-  /** Primer día (yyyy-MM-dd) en que la recurrencia entra en vigor; antes no cuenta como debida. */
+  /**
+   * Primer día (yyyy-MM-dd) en que la tarea aparece; antes no cuenta como debida.
+   * En pergaminos, marca el inicio del margen hasta `dueDate`; ausente = visible desde su creación.
+   */
   startDate?: string
   /** Margen en días tras abrirse la aparición para cumplirla; ausente o 1 = solo ese día. */
   windowDays?: number
@@ -78,6 +81,8 @@ export interface ItemEvent {
   quantityGoal?: number
   quantityDone?: number
   damage?: number
+  /** Fallo absorbido por escudo o congelación: se registra sin daño. */
+  protectedBy?: 'shield' | 'freeze'
   xpEarned?: number
   coinsEarned?: number
   postponedUntil?: string

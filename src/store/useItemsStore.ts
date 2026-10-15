@@ -5,7 +5,7 @@ import { db } from '../db/database'
 import { todayKey } from '../lib/date'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
 import { itemEventId, recordItemEvent } from '../lib/itemEvents'
-import { completionInWindow, isItemDueOn, isObligation, scheduledDateFor, windowDaysOf } from '../lib/recurrence'
+import { completionInWindow, isItemDueOn, isObligation, marginDaysOf, scheduledDateFor } from '../lib/recurrence'
 import { xpWithBonus } from '../lib/routes'
 import { useAchievementsStore } from './useAchievementsStore'
 import { usePlayerStore } from './usePlayerStore'
@@ -296,7 +296,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       !isObligation(item) ||
       get().completionsToday[itemId] ||
       item.postponedUntil === today ||
-      windowDaysOf(item) > 1 ||
+      marginDaysOf(item) > 1 ||
       !isItemDueOn(item, new Date())
     ) return false
 

@@ -10,21 +10,23 @@ interface Protection {
   shieldReadyOn?: string
 }
 
+type MissProtection = NonNullable<ItemEvent['protectedBy']>
+
 /** Consume el escudo (si está listo) o una congelación para absorber un fallo. */
-function absorbMiss(protection: Protection, dateKey: string): boolean {
+function absorbMiss(protection: Protection, dateKey: string): MissProtection | null {
   const shieldReady = !protection.shieldReadyOn || protection.shieldReadyOn <= dateKey
   if (protection.shieldEnabled && shieldReady) {
     protection.shieldReadyOn = format(
       addDays(parseISO(dateKey), SHIELD_RECHARGE_DAYS),
       'yyyy-MM-dd',
     )
-    return true
+    return 'shield'
   }
   if (protection.freezes > 0) {
     protection.freezes -= 1
-    return true
+    return 'freeze'
   }
-  return false
+  return null
 }
 
 /**
@@ -104,17 +106,20 @@ export function computeMissedPenalties(
         continue
       }
 
-      if (absorbMiss(protection, key)) continue
+      // El evento se registra en la fecha de apertura de la ventana, no en su cierre.
+      const scheduledKey = format(addDays(cursor, -(windowDaysOf(item) - 1)), 'yyyy-MM-dd')
+      const eventId = itemEventId(item.id, scheduledKey, 'missed')
+      const protectedBy = absorbMiss(protection, key)
+      if (protectedBy) {
+        missedEvents.push(buildItemEvent(item, 'missed', scheduledKey, { damage: 0, protectedBy }, eventId))
+        continue
+      }
 
       const streak = (streaks.get(item.id) ?? 0) + 1
       streaks.set(item.id, streak)
       const damage = damageForMissedStreak(streak)
       totalDamage += damage
-      // El evento se registra en la fecha de apertura de la ventana, no en su cierre.
-      const scheduledKey = format(addDays(cursor, -(windowDaysOf(item) - 1)), 'yyyy-MM-dd')
-      missedEvents.push(
-        buildItemEvent(item, 'missed', scheduledKey, { damage }, itemEventId(item.id, scheduledKey, 'missed')),
-      )
+      missedEvents.push(buildItemEvent(item, 'missed', scheduledKey, { damage }, eventId))
     }
     cursor = addDays(cursor, 1)
   }

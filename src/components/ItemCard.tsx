@@ -9,7 +9,7 @@ import {
   isItemDueOn,
   isObligation,
   isWindowClosingOn,
-  windowDaysOf,
+  marginDaysOf,
 } from '../lib/recurrence'
 import { xpWithBonus } from '../lib/routes'
 import { playWhip } from '../lib/sound'
@@ -74,10 +74,10 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
     !done &&
     parseISO(effectiveDueDate as string) < new Date(new Date().setHours(0, 0, 0, 0))
   const canPostpone =
-    isObligation(item) && dueToday && !done && postponeTokens > 0 && windowDaysOf(item) === 1
+    isObligation(item) && dueToday && !done && postponeTokens > 0 && marginDaysOf(item) === 1
   // Solo en tareas con margen: avisa de que hoy es el último día para cumplirla.
   const lastWindowDay =
-    windowDaysOf(item) > 1 && !done && isWindowClosingOn(item, new Date())
+    marginDaysOf(item) > 1 && !done && isWindowClosingOn(item, new Date())
 
   const frameClass = getFrameClass(done, overdue)
   const meta = getItemMeta(item, effectiveDueDate)

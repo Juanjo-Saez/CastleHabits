@@ -31,7 +31,9 @@ function ChoresPage() {
   const scrolls = sortTasks(
     active.filter(
       (item) =>
-        item.type === 'todo' && !isTodoClosedBefore(item, completionsByItem[item.id] ?? [], key),
+        item.type === 'todo' &&
+        (!item.startDate || item.startDate <= key) &&
+        !isTodoClosedBefore(item, completionsByItem[item.id] ?? [], key),
     ),
     sortKey,
   )

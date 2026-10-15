@@ -1,4 +1,4 @@
-import { addDays, format, isBefore, isSameDay, parseISO, setHours, startOfDay } from 'date-fns'
+import { addDays, differenceInCalendarDays, format, isBefore, parseISO, setHours, startOfDay } from 'date-fns'
 import { RRule } from 'rrule'
 import type { Completion, Item } from '../types'
 
@@ -147,10 +147,30 @@ export function windowDaysOf(item: Item): number {
   return Math.min(maxWindowForRule(item.recurrenceRule), Math.floor(item.windowDays))
 }
 
-/** Descripción del margen para la tarjeta y el detalle; null si no tiene ventana. */
+/** Día en que vence un pergamino, contando un aplazamiento. */
+function todoDueKey(item: Item): string | null | undefined {
+  return item.postponedUntil ?? item.dueDate
+}
+
+/**
+ * Días de margen que muestra la tarea: en recurrencias, su ventana; en pergaminos, los días
+ * entre su aparición (startDate) y su vencimiento (dueDate). 1 si no tiene margen.
+ */
+export function marginDaysOf(item: Item): number {
+  if (item.type !== 'todo') return windowDaysOf(item)
+  if (!item.startDate || !item.dueDate || item.startDate >= item.dueDate) return 1
+  return differenceInCalendarDays(parseISO(item.dueDate), parseISO(item.startDate)) + 1
+}
+
+/** Un pergamino debe tener el vencimiento y, si lo tiene, la aparición no posterior a él. */
+export function isTodoScheduleValid(startDate: string, dueDate: string): boolean {
+  return Boolean(dueDate) && (!startDate || startDate <= dueDate)
+}
+
+/** Descripción del margen para la tarjeta y el detalle; null si no tiene margen. */
 export function describeWindow(item: Item): string | null {
-  const window = windowDaysOf(item)
-  return window > 1 ? `margen de ${window} días` : null
+  const margin = marginDaysOf(item)
+  return margin > 1 ? `margen de ${margin} días` : null
 }
 
 /** ¿Cae una aparición de la regla exactamente ese día? */
@@ -171,7 +191,9 @@ export function isItemDueOn(item: Item, date: Date): boolean {
   if (item.postponedUntil === dateKey) return true
   if (item.postponedFrom === dateKey && item.postponedUntil !== dateKey) return false
   if (item.type === 'todo') {
-    return Boolean(item.dueDate && isSameDay(parseISO(item.dueDate), date))
+    // Sin aparición, el pergamino solo está activo el día de vencimiento.
+    const due = todoDueKey(item)
+    return Boolean(due && dateKey <= due && dateKey >= (item.startDate ?? due))
   }
   for (let offset = 0; offset < windowDaysOf(item); offset += 1) {
     if (occursOn(item, addDays(date, -offset))) return true
@@ -184,6 +206,7 @@ export function isItemDueOn(item: Item, date: Date): boolean {
  * Sin margen coincide con isItemDueOn.
  */
 export function isWindowClosingOn(item: Item, date: Date): boolean {
+  if (item.type === 'todo') return todoDueKey(item) === format(date, 'yyyy-MM-dd')
   const window = windowDaysOf(item)
   if (window === 1) return isItemDueOn(item, date)
   return occursOn(item, addDays(date, -(window - 1)))
@@ -228,6 +251,8 @@ export function isCompletedOn(
 
 /** Primer día de la ventana que termina en `dateKey` (igual a dateKey sin margen). */
 function windowStartKey(item: Item, dateKey: string): string {
+  // Un pergamino cuenta cualquier cumplimiento desde que aparece, también antes del vencimiento.
+  if (item.type === 'todo') return item.startDate ?? ''
   return format(addDays(parseISO(dateKey), -(windowDaysOf(item) - 1)), 'yyyy-MM-dd')
 }
 

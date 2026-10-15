@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { todayKey } from '../lib/date'
+import { isTodoScheduleValid } from '../lib/recurrence'
 import {
   defaultRecurrenceDraft,
   isDraftValid,
@@ -12,6 +13,7 @@ import DifficultyPicker from './DifficultyPicker'
 import RecurrencePicker from './RecurrencePicker'
 import RoutePicker from './RoutePicker'
 import SectionTitle from './SectionTitle'
+import TodoDatesPicker from './TodoDatesPicker'
 import ZonePicker from './ZonePicker'
 
 function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
@@ -21,10 +23,11 @@ function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
   const [zone, setZone] = useState('Castle')
   const [difficulty, setDifficulty] = useState<Difficulty>('easy')
   const [recurrence, setRecurrence] = useState(defaultRecurrenceDraft)
+  const [startDate, setStartDate] = useState('')
   const [dueDate, setDueDate] = useState(todayKey())
   const [routeId, setRouteId] = useState<RouteId | undefined>()
 
-  const scheduleValid = kind === 'todo' ? Boolean(dueDate) : isDraftValid(recurrence)
+  const scheduleValid = kind === 'todo' ? isTodoScheduleValid(startDate, dueDate) : isDraftValid(recurrence)
   const canSubmit = Boolean(title.trim()) && scheduleValid
 
   const handleSubmit = async () => {
@@ -51,6 +54,7 @@ function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
         difficulty,
         trackingType: 'boolean',
         dueDate,
+        startDate: startDate || undefined,
       })
     }
     onClose()
@@ -107,16 +111,12 @@ function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
       {kind === 'chore' ? (
         <RecurrencePicker value={recurrence} onChange={setRecurrence} />
       ) : (
-        <label className="flex flex-col gap-1">
-          <span className="cv-label">Vence</span>
-          <input
-            type="date"
-            min={todayKey()}
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            className="cv-input"
-          />
-        </label>
+        <TodoDatesPicker
+          startDate={startDate}
+          dueDate={dueDate}
+          onStartDateChange={setStartDate}
+          onDueDateChange={setDueDate}
+        />
       )}
 
       <div className="flex justify-end gap-2 pt-1">

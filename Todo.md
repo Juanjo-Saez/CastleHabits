@@ -51,7 +51,7 @@ Estado revisado el 14 de octubre de 2026. Este documento refleja el punto actual
 
 ### 2. Cerrar la base de historial y mostrar fallos recientes
 
-- [ ] Completar el registro de eventos de incumplimiento: hoy un escudo/congelación puede evitar el daño sin dejar el evento de fallo correspondiente.
+- [x] Completar el registro de eventos de incumplimiento: hoy un escudo/congelación puede evitar el daño sin dejar el evento de fallo correspondiente.
 - [ ] Conectar el agregador de estadísticas por tarea con los eventos guardados. Debe poder obtener completados, fallos, recuperaciones tardías, progreso parcial, deshacer, aplazamientos, daño, EXP, monedas y fechas de actividad.
 - [ ] Añadir una señal visible para obligaciones falladas recientemente, en particular las recurrentes del día anterior; evaluar una racha negativa sin confundirla con las rachas positivas existentes.
 - [ ] Mantener las estadísticas históricas ocultas hasta que una recompensa o poder permita consultarlas, si se conserva esa decisión de diseño.
@@ -120,7 +120,7 @@ Orden de implementación propuesto.
 - [x] Crear recordatorios de posibles tareas que no generan obligaciones ni penalizaciones, por ejemplo “lavar la cafetera” cada mes desde la última vez.
 - [x] Al cumplirse el plazo, mostrar el recordatorio en una sección propia, separada de obligaciones y misiones.
 - [x] Permitir marcarlo como hecho (reinicia el contador) o descartarlo (lo vuelve a sugerir más adelante sin registrar fallo).
-- [ ] Evaluar una notificación del navegador reutilizando el sistema de notificaciones existente.
+- [x] Avisar con una notificación del navegador de los recordatorios vencidos, reutilizando el sistema de notificaciones existente (una vez al día por recordatorio).
 
 ### Después de esta fase
 
