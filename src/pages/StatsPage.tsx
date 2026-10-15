@@ -1,25 +1,35 @@
 import { format, parseISO, subDays } from 'date-fns'
 import { Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import DayDetail from '../components/DayDetail'
 import PageHeader from '../components/PageHeader'
 import RelicsGrid from '../components/RelicsGrid'
 import SectionTitle from '../components/SectionTitle'
-import { buildDailyStats } from '../lib/stats'
+import { db } from '../db/database'
+import { buildDailyStats, type DayStatus } from '../lib/stats'
 import { useItemsStore } from '../store/useItemsStore'
+import type { ItemEvent } from '../types'
 
-function intensityClass(ratio: number | null): string {
-  if (ratio === null) return 'bg-night-950'
-  if (ratio >= 0.8) return 'bg-gold-400'
-  if (ratio >= 0.5) return 'bg-gold-600'
-  return 'bg-blood-700'
+const STATUS_CLASS: Record<DayStatus, string> = {
+  empty: 'bg-night-950',
+  complete: 'bg-gold-400',
+  partial: 'bg-silver-700',
+  protected: 'bg-night-400',
+  damaged: 'bg-blood-500',
 }
 
 function StatsPage() {
   const items = useItemsStore((s) => s.items)
   const completionsByItem = useItemsStore((s) => s.completionsByItem)
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
-  const stats = buildDailyStats(items, completionsByItem, 35)
+  const [missedEvents, setMissedEvents] = useState<ItemEvent[]>([])
+
+  useEffect(() => {
+    void db.itemEvents.where('kind').equals('missed').toArray().then(setMissedEvents)
+  }, [])
+
+  const stats = buildDailyStats(items, completionsByItem, 35, missedEvents)
+  const selectedStat = stats.find((day) => day.key === selectedDay)
   const activeDays = stats.filter((day) => day.ratio !== null)
   const completed = stats.reduce((sum, day) => sum + day.completions, 0)
   const average = activeDays.length
@@ -47,7 +57,8 @@ function StatsPage() {
           <SectionTitle>Mapa de constancia</SectionTitle>
           <div className="mt-3 grid grid-cols-7 gap-1.5">
             {stats.map((day) => {
-              const label = `${format(parseISO(day.key), 'dd/MM')}: ${day.completions} completadas`
+              const date = format(parseISO(day.key), 'dd/MM')
+              const label = day.due > 0 ? `${date}: ${day.obligationsDone} de ${day.due} obligaciones` : `${date}: sin obligaciones`
               const border = selectedDay === day.key ? 'border-silver-100' : 'border-silver-700/40'
               return (
                 <button
@@ -56,8 +67,7 @@ function StatsPage() {
                   onClick={() => setSelectedDay((current) => (current === day.key ? null : day.key))}
                   aria-pressed={selectedDay === day.key}
                   aria-label={label}
-                  title={label}
-                  className={`aspect-square border ${border} ${intensityClass(day.ratio)}`}
+                  className={`aspect-square border ${border} ${STATUS_CLASS[day.status]}`}
                 />
               )
             })}
@@ -68,6 +78,13 @@ function StatsPage() {
           </div>
           {selectedDay && (
             <div className="mt-3 border-t border-gold-600/30 pt-3">
+              {selectedStat && (
+                <p className="mb-2 font-pixel text-lg text-silver-300">
+                  {selectedStat.due > 0
+                    ? `${selectedStat.obligationsDone} de ${selectedStat.due} obligaciones cumplidas`
+                    : 'Sin obligaciones este día'}
+                </p>
+              )}
               <DayDetail date={parseISO(selectedDay)} />
             </div>
           )}
