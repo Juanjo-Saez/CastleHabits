@@ -9,10 +9,8 @@ import {
   getNotificationPermission,
   hasRemindedToday,
   markRemindedToday,
-  notifyDueReminders,
   showReminder,
 } from './lib/notifications'
-import { isReminderDue } from './lib/reminders'
 import { computeMissedPenalties } from './lib/penalties'
 import { hasShield } from './lib/routes'
 import CalendarPage from './pages/CalendarPage'
@@ -91,9 +89,6 @@ function App() {
           markRemindedToday()
         }
       }
-
-      const due = useRemindersStore.getState().reminders.filter((reminder) => isReminderDue(reminder))
-      await notifyDueReminders(due)
     }
 
     void checkReminder()

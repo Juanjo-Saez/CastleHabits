@@ -110,19 +110,10 @@ export interface PlayerProfile {
   lastPenaltyCheck?: string
 }
 
-export type ReminderUnit = 'day' | 'month'
-
-/** Aviso periódico independiente: no genera tareas, ni daño, ni EXP. */
+/** Pendiente sin fecha: idea para convertir en tarea más adelante. No se completa ni aplica daño o EXP. */
 export interface Reminder {
   id: string
   title: string
-  /** Cada cuántos días o meses vuelve a avisar (mínimo 1). */
-  every: number
-  unit: ReminderUnit
-  /** Última vez que se hizo (yyyy-MM-dd); si falta, cuenta desde la creación. */
-  lastDoneOn?: string
-  /** No avisar hasta este día (yyyy-MM-dd) tras pulsar "Más tarde". */
-  snoozedUntil?: string
   archived: boolean
   createdAt: string
 }

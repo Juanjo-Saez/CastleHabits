@@ -16,10 +16,14 @@ import SectionTitle from './SectionTitle'
 import TodoDatesPicker from './TodoDatesPicker'
 import ZonePicker from './ZonePicker'
 
-function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
+function NewTaskForm({
+  onClose,
+  initialTitle,
+  onCreated,
+}: Readonly<{ onClose: () => void; initialTitle?: string; onCreated?: () => void }>) {
   const addItem = useItemsStore((s) => s.addItem)
-  const [kind, setKind] = useState<'chore' | 'todo'>('chore')
-  const [title, setTitle] = useState('')
+  const [kind, setKind] = useState<'chore' | 'todo'>(initialTitle ? 'todo' : 'chore')
+  const [title, setTitle] = useState(initialTitle ?? '')
   const [zone, setZone] = useState('Castle')
   const [difficulty, setDifficulty] = useState<Difficulty>('easy')
   const [recurrence, setRecurrence] = useState(defaultRecurrenceDraft)
@@ -57,6 +61,7 @@ function NewTaskForm({ onClose }: Readonly<{ onClose: () => void }>) {
         startDate: startDate || undefined,
       })
     }
+    onCreated?.()
     onClose()
   }
 

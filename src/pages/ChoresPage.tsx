@@ -76,8 +76,6 @@ function ChoresPage() {
               </div>
             )}
 
-            <RemindersPanel />
-
             <SectionTitle>Pergaminos</SectionTitle>
             {scrolls.length === 0 ? (
               <p className="py-2 text-center font-pixel text-lg text-silver-700">
@@ -90,6 +88,8 @@ function ChoresPage() {
                 ))}
               </div>
             )}
+
+            <RemindersPanel />
           </>
         )}
       </section>

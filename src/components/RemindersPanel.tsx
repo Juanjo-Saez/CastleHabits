@@ -1,76 +1,17 @@
 import { useState } from 'react'
-import { format, parseISO } from 'date-fns'
-import { todayKey } from '../lib/date'
-import {
-  describeReminderInterval,
-  isReminderDue,
-  nextReminderDate,
-} from '../lib/reminders'
 import { useRemindersStore } from '../store/useRemindersStore'
 import type { Reminder } from '../types'
 import NewReminderForm from './NewReminderForm'
+import NewTaskForm from './NewTaskForm'
 import SectionTitle from './SectionTitle'
 
-function ReminderRow({ reminder, due }: Readonly<{ reminder: Reminder; due: boolean }>) {
-  const markDone = useRemindersStore((s) => s.markDone)
-  const snooze = useRemindersStore((s) => s.snooze)
-  const archive = useRemindersStore((s) => s.archive)
-
-  const key = todayKey()
-  const wakeKey =
-    reminder.snoozedUntil && reminder.snoozedUntil > key
-      ? reminder.snoozedUntil
-      : nextReminderDate(reminder)
-  const dateLabel = format(parseISO(wakeKey), 'dd/MM/yyyy')
-
-  return (
-    <article className="cv-panel flex flex-col gap-2 p-3">
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="font-pixel text-xl text-silver-100">{reminder.title}</h3>
-        {due && <span className="cv-tag cv-tag--gold">Toca</span>}
-      </div>
-      <p className="text-sm text-silver-500">
-        {describeReminderInterval(reminder.every, reminder.unit)} ·{' '}
-        {due ? `pendiente desde el ${dateLabel}` : `pr\u00f3ximo aviso el ${dateLabel}`}
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => void markDone(reminder.id)}
-          className={`cv-btn flex-1 ${due ? 'cv-btn--gold' : ''}`}
-        >
-          Hecho
-        </button>
-        {due && (
-          <button type="button" onClick={() => void snooze(reminder.id)} className="cv-btn flex-1">
-            Más tarde
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => void archive(reminder.id)}
-          className="cv-btn cv-btn--ghost px-2 text-sm"
-        >
-          Archivar
-        </button>
-      </div>
-    </article>
-  )
-}
-
-/** Avisos periódicos sin tarea: no generan obligaciones, daño, EXP ni monedas. */
+/** Pendientes sin fecha: no se completan ni generan daño; solo pueden convertirse en tarea. */
 function RemindersPanel() {
   const reminders = useRemindersStore((s) => s.reminders)
   const loading = useRemindersStore((s) => s.loading)
-  const [showForm, setShowForm] = useState(false)
-
-  const key = todayKey()
-  const due = reminders
-    .filter((r) => isReminderDue(r, key))
-    .sort((a, b) => nextReminderDate(a).localeCompare(nextReminderDate(b)))
-  const upcoming = reminders
-    .filter((r) => !isReminderDue(r, key))
-    .sort((a, b) => nextReminderDate(a).localeCompare(nextReminderDate(b)))
+  const archive = useRemindersStore((s) => s.archive)
+  const [open, setOpen] = useState(false)
+  const [converting, setConverting] = useState<Reminder | null>(null)
 
   return (
     <>
@@ -78,30 +19,58 @@ function RemindersPanel() {
         action={
           <button
             type="button"
-            onClick={() => setShowForm((visible) => !visible)}
-            className="cv-btn cv-btn--gold px-2 py-1 text-base"
+            aria-expanded={open}
+            onClick={() => setOpen((visible) => !visible)}
+            className="cv-btn px-2 py-1 text-base"
           >
-            {showForm ? 'Cerrar' : '+ Recordatorio'}
+            {open ? 'Ocultar' : `Ver (${reminders.length})`}
           </button>
         }
       >
         Recordatorios
       </SectionTitle>
 
-      {showForm && <NewReminderForm onClose={() => setShowForm(false)} />}
+      {open && (
+        <div className="cv-panel flex flex-col gap-3 p-3">
+          <NewReminderForm />
 
-      {loading ? null : reminders.length === 0 ? (
-        <p className="py-2 text-center font-pixel text-lg text-silver-700">
-          — SIN RECORDATORIOS —
-        </p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {due.map((r) => (
-            <ReminderRow key={r.id} reminder={r} due />
-          ))}
-          {upcoming.map((r) => (
-            <ReminderRow key={r.id} reminder={r} due={false} />
-          ))}
+          {converting && (
+            <NewTaskForm
+              initialTitle={converting.title}
+              onCreated={() => void archive(converting.id)}
+              onClose={() => setConverting(null)}
+            />
+          )}
+
+          {loading ? null : reminders.length === 0 ? (
+            <p className="py-2 text-center font-pixel text-lg text-silver-700">
+              — SIN PENDIENTES —
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {reminders.map((r) => (
+                <li key={r.id} className="flex items-center gap-2">
+                  <span className="min-w-0 flex-1 truncate font-pixel text-lg text-silver-100">
+                    {r.title}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setConverting(r)}
+                    className="cv-btn cv-btn--gold px-2 py-1 text-sm"
+                  >
+                    Crear tarea
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void archive(r.id)}
+                    className="cv-btn cv-btn--ghost px-2 py-1 text-sm"
+                  >
+                    Eliminar
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </>
@@ -109,3 +78,4 @@ function RemindersPanel() {
 }
 
 export default RemindersPanel
+

@@ -1,17 +1,13 @@
 import { v4 as uuid } from 'uuid'
 import { create } from 'zustand'
 import { db } from '../db/database'
-import { todayKey } from '../lib/date'
-import { tomorrowKey } from '../lib/reminders'
-import type { Reminder, ReminderUnit } from '../types'
+import type { Reminder } from '../types'
 
 interface RemindersState {
   reminders: Reminder[]
   loading: boolean
   load: () => Promise<void>
-  addReminder: (title: string, every: number, unit: ReminderUnit) => Promise<void>
-  markDone: (reminderId: string) => Promise<void>
-  snooze: (reminderId: string) => Promise<void>
+  addReminder: (title: string) => Promise<void>
   archive: (reminderId: string) => Promise<void>
 }
 
@@ -32,25 +28,15 @@ export const useRemindersStore = create<RemindersState>((set, get) => {
       set({ reminders: all.filter((r) => !r.archived), loading: false })
     },
 
-    addReminder: async (title, every, unit) => {
+    addReminder: async (title) => {
       const reminder: Reminder = {
         id: uuid(),
         title,
-        every,
-        unit,
         archived: false,
         createdAt: new Date().toISOString(),
       }
       await db.reminders.add(reminder)
       set({ reminders: [...get().reminders, reminder] })
-    },
-
-    markDone: async (reminderId) => {
-      await patch(reminderId, { lastDoneOn: todayKey(), snoozedUntil: undefined })
-    },
-
-    snooze: async (reminderId) => {
-      await patch(reminderId, { snoozedUntil: tomorrowKey() })
     },
 
     archive: async (reminderId) => {
