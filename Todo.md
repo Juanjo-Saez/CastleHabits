@@ -12,10 +12,10 @@ Estado revisado el 14 de octubre de 2026. Este documento refleja el punto actual
 - [x] Usar zonas fijas con nombres góticos y mostrar sus equivalencias domésticas desde el icono de información.
 - [x] Migrar los nombres antiguos de las estancias al nuevo catálogo de zonas sin perder las tareas existentes.
 - [x] Definir cuándo empieza una recurrencia, incluyendo mañana o el mes siguiente; las apariciones anteriores al inicio no generan fallos.
-- [x] Ordenar por dificultad de forma predeterminada y también por vencimiento, estancia o ruta, según la lista.
+- [x] Ordenar por dificultad de forma predeterminada y también por vencimiento o estancia en el Castillo.
 - [x] Base del calendario mensual: consultar carga prevista y actividad pasada, y abrir el detalle del día para ver tareas, EXP y monedas, con celdas cuadradas uniformes y velas de tamaño estable.
 - [x] Abrir el detalle de un día desde el mapa de Constancia.
-- [x] Consultar el archivo de tareas desde Crónicas, con filtro de frecuencia y opción para ocultar tareas vinculadas a rutas.
+- [x] Consultar el archivo de tareas desde Crónicas, con filtros de frecuencia y estancia, y opción para ocultar tareas vinculadas a rutas.
 - [x] Al jubilarse o renacer, archivar las misiones vinculadas a rutas con su historial y crear fichas nuevas al iniciar la siguiente expedición.
 - [x] Evitar que las misiones vinculadas a rutas se dupliquen al jubilarse o iniciar una nueva expedición.
 - [x] Generar y publicar iconos PWA de 192 y 512 píxeles junto con el icono de la aplicación.
@@ -58,6 +58,10 @@ Estado revisado el 14 de octubre de 2026. Este documento refleja el punto actual
 ### 4. Tarjetas de recordatorios
 
 - [x] Rediseñar las tarjetas de recordatorios para que el botón eliminar y el botón crear tarea no ocupen toda la caja. La tarea debe verse con claridad, en primer plano.
+
+### 5. Fecha de fin por defecto en tareas puntuales
+
+- [x] Al elegir una fecha de inicio, la fecha de vencimiento la sigue por defecto en lugar de quedarse en hoy, evitando el error de "no puede finalizar antes de empezar". El selector de vencimiento tampoco admite fechas anteriores al inicio.
 
 ## Pendiente: siguiente etapa
 

@@ -8,6 +8,7 @@ import { todayKey } from '../lib/date'
 import { describeRecurrence } from '../lib/recurrence'
 import { ROUTES } from '../lib/routes'
 import { computeBestStreak, computeStreak } from '../lib/streak'
+import { ZONES } from '../lib/zones'
 import { useItemsStore } from '../store/useItemsStore'
 import type { Item } from '../types'
 
@@ -21,6 +22,8 @@ const FREQUENCY_OPTIONS: { value: Frequency; label: string }[] = [
   { value: 'once', label: 'Puntuales' },
   { value: 'other', label: 'Otras' },
 ]
+
+const NO_ZONE = 'none'
 
 const ITEM_TYPE_LABELS: Record<Item['type'], string> = {
   habit: 'Hábito',
@@ -91,6 +94,7 @@ function TaskArchivePage() {
   const completionsByItem = useItemsStore((state) => state.completionsByItem)
   const loading = useItemsStore((state) => state.loading)
   const [frequency, setFrequency] = useState<Frequency>('all')
+  const [zone, setZone] = useState('all')
   const [hideRouteMissions, setHideRouteMissions] = useState(true)
 
   const sortedItems = [...items].sort((first, second) => {
@@ -100,9 +104,12 @@ function TaskArchivePage() {
   const frequencyItems = frequency === 'all'
     ? sortedItems
     : sortedItems.filter((item) => getFrequency(item) === frequency)
+  const filteredItems = zone === 'all'
+    ? frequencyItems
+    : frequencyItems.filter((item) => (zone === NO_ZONE ? !item.zone : item.zone === zone))
   const visibleItems = hideRouteMissions
-    ? frequencyItems.filter((item) => !item.routeId)
-    : frequencyItems
+    ? filteredItems.filter((item) => !item.routeId)
+    : filteredItems
 
   return (
     <>
@@ -118,6 +125,20 @@ function TaskArchivePage() {
             >
               {FREQUENCY_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="cv-label">Estancia</span>
+            <select
+              value={zone}
+              onChange={(event) => setZone(event.target.value)}
+              className="w-full border border-gold-600/40 bg-crypt-900 px-3 py-2 font-body text-base text-parchment-100"
+            >
+              <option value="all">Todas</option>
+              <option value={NO_ZONE}>Sin estancia</option>
+              {ZONES.map((option) => (
+                <option key={option.name} value={option.name}>{option.name}</option>
               ))}
             </select>
           </label>
@@ -148,9 +169,9 @@ function TaskArchivePage() {
             <p className="mt-2 font-body text-silver-400">
               {items.length === 0
                 ? 'Cuando añadas tareas, sus frecuencias y registros aparecerán aquí.'
-                : hideRouteMissions && frequencyItems.some((item) => item.routeId)
+                : hideRouteMissions && filteredItems.some((item) => item.routeId)
                   ? 'No hay tareas propias en este filtro. Puedes mostrar también las misiones vinculadas a rutas.'
-                  : 'Prueba con otra frecuencia para ver más tareas.'}
+                  : 'Prueba con otros filtros para ver más tareas.'}
             </p>
           </div>
         ) : visibleItems.map((item) => {
