@@ -1,3 +1,4 @@
+import { addDays, format } from 'date-fns'
 import { useState } from 'react'
 import EmptyState from '../components/EmptyState'
 import ItemCard from '../components/ItemCard'
@@ -7,8 +8,14 @@ import PageHeader from '../components/PageHeader'
 import RemindersPanel from '../components/RemindersPanel'
 import SectionTitle from '../components/SectionTitle'
 import SortPicker from '../components/SortPicker'
-import { todayKey } from '../lib/date'
-import { isItemDueOn, isTodoClosedBefore } from '../lib/recurrence'
+import TomorrowPanel from '../components/TomorrowPanel'
+import { logicalNow, todayKey } from '../lib/date'
+import {
+  isItemDueOn,
+  isTodoClosedBefore,
+  isWindowCompleted,
+  isWindowDoneBefore,
+} from '../lib/recurrence'
 import { sortTasks, type TaskSortKey } from '../lib/taskSort'
 import { useItemsStore } from '../store/useItemsStore'
 
@@ -21,11 +28,33 @@ function ChoresPage() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const selectedItem = items.find((item) => item.id === selectedItemId && !item.archived)
 
-  const today = new Date()
+  const today = logicalNow()
   const key = todayKey()
+  const tomorrow = addDays(today, 1)
+  const tomorrowKey = format(tomorrow, 'yyyy-MM-dd')
   const active = items.filter((item) => !item.archived)
+  // Una tarea con margen cumplida en un día anterior de su ventana deja de aparecer hasta su siguiente vez.
   const dueToday = sortTasks(
-    active.filter((item) => item.type === 'chore' && isItemDueOn(item, today)),
+    active.filter(
+      (item) =>
+        item.type === 'chore' &&
+        isItemDueOn(item, today) &&
+        !isWindowDoneBefore(item, completionsByItem[item.id] ?? [], key),
+    ),
+    sortKey,
+  )
+  const dueTomorrow = sortTasks(
+    active.filter((item) => {
+      const history = completionsByItem[item.id] ?? []
+      if (item.type === 'chore') {
+        return isItemDueOn(item, tomorrow) && !isWindowCompleted(item, history, tomorrowKey)
+      }
+      return (
+        item.type === 'todo' &&
+        (item.postponedUntil ?? item.dueDate) === tomorrowKey &&
+        !isTodoClosedBefore(item, history, tomorrowKey)
+      )
+    }),
     sortKey,
   )
   const scrolls = sortTasks(
@@ -90,6 +119,7 @@ function ChoresPage() {
             )}
 
             <RemindersPanel />
+            <TomorrowPanel items={dueTomorrow} />
           </>
         )}
       </section>

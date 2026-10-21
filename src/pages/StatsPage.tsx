@@ -7,6 +7,7 @@ import RelicsGrid from '../components/RelicsGrid'
 import SectionTitle from '../components/SectionTitle'
 import { db } from '../db/database'
 import { buildDailyStats, type DayStatus } from '../lib/stats'
+import { logicalNow } from '../lib/date'
 import { useItemsStore } from '../store/useItemsStore'
 import type { ItemEvent } from '../types'
 
@@ -73,7 +74,7 @@ function StatsPage() {
             })}
           </div>
           <div className="mt-3 flex justify-between font-pixel text-sm text-silver-500">
-            <span>{format(subDays(new Date(), 34), 'dd/MM')}</span>
+            <span>{format(subDays(logicalNow(), 34), 'dd/MM')}</span>
             <span>Hoy</span>
           </div>
           {selectedDay && (

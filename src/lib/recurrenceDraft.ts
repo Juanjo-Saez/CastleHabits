@@ -1,5 +1,5 @@
 import { addDays, addMonths, format, getDay, startOfMonth } from 'date-fns'
-import { todayKey } from './date'
+import { logicalNow, todayKey } from './date'
 import {
   buildRecurrenceRule,
   LAST_MONTH_DAY,
@@ -23,7 +23,7 @@ export interface RecurrenceDraft {
 }
 
 export function defaultRecurrenceDraft(): RecurrenceDraft {
-  const now = new Date()
+  const now = logicalNow()
   return {
     unit: 'day',
     interval: 1,
@@ -75,7 +75,7 @@ export function isDraftValid(draft: RecurrenceDraft, allowPastStartDate = false)
 
 /** Atajos de fecha de inicio para el selector. */
 export function startDatePresets(): { label: string; value: string }[] {
-  const now = new Date()
+  const now = logicalNow()
   return [
     { label: 'Hoy', value: format(now, 'yyyy-MM-dd') },
     { label: 'Mañana', value: format(addDays(now, 1), 'yyyy-MM-dd') },

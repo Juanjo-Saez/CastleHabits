@@ -2,7 +2,7 @@ import { v4 as uuid } from 'uuid'
 import { addDays, format } from 'date-fns'
 import { create } from 'zustand'
 import { db } from '../db/database'
-import { todayKey } from '../lib/date'
+import { logicalNow, todayKey } from '../lib/date'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
 import { itemEventId, recordItemEvent } from '../lib/itemEvents'
 import { completionInWindow, isItemDueOn, isObligation, marginDaysOf, scheduledDateFor } from '../lib/recurrence'
@@ -160,7 +160,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     const xp = xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile)
     const coins = DIFFICULTY_COINS[item.difficulty]
     const today = todayKey()
-    const scheduledDate = scheduledDateFor(item, new Date())
+    const scheduledDate = scheduledDateFor(item, logicalNow())
     let effectiveDueDate = today
     if (item.type === 'todo' && item.dueDate && item.postponedUntil !== today) {
       effectiveDueDate = item.dueDate
@@ -211,7 +211,8 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     if (item?.trackingType !== 'quantity' || !item.quantityGoal) return
 
     const goal = item.quantityGoal
-    const existing = get().completionsToday[itemId]
+    // Una aparición con margen guarda un solo registro: el progreso continúa en él aunque cambie el día.
+    const existing = completionInWindow(item, get().completionsByItem[itemId] ?? [], todayKey())
     const prevQty = existing?.quantityDone ?? 0
     const nextQty = Math.min(Math.max(prevQty + delta, 0), goal)
     if (nextQty === prevQty) return
@@ -249,7 +250,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     const completion: Completion = {
       id: existing?.id ?? uuid(),
       itemId,
-      date: todayKey(),
+      date: existing?.date ?? todayKey(),
       quantityDone: nextQty,
       xpEarned: isComplete ? xp : 0,
       coinsEarned: isComplete ? coins : 0,
@@ -297,13 +298,13 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       get().completionsToday[itemId] ||
       item.postponedUntil === today ||
       marginDaysOf(item) > 1 ||
-      !isItemDueOn(item, new Date())
+      !isItemDueOn(item, logicalNow())
     ) return false
 
     const spent = await usePlayerStore.getState().spendPostponeToken()
     if (!spent) return false
 
-    const postponedUntil = format(addDays(new Date(), 1), 'yyyy-MM-dd')
+    const postponedUntil = format(addDays(logicalNow(), 1), 'yyyy-MM-dd')
     await db.items.update(itemId, { postponedFrom: today, postponedUntil })
     useItemsStore.setState({
       items: get().items.map((candidate) =>

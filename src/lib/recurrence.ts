@@ -212,6 +212,15 @@ export function isWindowClosingOn(item: Item, date: Date): boolean {
   return occursOn(item, addDays(date, -(window - 1)))
 }
 
+/** Día de aparición cuya ventana contiene `date`; si no hay ninguna, el propio `date`. */
+function occurrenceKeyFor(item: Item, date: Date): string {
+  for (let offset = 0; offset < windowDaysOf(item); offset += 1) {
+    const day = addDays(date, -offset)
+    if (occursOn(item, day)) return format(day, 'yyyy-MM-dd')
+  }
+  return format(date, 'yyyy-MM-dd')
+}
+
 /** Fecha de la aparición original representada por la tarea en una fecha concreta. */
 export function scheduledDateFor(item: Item, date: Date): string {
   const dateKey = format(date, 'yyyy-MM-dd')
@@ -219,11 +228,7 @@ export function scheduledDateFor(item: Item, date: Date): string {
     return item.postponedFrom
   }
   if (item.type === 'todo' && item.dueDate) return item.dueDate
-  for (let offset = 0; offset < windowDaysOf(item); offset += 1) {
-    const day = addDays(date, -offset)
-    if (occursOn(item, day)) return format(day, 'yyyy-MM-dd')
-  }
-  return dateKey
+  return occurrenceKeyFor(item, date)
 }
 
 /** Un pergamino puntual ya cumplido antes de `dateKey` deja de ser una tarea pendiente. */
@@ -249,21 +254,38 @@ export function isCompletedOn(
   return true
 }
 
-/** Primer día de la ventana que termina en `dateKey` (igual a dateKey sin margen). */
+/** Primer día de la aparición cuya ventana contiene `dateKey` (igual a dateKey sin margen). */
 function windowStartKey(item: Item, dateKey: string): string {
   // Un pergamino cuenta cualquier cumplimiento desde que aparece, también antes del vencimiento.
   if (item.type === 'todo') return item.startDate ?? ''
-  return format(addDays(parseISO(dateKey), -(windowDaysOf(item) - 1)), 'yyyy-MM-dd')
+  return occurrenceKeyFor(item, parseISO(dateKey))
 }
 
-/** Completado que cubre la obligación vigente en `dateKey`: el de cualquier día de su ventana. */
+/** Registros de la aparición vigente en `dateKey`: los de cualquier día de su ventana. */
+function completionsInWindow(
+  item: Item,
+  completions: Completion[],
+  dateKey: string,
+): Completion[] {
+  const from = windowStartKey(item, dateKey)
+  return completions.filter((c) => c.date >= from && c.date <= dateKey)
+}
+
+/** Completado que cubre la obligación vigente en `dateKey`, cumplido o no. */
 export function completionInWindow(
   item: Item,
   completions: Completion[],
   dateKey: string,
 ): Completion | undefined {
-  const from = windowStartKey(item, dateKey)
-  return completions.find((c) => c.date >= from && c.date <= dateKey)
+  return completionsInWindow(item, completions, dateKey)[0]
+}
+
+/** Un registro cumple la obligación: los cuantitativos necesitan alcanzar la meta. */
+function isMetCompletion(item: Item, completion: Completion): boolean {
+  if (item.trackingType === 'quantity') {
+    return (completion.quantityDone ?? 0) >= (item.quantityGoal ?? 0)
+  }
+  return true
 }
 
 /** ¿Se cumplió la obligación vigente en `dateKey` (dentro de su ventana, si la tiene)? */
@@ -272,11 +294,20 @@ export function isWindowCompleted(
   completions: Completion[],
   dateKey: string,
 ): boolean {
-  const completion = completionInWindow(item, completions, dateKey)
-  if (!completion) return false
-  if (item.trackingType === 'quantity') {
-    return (completion.quantityDone ?? 0) >= (item.quantityGoal ?? 0)
-  }
-  return true
+  return completionsInWindow(item, completions, dateKey).some((c) => isMetCompletion(item, c))
+}
+
+/**
+ * ¿Se cumplió en un día anterior de la misma ventana? Entonces ya no es pendiente hoy;
+ * el registro del propio día sigue visible para poder deshacerlo.
+ */
+export function isWindowDoneBefore(
+  item: Item,
+  completions: Completion[],
+  dateKey: string,
+): boolean {
+  return completionsInWindow(item, completions, dateKey).some(
+    (c) => c.date < dateKey && isMetCompletion(item, c),
+  )
 }
 

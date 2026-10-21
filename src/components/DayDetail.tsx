@@ -1,6 +1,7 @@
 import { format, startOfDay } from 'date-fns'
 import { es } from 'date-fns/locale/es'
 import { buildDaySummary } from '../lib/calendar'
+import { logicalNow } from '../lib/date'
 import { useItemsStore } from '../store/useItemsStore'
 
 /** Detalle de un día: qué se cumplió, lo ganado y lo que queda o quedó pendiente. */
@@ -8,7 +9,7 @@ function DayDetail({ date }: Readonly<{ date: Date }>) {
   const items = useItemsStore((s) => s.items)
   const completionsByItem = useItemsStore((s) => s.completionsByItem)
   const summary = buildDaySummary(items, completionsByItem, date)
-  const isPast = startOfDay(date) < startOfDay(new Date())
+  const isPast = startOfDay(date) < startOfDay(logicalNow())
   const isEmpty = summary.done.length === 0 && summary.open.length === 0
 
   return (

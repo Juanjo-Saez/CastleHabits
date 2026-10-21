@@ -1,6 +1,6 @@
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, startOfDay } from 'date-fns'
 import { useState } from 'react'
-import { describeDaysLeft, todayKey } from '../lib/date'
+import { describeDaysLeft, logicalNow, todayKey } from '../lib/date'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
 import {
   completionInWindow,
@@ -9,6 +9,7 @@ import {
   isItemDueOn,
   isObligation,
   isWindowClosingOn,
+  isWindowCompleted,
   marginDaysOf,
 } from '../lib/recurrence'
 import { xpWithBonus } from '../lib/routes'
@@ -27,7 +28,7 @@ interface RewardPopup {
 }
 
 function isDueTodayBadge(item: Item): boolean {
-  return item.type !== 'habit' && isItemDueOn(item, new Date())
+  return item.type !== 'habit' && isItemDueOn(item, logicalNow())
 }
 
 function getItemMeta(item: Item, effectiveDueDate?: string | null): string[] {
@@ -50,7 +51,6 @@ function getFrameClass(done: boolean, overdue: boolean): string {
 }
 
 function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>) {
-  const completion = useItemsStore((s) => s.completionsToday[item.id])
   const history = useItemsStore((s) => s.completionsByItem[item.id]) ?? []
   const toggleBoolean = useItemsStore((s) => s.toggleBoolean)
   const adjustQuantity = useItemsStore((s) => s.adjustQuantity)
@@ -61,9 +61,10 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
 
   const isBoolean = item.trackingType === 'boolean'
   const goal = item.quantityGoal ?? 0
+  const completion = completionInWindow(item, history, todayKey())
   const qty = completion?.quantityDone ?? 0
   // Con margen, la tarea cuenta como hecha si se cumplió en cualquier día de su ventana.
-  const done = isBoolean ? Boolean(completionInWindow(item, history, todayKey())) : qty >= goal
+  const done = isWindowCompleted(item, history, todayKey())
   const step = Math.max(1, Math.round(goal / 10))
   const streak = computeStreak(item, history)
   const dueToday = isDueTodayBadge(item)
@@ -72,12 +73,12 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
     item.type === 'todo' &&
     Boolean(effectiveDueDate) &&
     !done &&
-    parseISO(effectiveDueDate as string) < new Date(new Date().setHours(0, 0, 0, 0))
+    parseISO(effectiveDueDate as string) < startOfDay(logicalNow())
   const canPostpone =
     isObligation(item) && dueToday && !done && postponeTokens > 0 && marginDaysOf(item) === 1
   // Solo en tareas con margen: avisa de que hoy es el último día para cumplirla.
   const lastWindowDay =
-    marginDaysOf(item) > 1 && !done && isWindowClosingOn(item, new Date())
+    marginDaysOf(item) > 1 && !done && isWindowClosingOn(item, logicalNow())
 
   const frameClass = getFrameClass(done, overdue)
   const meta = getItemMeta(item, effectiveDueDate)

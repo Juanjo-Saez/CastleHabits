@@ -49,24 +49,26 @@ function RemindersPanel() {
           ) : (
             <ul className="flex flex-col gap-2">
               {reminders.map((r) => (
-                <li key={r.id} className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate font-pixel text-lg text-silver-100">
+                <li key={r.id} className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 break-words font-pixel text-xl leading-tight text-silver-100">
                     {r.title}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setConverting(r)}
-                    className="cv-btn cv-btn--gold px-2 py-1 text-sm"
-                  >
-                    Crear tarea
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void archive(r.id)}
-                    className="cv-btn cv-btn--ghost px-2 py-1 text-sm"
-                  >
-                    Eliminar
-                  </button>
+                  <div className="flex shrink-0 flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setConverting(r)}
+                      className="cv-btn cv-btn--gold px-2 py-0.5 text-sm"
+                    >
+                      Crear tarea
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void archive(r.id)}
+                      className="cv-btn cv-btn--ghost px-2 py-0.5 text-sm"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

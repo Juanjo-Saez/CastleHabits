@@ -1,4 +1,4 @@
-import { todayKey } from './date'
+import { logicalNow, todayKey } from './date'
 import { completionInWindow, isItemDueOn, isObligation, isWindowCompleted } from './recurrence'
 import type { Completion, Item } from '../types'
 
@@ -40,11 +40,11 @@ async function showNotice(title: string, body: string, tag: string): Promise<voi
 }
 
 export function hasRemindedToday(): boolean {
-  return localStorage.getItem(LAST_REMINDER_KEY) === new Date().toDateString()
+  return localStorage.getItem(LAST_REMINDER_KEY) === todayKey()
 }
 
 export function markRemindedToday(): void {
-  localStorage.setItem(LAST_REMINDER_KEY, new Date().toDateString())
+  localStorage.setItem(LAST_REMINDER_KEY, todayKey())
 }
 
 export function clearReminderDate(): void {
@@ -56,7 +56,7 @@ export function countPendingToday(
   items: Item[],
   completionsByItem: Record<string, Completion[]>,
 ): number {
-  const today = new Date()
+  const today = logicalNow()
   const key = todayKey()
   let pending = 0
 

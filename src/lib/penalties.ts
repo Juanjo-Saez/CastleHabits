@@ -1,4 +1,5 @@
 import { addDays, format, isBefore, parseISO, startOfDay } from 'date-fns'
+import { logicalNow } from './date'
 import { buildItemEvent, itemEventId } from './itemEvents'
 import { isObligation, isWindowClosingOn, isWindowCompleted, windowDaysOf } from './recurrence'
 import { SHIELD_RECHARGE_DAYS } from './routes'
@@ -80,7 +81,7 @@ export function computeMissedPenalties(
   freezesUsed: number
   shieldReadyOn?: string
 } {
-  const yesterday = addDays(startOfDay(new Date()), -1)
+  const yesterday = addDays(startOfDay(logicalNow()), -1)
   let cursor = lastCheckedDate ? addDays(parseISO(lastCheckedDate), 1) : yesterday
   const streaks = new Map<string, number>()
   const protection: Protection = {

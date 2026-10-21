@@ -31,6 +31,12 @@ function NewTaskForm({
   const [dueDate, setDueDate] = useState(todayKey())
   const [routeId, setRouteId] = useState<RouteId | undefined>()
 
+  const handleStartDateChange = (value: string) => {
+    const previousDefault = startDate || todayKey()
+    setStartDate(value)
+    if (value && (dueDate === previousDefault || dueDate < value)) setDueDate(value)
+  }
+
   const scheduleValid = kind === 'todo' ? isTodoScheduleValid(startDate, dueDate) : isDraftValid(recurrence)
   const canSubmit = Boolean(title.trim()) && scheduleValid
 
@@ -119,7 +125,7 @@ function NewTaskForm({
         <TodoDatesPicker
           startDate={startDate}
           dueDate={dueDate}
-          onStartDateChange={setStartDate}
+          onStartDateChange={handleStartDateChange}
           onDueDateChange={setDueDate}
         />
       )}

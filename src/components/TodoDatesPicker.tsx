@@ -40,7 +40,7 @@ function TodoDatesPicker({
           <span className="cv-label">Vence el</span>
           <input
             type="date"
-            min={todayKey()}
+            min={startDate || todayKey()}
             value={dueDate}
             onChange={(event) => onDueDateChange(event.target.value)}
             className="cv-input"

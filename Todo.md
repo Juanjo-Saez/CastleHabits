@@ -38,6 +38,27 @@ Estado revisado el 14 de octubre de 2026. Este documento refleja el punto actual
 - [x] Conservar el título y los datos relevantes de la tarea en cada evento; guardar la cantidad exacta alcanzada en tareas cuantitativas.
 - [x] Incluir los eventos en las copias de seguridad.
 
+## Fixes pendientes
+
+### 1. Obligaciones con margen y completado
+
+- [x] Si una obligación con margen se completa en cualquier día de su ventana, dejar de mostrar el resto de días de la ventana como completados o pendientes; la tarea sale de la lista diaria hasta su siguiente aparición pendiente. Ejemplo: peinar a la gata los martes y sábados, y que una vez completada no siga apareciendo.
+
+### 2. Cambio de día a las 2:00
+
+- [x] Cambiar el corte del día de las 00:00 a las 02:00, para que los registros hechos de madrugada cuenten como del día anterior.
+- [x] Evaluar los fallos por vencimiento con ese mismo corte, para que una tarea no se marque como incumplida antes de las 02:00.
+- [x] Aplicar el corte de forma uniforme a la lista diaria, al calendario, a las rachas, a los eventos guardados y a las notificaciones.
+
+### 3. Vista de mañana en el Castillo
+
+- [x] Añadir una sección en el Castillo, después de recordatorios, que muestre las tareas programadas para el día siguiente.
+- [x] Presentarlas de forma visual para revisar lo que se está organizando para el día siguiente.
+
+### 4. Tarjetas de recordatorios
+
+- [x] Rediseñar las tarjetas de recordatorios para que el botón eliminar y el botón crear tarea no ocupen toda la caja. La tarea debe verse con claridad, en primer plano.
+
 ## Pendiente: siguiente etapa
 
 ### 1. Mejoras de interfaz y gestión de tareas

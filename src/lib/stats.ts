@@ -1,4 +1,5 @@
 import { addDays, format, startOfDay } from 'date-fns'
+import { logicalNow } from './date'
 import { itemEventId } from './itemEvents'
 import { isObligation, isWindowClosingOn, isWindowCompleted, windowDaysOf } from './recurrence'
 import type { Completion, Item, ItemEvent } from '../types'
@@ -42,7 +43,7 @@ export function buildDailyStats(
 ): DayStat[] {
   const trackable = items.filter((item) => item.type !== 'todo' && !item.archived)
   const missedById = new Map(missedEvents.map((event) => [event.id, event]))
-  const today = startOfDay(new Date())
+  const today = startOfDay(logicalNow())
   const stats: DayStat[] = []
 
   for (let i = days - 1; i >= 0; i--) {

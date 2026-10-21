@@ -1,4 +1,5 @@
 import { addDays, format, isBefore, parseISO, startOfDay } from 'date-fns'
+import { logicalNow } from './date'
 import { isWindowClosingOn, isWindowCompleted } from './recurrence'
 import type { Completion, Item } from '../types'
 
@@ -7,7 +8,7 @@ export function computeStreak(item: Item, completions: Completion[]): number {
   if (item.type === 'todo') return 0
 
   let streak = 0
-  let cursor = startOfDay(new Date())
+  let cursor = startOfDay(logicalNow())
   const createdAt = startOfDay(parseISO(item.createdAt))
 
   // Si hoy toca pero aún no se ha completado, no rompemos la racha: empezamos desde ayer.
@@ -37,7 +38,7 @@ export function computeStreak(item: Item, completions: Completion[]): number {
 export function computeBestStreak(item: Item, completions: Completion[]): number {
   if (item.type === 'todo') return 0
 
-  const today = startOfDay(new Date())
+  const today = startOfDay(logicalNow())
   let cursor = startOfDay(parseISO(item.createdAt))
   const endDate =
     isWindowClosingOn(item, today) &&
@@ -70,7 +71,7 @@ export function computeScore(item: Item, completions: Completion[]): number {
   const SMOOTHING = 0.15
   let score = 0
   let cursor = startOfDay(parseISO(item.createdAt))
-  const today = startOfDay(new Date())
+  const today = startOfDay(logicalNow())
 
   while (!isBefore(today, cursor)) {
     const key = format(cursor, 'yyyy-MM-dd')

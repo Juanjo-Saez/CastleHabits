@@ -6,6 +6,7 @@ import DayDetail from '../components/DayDetail'
 import PageHeader from '../components/PageHeader'
 import SectionTitle from '../components/SectionTitle'
 import { buildCandlesByDay, monthGridDays } from '../lib/calendar'
+import { logicalNow } from '../lib/date'
 import { useItemsStore } from '../store/useItemsStore'
 
 const WEEKDAY_HEADERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
@@ -13,10 +14,10 @@ const WEEKDAY_HEADERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 function CalendarPage() {
   const items = useItemsStore((s) => s.items)
   const completionsByItem = useItemsStore((s) => s.completionsByItem)
-  const [month, setMonth] = useState(() => startOfMonth(new Date()))
-  const [selected, setSelected] = useState(() => new Date())
+  const [month, setMonth] = useState(() => startOfMonth(logicalNow()))
+  const [selected, setSelected] = useState(() => logicalNow())
 
-  const today = new Date()
+  const today = logicalNow()
   const days = monthGridDays(month)
   const candles = buildCandlesByDay(items, completionsByItem, days, today)
 
