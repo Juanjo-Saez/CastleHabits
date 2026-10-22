@@ -231,6 +231,14 @@ export function scheduledDateFor(item: Item, date: Date): string {
   return occurrenceKeyFor(item, date)
 }
 
+/** Último día en que la tarea puede cumplirse desde la ventana que contiene `date`; null si no tiene. */
+export function closingKeyOf(item: Item, date: Date): string | null {
+  if (item.postponedUntil) return item.postponedUntil
+  if (item.type === 'todo') return item.dueDate ?? null
+  const occurrence = parseISO(scheduledDateFor(item, date))
+  return format(addDays(occurrence, windowDaysOf(item) - 1), 'yyyy-MM-dd')
+}
+
 /** Un pergamino puntual ya cumplido antes de `dateKey` deja de ser una tarea pendiente. */
 export function isTodoClosedBefore(
   item: Item,
