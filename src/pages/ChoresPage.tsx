@@ -5,6 +5,7 @@ import ItemCard from '../components/ItemCard'
 import ItemDetails from '../components/ItemDetails'
 import NewTaskForm from '../components/NewTaskForm'
 import PageHeader from '../components/PageHeader'
+import RecentMissesPanel from '../components/RecentMissesPanel'
 import RemindersPanel from '../components/RemindersPanel'
 import SectionTitle from '../components/SectionTitle'
 import SortPicker from '../components/SortPicker'
@@ -86,6 +87,8 @@ function ChoresPage() {
         </SectionTitle>
 
         {showForm && <NewTaskForm onClose={() => setShowForm(false)} />}
+
+        <RecentMissesPanel />
 
         <SortPicker value={sortKey} onChange={setSortKey} />
 

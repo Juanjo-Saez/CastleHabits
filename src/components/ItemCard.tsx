@@ -14,7 +14,7 @@ import {
 } from '../lib/recurrence'
 import { xpWithBonus } from '../lib/routes'
 import { playWhip } from '../lib/sound'
-import { computeStreak } from '../lib/streak'
+import { computeMissStreak, computeStreak } from '../lib/streak'
 import { useItemsStore } from '../store/useItemsStore'
 import { usePlayerStore } from '../store/usePlayerStore'
 import type { Item } from '../types'
@@ -67,6 +67,8 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
   const done = isWindowCompleted(item, history, todayKey())
   const step = Math.max(1, Math.round(goal / 10))
   const streak = computeStreak(item, history)
+  // Solo una se muestra a la vez: una racha positiva anula los fallos previos.
+  const missStreak = streak === 0 ? computeMissStreak(item, history) : 0
   const dueToday = isDueTodayBadge(item)
   const effectiveDueDate = item.postponedUntil ?? item.dueDate
   const overdue =
@@ -147,6 +149,7 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
           <Skulls difficulty={item.difficulty} />
           {streak > 0 && <span className="cv-label text-gold-400">Racha ×{streak}</span>}
+          {missStreak > 0 && <span className="cv-label text-blood-400">Fallos seguidos ×{missStreak}</span>}
         </div>
 
         {meta.length > 0 && (

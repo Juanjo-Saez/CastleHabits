@@ -77,8 +77,8 @@ Estado revisado el 14 de octubre de 2026. Este documento refleja el punto actual
 ### 2. Cerrar la base de historial y mostrar fallos recientes
 
 - [x] Completar el registro de eventos de incumplimiento: hoy un escudo/congelación puede evitar el daño sin dejar el evento de fallo correspondiente.
-- [ ] Conectar el agregador de estadísticas por tarea con los eventos guardados. Debe poder obtener completados, fallos, recuperaciones tardías, progreso parcial, deshacer, aplazamientos, daño, EXP, monedas y fechas de actividad.
-- [ ] Añadir una señal visible para obligaciones falladas recientemente, en particular las recurrentes del día anterior; evaluar una racha negativa sin confundirla con las rachas positivas existentes.
+- [x] Conectar el agregador de estadísticas por tarea con los eventos guardados. Debe poder obtener completados, fallos, recuperaciones tardías, progreso parcial, deshacer, aplazamientos, daño, EXP, monedas y fechas de actividad.
+- [x] Añadir una señal visible para obligaciones falladas recientemente, en particular las recurrentes del día anterior; evaluar una racha negativa sin confundirla con las rachas positivas existentes.
 - [ ] Mantener las estadísticas históricas ocultas hasta que una recompensa o poder permita consultarlas, si se conserva esa decisión de diseño.
 
 ### 3. Primer encuentro con boss

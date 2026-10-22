@@ -1,3 +1,4 @@
+import { db } from '../db/database'
 import type { ItemEvent } from '../types'
 
 export interface ItemStats {
@@ -60,4 +61,9 @@ export function buildItemStats(events: ItemEvent[]): Record<string, ItemStats> {
   }
 
   return stats
+}
+
+/** Estadísticas por tarea calculadas sobre todos los eventos guardados en IndexedDB. */
+export async function loadItemStats(): Promise<Record<string, ItemStats>> {
+  return buildItemStats(await db.itemEvents.toArray())
 }

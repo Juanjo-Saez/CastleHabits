@@ -1,7 +1,9 @@
 import { addDays, format, isBefore, parseISO, startOfDay } from 'date-fns'
 import { logicalNow } from './date'
-import { isWindowClosingOn, isWindowCompleted } from './recurrence'
+import { isObligation, isWindowClosingOn, isWindowCompleted } from './recurrence'
 import type { Completion, Item } from '../types'
+
+export const RECENT_MISS_DAYS = 2
 
 /** Racha de días "debidos" consecutivos completados, terminando hoy o ayer. */
 export function computeStreak(item: Item, completions: Completion[]): number {
@@ -83,4 +85,50 @@ export function computeScore(item: Item, completions: Completion[]): number {
   }
 
   return Math.round(score * 100)
+}
+
+/** Apariciones cerradas sin completar hasta ayer, contadas hacia atrás. Hoy no cuenta: el día no ha terminado. */
+export function computeMissStreak(item: Item, completions: Completion[]): number {
+  if (!isObligation(item)) return 0
+
+  let streak = 0
+  let cursor = addDays(startOfDay(logicalNow()), -1)
+  const createdAt = startOfDay(parseISO(item.createdAt))
+
+  while (!isBefore(cursor, createdAt)) {
+    if (isWindowClosingOn(item, cursor)) {
+      if (isWindowCompleted(item, completions, format(cursor, 'yyyy-MM-dd'))) break
+      streak += 1
+    }
+    cursor = addDays(cursor, -1)
+  }
+
+  return streak
+}
+
+/** Obligaciones cuya ventana cerró en los últimos días sin completarse, de ayer hacia atrás. */
+export function recentMisses(
+  items: Item[],
+  completionsByItem: Record<string, Completion[]>,
+  days = RECENT_MISS_DAYS,
+): { item: Item; dateKey: string }[] {
+  const today = startOfDay(logicalNow())
+  const misses: { item: Item; dateKey: string }[] = []
+
+  for (const item of items) {
+    if (item.archived || !isObligation(item)) continue
+    const createdAt = startOfDay(parseISO(item.createdAt))
+    const history = completionsByItem[item.id] ?? []
+
+    for (let offset = 1; offset <= days; offset += 1) {
+      const day = addDays(today, -offset)
+      if (isBefore(day, createdAt)) break
+      const dateKey = format(day, 'yyyy-MM-dd')
+      if (isWindowClosingOn(item, day) && !isWindowCompleted(item, history, dateKey)) {
+        misses.push({ item, dateKey })
+      }
+    }
+  }
+
+  return misses
 }
