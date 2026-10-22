@@ -319,3 +319,33 @@ export function isWindowDoneBefore(
   )
 }
 
+/**
+ * Obligación recurrente vencida sin cumplir: sigue pendiente hasta cumplirla una vez, aunque
+ * su aparición ya haya cerrado. Solo cuentan los registros anteriores a `dateKey`, así la tarea
+ * sigue visible el día que se cumple. Devuelve el día de cierre de la última aparición fallada,
+ * o null si no hay pendiente.
+ */
+export function missedCarryOf(
+  item: Item,
+  completions: Completion[],
+  dateKey: string,
+): string | null {
+  if (item.type !== 'chore' || !isObligation(item) || !item.recurrenceRule) return null
+  const today = parseISO(dateKey)
+  const createdKey = format(parseISO(item.createdAt), 'yyyy-MM-dd')
+  const floor = item.startDate && item.startDate > createdKey ? item.startDate : createdKey
+  const span = differenceInCalendarDays(today, parseISO(floor))
+  // Solo hace falta la aparición cerrada más reciente: si está cumplida, todo lo anterior también.
+  for (let offset = 1; offset <= span; offset += 1) {
+    const day = addDays(today, -offset)
+    if (!isWindowClosingOn(item, day)) continue
+    const closingKey = format(day, 'yyyy-MM-dd')
+    const from = windowStartKey(item, closingKey)
+    const cleared = completions.some(
+      (c) => c.date >= from && c.date < dateKey && isMetCompletion(item, c),
+    )
+    return cleared ? null : closingKey
+  }
+  return null
+}
+

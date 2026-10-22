@@ -16,6 +16,7 @@ import {
   isTodoClosedBefore,
   isWindowCompleted,
   isWindowDoneBefore,
+  missedCarryOf,
 } from '../lib/recurrence'
 import { sortTasks, type TaskSortKey } from '../lib/taskSort'
 import { useItemsStore } from '../store/useItemsStore'
@@ -35,13 +36,16 @@ function ChoresPage() {
   const tomorrowKey = format(tomorrow, 'yyyy-MM-dd')
   const active = items.filter((item) => !item.archived)
   // Una tarea con margen cumplida en un día anterior de su ventana deja de aparecer hasta su siguiente vez.
+  // Una obligación fallada sigue pendiente hoy hasta cumplirla una vez.
   const dueToday = sortTasks(
-    active.filter(
-      (item) =>
-        item.type === 'chore' &&
-        isItemDueOn(item, today) &&
-        !isWindowDoneBefore(item, completionsByItem[item.id] ?? [], key),
-    ),
+    active.filter((item) => {
+      if (item.type !== 'chore') return false
+      const history = completionsByItem[item.id] ?? []
+      return (
+        (isItemDueOn(item, today) || missedCarryOf(item, history, key) !== null) &&
+        !isWindowDoneBefore(item, history, key)
+      )
+    }),
     sortKey,
   )
   const dueTomorrow = sortTasks(
@@ -88,8 +92,6 @@ function ChoresPage() {
 
         {showForm && <NewTaskForm onClose={() => setShowForm(false)} />}
 
-        <RecentMissesPanel />
-
         <SortPicker value={sortKey} onChange={setSortKey} />
 
         {loading ? (
@@ -122,6 +124,7 @@ function ChoresPage() {
             )}
 
             <RemindersPanel />
+            <RecentMissesPanel />
             <TomorrowPanel items={dueTomorrow} />
           </>
         )}

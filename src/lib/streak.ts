@@ -3,7 +3,7 @@ import { logicalNow } from './date'
 import { isObligation, isWindowClosingOn, isWindowCompleted } from './recurrence'
 import type { Completion, Item } from '../types'
 
-export const RECENT_MISS_DAYS = 2
+const RECENT_MISS_DAYS = 1
 
 /** Racha de días "debidos" consecutivos completados, terminando hoy o ayer. */
 export function computeStreak(item: Item, completions: Completion[]): number {

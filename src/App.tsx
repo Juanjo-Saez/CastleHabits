@@ -15,6 +15,7 @@ import { computeMissedPenalties } from './lib/penalties'
 import { hasShield } from './lib/routes'
 import CalendarPage from './pages/CalendarPage'
 import ChoresPage from './pages/ChoresPage'
+import FailureHistoryPage from './pages/FailureHistoryPage'
 import HabitsPage from './pages/HabitsPage'
 import TaskArchivePage from './pages/TaskArchivePage'
 import ProfilePage from './pages/ProfilePage'
@@ -107,6 +108,7 @@ function App() {
           <Route path="/tareas" element={<ChoresPage />} />
           <Route path="/calendario" element={<CalendarPage />} />
           <Route path="/archivo" element={<TaskArchivePage />} />
+          <Route path="/historial" element={<FailureHistoryPage />} />
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
         </Routes>

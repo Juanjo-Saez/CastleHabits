@@ -101,6 +101,16 @@ function StatsPage() {
           <span aria-hidden="true" className="font-pixel text-xl text-gold-300">›</span>
         </Link>
 
+        <Link to="/historial" className="cv-panel flex items-center justify-between gap-3 p-3 transition-colors hover:border-gold-400/60">
+          <div>
+            <SectionTitle>Histórico de fallos</SectionTitle>
+            <p className="mt-1 font-body text-sm text-silver-500 italic">
+              Todas las obligaciones que no llegaron a cumplirse.
+            </p>
+          </div>
+          <span aria-hidden="true" className="font-pixel text-xl text-gold-300">›</span>
+        </Link>
+
         <div className="cv-panel p-3">
           <SectionTitle>Reliquias</SectionTitle>
           <div className="mt-3"><RelicsGrid /></div>

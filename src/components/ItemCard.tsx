@@ -1,4 +1,4 @@
-import { format, parseISO, startOfDay } from 'date-fns'
+import { format, parseISO, startOfDay, subDays } from 'date-fns'
 import { useState } from 'react'
 import { describeDaysLeft, logicalNow, todayKey } from '../lib/date'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
@@ -11,6 +11,7 @@ import {
   isWindowClosingOn,
   isWindowCompleted,
   marginDaysOf,
+  missedCarryOf,
 } from '../lib/recurrence'
 import { xpWithBonus } from '../lib/routes'
 import { playWhip } from '../lib/sound'
@@ -50,6 +51,13 @@ function getFrameClass(done: boolean, overdue: boolean): string {
   return ''
 }
 
+/** "ayer" si la aparición fallada cerró ayer; si no, la fecha corta. */
+function describeMissedOn(dateKey: string): string {
+  return dateKey === format(subDays(logicalNow(), 1), 'yyyy-MM-dd')
+    ? 'ayer'
+    : format(parseISO(dateKey), 'dd/MM')
+}
+
 function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>) {
   const history = useItemsStore((s) => s.completionsByItem[item.id]) ?? []
   const toggleBoolean = useItemsStore((s) => s.toggleBoolean)
@@ -70,6 +78,8 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
   // Solo una se muestra a la vez: una racha positiva anula los fallos previos.
   const missStreak = streak === 0 ? computeMissStreak(item, history) : 0
   const dueToday = isDueTodayBadge(item)
+  // Obligación fallada que sigue pendiente: aparece hoy con la marca de su fallo.
+  const missedOn = missedCarryOf(item, history, todayKey())
   const effectiveDueDate = item.postponedUntil ?? item.dueDate
   const overdue =
     item.type === 'todo' &&
@@ -140,7 +150,7 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
           >
             {item.title}
           </button>
-          {dueToday && !done && <span className="cv-tag cv-tag--gold">Hoy</span>}
+          {(dueToday || missedOn !== null) && !done && <span className="cv-tag cv-tag--gold">Hoy</span>}
           {!isObligation(item) && <span className="cv-tag cv-tag--gold">Misión</span>}
           {overdue && <span className="cv-tag cv-tag--blood">Vencida</span>}
           {lastWindowDay && <span className="cv-tag cv-tag--blood">¡Último día!</span>}
@@ -150,6 +160,9 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
           <Skulls difficulty={item.difficulty} />
           {streak > 0 && <span className="cv-label text-gold-400">Racha ×{streak}</span>}
           {missStreak > 0 && <span className="cv-label text-blood-400">Fallos seguidos ×{missStreak}</span>}
+          {missedOn !== null && !done && (
+            <span className="cv-label text-blood-400">Falló {describeMissedOn(missedOn)}</span>
+          )}
         </div>
 
         {meta.length > 0 && (
