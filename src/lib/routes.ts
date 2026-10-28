@@ -1,4 +1,5 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns'
+import { activityDateKey } from './date'
 import { isCompletedOn } from './recurrence'
 import type {
   Completion,
@@ -249,4 +250,41 @@ export function effectiveMaxHp(profile: PlayerProfile): number {
 
 export function hasShield(profile: PlayerProfile | null): boolean {
   return activePassive(profile)?.id === 'castle-within'
+}
+
+/** Primer día y actividades que cuentan para una ruta iniciada en la expedición actual. */
+export function linkedRouteItems(
+  id: RouteId,
+  progress: RouteProgress,
+  allItems: Item[],
+): { startedOn: string; linked: Item[] } {
+  const startedOn = progress.startedOn
+    ?? allItems
+      .filter((candidate) => candidate.routeId === id && !candidate.archived)
+      .map((candidate) => activityDateKey(candidate.createdAt))
+      .sort()[0]
+    ?? progress.windowStart
+    ?? ''
+  const linked = allItems.filter((candidate) => candidate.routeId === id
+    && activityDateKey(candidate.createdAt) >= startedOn
+    && (!progress.startedAt || new Date(candidate.createdAt) >= new Date(progress.startedAt)))
+  return { startedOn, linked }
+}
+
+/**
+ * Recalcula una ruta iniciada desde su comienzo con los registros disponibles hasta `asOf`
+ * (yyyy-MM-dd): sirve para corregir días recientes y para saber el nivel en una fecha pasada.
+ */
+export function recomputeRoute(
+  id: RouteId,
+  progress: RouteProgress,
+  allItems: Item[],
+  completionsByItem: Record<string, Completion[]>,
+  asOf: string,
+): RouteProgress {
+  if (!progress.windowStart) return progress
+  const { startedOn, linked } = linkedRouteItems(id, progress, allItems)
+  return evaluateRoute(
+    ROUTES[id], { ...progress, level: 0, windowStart: startedOn, startedOn }, linked, completionsByItem, asOf,
+  )
 }

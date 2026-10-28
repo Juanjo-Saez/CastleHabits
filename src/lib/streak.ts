@@ -36,6 +36,26 @@ export function computeStreak(item: Item, completions: Completion[]): number {
   return streak
 }
 
+/**
+ * Racha de apariciones consecutivas cumplidas hasta un día ya cerrado (yyyy-MM-dd), incluido.
+ * A diferencia de `computeStreak`, ese día no se considera "en curso": si no se cumplió, la racha es 0.
+ */
+export function streakEndingOn(item: Item, completions: Completion[], dateKey: string): number {
+  if (item.type === 'todo') return 0
+
+  let streak = 0
+  let cursor = parseISO(dateKey)
+  const createdAt = startOfDay(parseISO(item.createdAt))
+  while (!isBefore(cursor, createdAt)) {
+    if (isWindowClosingOn(item, cursor)) {
+      if (!isWindowCompleted(item, completions, format(cursor, 'yyyy-MM-dd'))) break
+      streak += 1
+    }
+    cursor = addDays(cursor, -1)
+  }
+  return streak
+}
+
 /** Mejor racha histórica de apariciones consecutivas completadas. */
 export function computeBestStreak(item: Item, completions: Completion[]): number {
   if (item.type === 'todo') return 0

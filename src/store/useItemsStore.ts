@@ -9,7 +9,7 @@ import { itemEventId, recordItemEvent } from '../lib/itemEvents'
 import { completionInWindow, isItemDueOn, isObligation, marginDaysOf, scheduledDateFor } from '../lib/recurrence'
 import { xpWithBonus } from '../lib/routes'
 import { useAchievementsStore } from './useAchievementsStore'
-import { usePlayerStore } from './usePlayerStore'
+import { usePlayerStore, mergeLevelUp } from './usePlayerStore'
 import type {
   Completion,
   Difficulty,
@@ -90,10 +90,14 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
   loading: true,
 
   correctDay: async (input, confirmedDamage) => {
+    const before = usePlayerStore.getState().profile
     const plan = await saveDayCorrection(input, confirmedDamage)
+    const playerState = usePlayerStore.getState()
     usePlayerStore.setState({
       profile: plan.profile,
-      justLeveledUp: plan.leveledUp ? plan.profile.level : usePlayerStore.getState().justLeveledUp,
+      justLeveledUp: plan.leveledUp && before
+        ? mergeLevelUp(playerState.justLeveledUp, before, plan.profile)
+        : playerState.justLeveledUp,
     })
     await get().load()
     await checkAchievements(get().items, get().completionsByItem)

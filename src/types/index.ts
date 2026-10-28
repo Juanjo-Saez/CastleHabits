@@ -121,6 +121,31 @@ export interface PlayerProfile {
   penaltyCheckpoint?: PenaltyCheckpoint
 }
 
+/**
+ * Estado informativo del jugador al cerrar un día (tras aplicar sus penalizaciones).
+ * Solo alimenta el resumen diario: nunca concede ni retira efectos de juego.
+ */
+export interface DaySnapshot {
+  /** Día operativo (yyyy-MM-dd) que cierra; es la clave. */
+  date: string
+  /** Expedición a la que pertenece; un snapshot de otra expedición no se usa. */
+  runStartedAt?: string
+  level: number
+  xp: number
+  hp: number
+  /** Vida máxima efectiva (con el bono del oficio equipado). */
+  maxHp: number
+}
+
+/** Subida de nivel pendiente de celebrar: del nivel anterior al actual, con sus mejoras. */
+export interface LevelUpInfo {
+  from: number
+  to: number
+  /** Vida máxima ganada con las subidas (la vida se restaura al máximo). */
+  maxHpGain: number
+  maxHp: number
+}
+
 export interface PenaltyCheckpoint {
   date: string
   items: Item[]

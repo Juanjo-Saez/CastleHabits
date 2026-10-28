@@ -9,6 +9,7 @@ import SectionTitle from '../components/SectionTitle'
 import { db } from '../db/database'
 import { buildDailyStats, type DayStatus } from '../lib/stats'
 import { logicalNow } from '../lib/date'
+import { useDailySummaryStore } from '../store/useDailySummaryStore'
 import { useItemsStore } from '../store/useItemsStore'
 import type { ItemEvent } from '../types'
 
@@ -63,6 +64,20 @@ function StatsPage() {
             <p className="font-body text-sm text-silver-500 italic">días con tareas</p>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => void useDailySummaryStore.getState().openManual()}
+          className="cv-panel flex items-center justify-between gap-3 p-3 text-left transition-colors hover:border-gold-400/60"
+        >
+          <div>
+            <SectionTitle>Resumen de ayer</SectionTitle>
+            <p className="mt-1 font-body text-sm text-silver-500 italic">
+              Revive la crónica del día que acaba de cerrarse.
+            </p>
+          </div>
+          <span aria-hidden="true" className="font-pixel text-xl text-gold-300">›</span>
+        </button>
 
         <div className="cv-panel p-3">
           <SectionTitle>Mapa de constancia</SectionTitle>

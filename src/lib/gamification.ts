@@ -41,6 +41,31 @@ export function xpToNextLevel(level: number): number {
   return 50 + level * 25
 }
 
+/** Vida máxima que concede cada nivel ganado. */
+export const HP_PER_LEVEL = 5
+
+/** Suma EXP aplicando las subidas de nivel, igual que al completar una actividad. */
+export function addXp(level: number, xp: number, amount: number): { level: number; xp: number } {
+  let nextLevel = level
+  let nextXp = xp + amount
+  while (nextXp >= xpToNextLevel(nextLevel)) {
+    nextXp -= xpToNextLevel(nextLevel)
+    nextLevel += 1
+  }
+  return { level: nextLevel, xp: nextXp }
+}
+
+/** Deshace `addXp`: retrocede los niveles necesarios para restar `amount` de EXP. */
+export function rewindXp(level: number, xp: number, amount: number): { level: number; xp: number } {
+  let previousLevel = level
+  let previousXp = xp - amount
+  while (previousXp < 0 && previousLevel > 1) {
+    previousLevel -= 1
+    previousXp += xpToNextLevel(previousLevel)
+  }
+  return { level: previousLevel, xp: Math.max(0, previousXp) }
+}
+
 export interface AvatarStage {
   minLevel: number
   title: string

@@ -110,7 +110,7 @@ Estado revisado el 28 de octubre de 2026. Este documento refleja el punto actual
 - [x] Permitir registrar y corregir actividades de hoy y ayer; bloquear la edición de días anteriores. Respetar el cambio de día a las 02:00 para determinar qué día es hoy y cuál es ayer.
 - [x] Incluir obligaciones, hábitos y misiones secundarias: marcar como hecho lo que se realizó ese día pero se olvidó registrar, corregir cantidades y desmarcar completados apuntados por error.
 - [x] Ofrecer acceso desde el detalle del día en el calendario, con botones para abrir ayer u hoy, y desde el panel de fallos recientes del Castillo.
-- [ ] Añadir también el acceso desde el resumen diario cuando se implemente ese resumen.
+- [x] Añadir también el acceso desde el resumen diario cuando se implemente ese resumen.
 - [x] Tratar la corrección como un registro del día elegido, no como una recuperación realizada hoy fuera de plazo. Ajustar EXP, oro, vida, rachas y progreso de rutas sin duplicar recompensas ni penalizaciones. Si la actividad ya estaba fuera de plazo en el día elegido, sigue siendo una recuperación tardía.
 - [x] Conservar los niveles del personaje ya alcanzados al desmarcar y restar solo la EXP disponible. Bloquear la corrección si requiere retirar oro ya gastado e indicar cuánto falta.
 - [x] Devolver el daño injustificado por actividades que sí se hicieron ayer y recalcular las consecuencias al corregir cantidades o desmarcar actividades. Reasignar o devolver escudos y congelaciones usados en los fallos de ayer; si una congelación devuelta ya se gastó, bloquear el ajuste que necesita consumirla otra vez.
@@ -121,13 +121,13 @@ Estado revisado el 28 de octubre de 2026. Este documento refleja el punto actual
 
 ### 7. Resumen diario animado y celebración de nivel
 
-- [ ] Mostrar automáticamente el resumen de ayer al entrar por primera vez cada día, respetando el corte de las 02:00. Si se estuvo varios días sin entrar, mostrar solo ayer, sin encadenar resúmenes de los días anteriores.
-- [ ] Incluir actividades realizadas y pendientes, EXP y oro ganados, vida perdida y obligaciones que causaron el daño, racha, progreso en rutas y nivel alcanzado. Mostrar también pérdidas de EXP u oro si existen esas penalizaciones, sin introducir penalizaciones nuevas.
-- [ ] Presentar un resumen completo con barras animadas, cambios de los recursos y sonido, manteniendo la ambientación de la app; no limitarlo a un aviso breve.
-- [ ] Añadir un botón para saltar la animación y un acceso visible para volver a consultar el resumen de ayer y reproducir sus animaciones aunque ya se haya mostrado ese día.
-- [ ] Tras corregir ayer, recalcular el resumen y mostrar los resultados corregidos al volver a consultarlo, sin marcas ni apartados especiales de edición.
-- [ ] Ampliar la celebración de subida de nivel existente con una animación más vistosa, mostrando el nivel anterior, el nuevo nivel y las mejoras obtenidas.
-- [ ] Separar la reproducción de las animaciones de la aplicación de sus efectos: consultar o repetir un resumen no vuelve a conceder EXP, oro, niveles ni daño.
+- [x] Mostrar automáticamente el resumen de ayer al entrar por primera vez cada día, respetando el corte de las 02:00. Si se estuvo varios días sin entrar, mostrar solo ayer, sin encadenar resúmenes de los días anteriores.
+- [x] Incluir actividades realizadas y pendientes, EXP y oro ganados, vida perdida y obligaciones que causaron el daño, racha, progreso en rutas y nivel alcanzado. Mostrar también pérdidas de EXP u oro si existen esas penalizaciones, sin introducir penalizaciones nuevas.
+- [x] Presentar un resumen completo con barras animadas, cambios de los recursos y sonido, manteniendo la ambientación de la app; no limitarlo a un aviso breve.
+- [x] Añadir un botón para saltar la animación y un acceso visible para volver a consultar el resumen de ayer y reproducir sus animaciones aunque ya se haya mostrado ese día.
+- [x] Tras corregir ayer, recalcular el resumen y mostrar los resultados corregidos al volver a consultarlo, sin marcas ni apartados especiales de edición.
+- [x] Ampliar la celebración de subida de nivel existente con una animación más vistosa, mostrando el nivel anterior, el nuevo nivel y las mejoras obtenidas.
+- [x] Separar la reproducción de las animaciones de la aplicación de sus efectos: consultar o repetir un resumen no vuelve a conceder EXP, oro, niveles ni daño.
 
 ## Visión a largo plazo
 

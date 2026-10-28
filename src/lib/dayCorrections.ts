@@ -1,9 +1,9 @@
 import { addDays, format, parseISO } from 'date-fns'
 import { v4 as uuid } from 'uuid'
 import { db } from '../db/database'
-import type { Completion, Item, ItemEvent, PenaltyCheckpoint, PlayerProfile } from '../types'
+import type { Completion, DaySnapshot, Item, ItemEvent, PenaltyCheckpoint, PlayerProfile } from '../types'
 import { activityDateKey, logicalNow, todayKey } from './date'
-import { DIFFICULTY_COINS, DIFFICULTY_XP, xpToNextLevel } from './gamification'
+import { addXp, DIFFICULTY_COINS, DIFFICULTY_XP, HP_PER_LEVEL, rewindXp, xpToNextLevel } from './gamification'
 import { buildItemEvent, itemEventId } from './itemEvents'
 import { computeMissedPenalties } from './penalties'
 import {
@@ -13,7 +13,7 @@ import {
   scheduledDateFor,
   windowDaysOf,
 } from './recurrence'
-import { effectiveMaxHp, evaluateRoute, hasShield, ROUTE_IDS, ROUTES, xpWithBonus } from './routes'
+import { effectiveMaxHp, hasShield, recomputeRoute, ROUTE_IDS, xpWithBonus } from './routes'
 
 export interface DayCorrection {
   itemId: string
@@ -70,13 +70,14 @@ function historyByItem(completions: Completion[]): Record<string, Completion[]> 
   return history
 }
 
-function penaltyDate(event: ItemEvent, items: Item[]): string {
+/** Fecha en que cuenta la penalización de un fallo: el cierre de la ventana de la aparición. */
+export function penaltyDate(event: ItemEvent, items: Item[]): string {
   if (event.activityDate) return event.activityDate
   const item = items.find((candidate) => candidate.id === event.itemId)
   return format(addDays(parseISO(event.scheduledDate), item ? windowDaysOf(item) - 1 : 0), 'yyyy-MM-dd')
 }
 
-function belongsToRun(event: ItemEvent, runStartedAt?: string): boolean {
+export function belongsToRun(event: ItemEvent, runStartedAt?: string): boolean {
   if (!runStartedAt) return true
   return event.runStartedAt
     ? event.runStartedAt === runStartedAt
@@ -106,16 +107,49 @@ function replayPenalties(checkpoint: PenaltyCheckpoint, history: Record<string, 
   return result
 }
 
+export function snapshotOf(profile: PlayerProfile, date: string): DaySnapshot {
+  return {
+    date, runStartedAt: profile.runStartedAt, level: profile.level, xp: profile.xp,
+    hp: profile.hp, maxHp: effectiveMaxHp(profile),
+  }
+}
+
+/**
+ * Perfiles que ya habían liquidado ayer antes de existir los snapshots: se reconstruye el cierre
+ * retirando la EXP ganada después. La vida es la actual, la única disponible.
+ */
+function legacySnapshot(profile: PlayerProfile, history: Record<string, Completion[]>, date: string): DaySnapshot {
+  let laterXp = 0
+  for (const completions of Object.values(history)) {
+    for (const completion of completions) {
+      if (completion.date > date && (!profile.runStartedAt || new Date(completion.createdAt) >= new Date(profile.runStartedAt))) {
+        laterXp += completion.xpEarned
+      }
+    }
+  }
+  const { level, xp } = rewindXp(profile.level, profile.xp, laterXp)
+  return { ...snapshotOf(profile, date), level, xp }
+}
+
+async function ensureSnapshot(profile: PlayerProfile, history: Record<string, Completion[]>, date: string) {
+  const existing = await db.daySnapshots.get(date)
+  if (existing?.runStartedAt === profile.runStartedAt) return
+  await db.daySnapshots.put(legacySnapshot(profile, history, date))
+}
+
 /** Guarda las entradas de la evaluación de ayer, no solo el daño, para poder repetirla. */
 export async function settleDayPenalties(): Promise<void> {
-  await db.transaction('rw', [db.profile, db.items, db.completions, db.itemEvents], async () => {
+  await db.transaction('rw', [db.profile, db.items, db.completions, db.itemEvents, db.daySnapshots], async () => {
     let profile = await db.profile.get(1)
     if (!profile || profile.dead) return
     const items = await db.items.toArray()
     const history = historyByItem(await db.completions.toArray())
     const yesterday = yesterdayKey()
     if (profile.lastPenaltyCheck && profile.lastPenaltyCheck >= yesterday) {
-      if (profile.penaltyCheckpoint?.date === yesterday) return
+      if (profile.penaltyCheckpoint?.date === yesterday) {
+        await ensureSnapshot(profile, history, yesterday)
+        return
+      }
       if (profile.runStartedAt && activityDateKey(profile.runStartedAt) >= yesterday) {
         await db.profile.put({
           ...profile,
@@ -138,6 +172,7 @@ export async function settleDayPenalties(): Promise<void> {
           runStartedAt: profile.runStartedAt,
         },
       })
+      await ensureSnapshot(profile, history, yesterday)
       return
     }
 
@@ -171,6 +206,7 @@ export async function settleDayPenalties(): Promise<void> {
         shieldReadyOn: result.shieldReadyOn, penaltyCheckpoint: checkpoint,
       }
     }
+    if (!profile.dead) await db.daySnapshots.put(snapshotOf(profile, yesterday))
     await db.profile.put(profile)
   })
 }
@@ -194,6 +230,19 @@ export interface CorrectionPlan {
   events: ItemEvent[]
   leveledUp: boolean
   itemUpdate?: Item
+  /** Cierre del día corregido, ajustado igual que el perfil; ausente si no había snapshot que ajustar. */
+  snapshot?: DaySnapshot
+}
+
+/** Aplica al snapshot de un día el mismo ajuste de EXP, nivel y vida que la corrección hizo al perfil. */
+export function reconcileSnapshot(snapshot: DaySnapshot, xpDelta: number, damageDelta: number): DaySnapshot {
+  const next = xpDelta >= 0
+    ? addXp(snapshot.level, snapshot.xp, xpDelta)
+    : { level: snapshot.level, xp: Math.max(0, snapshot.xp + xpDelta) }
+  const levelsGained = next.level - snapshot.level
+  const maxHp = snapshot.maxHp + levelsGained * HP_PER_LEVEL
+  const health = levelsGained > 0 ? maxHp : snapshot.hp
+  return { ...snapshot, ...next, maxHp, hp: Math.max(0, Math.min(maxHp, health - damageDelta)) }
 }
 
 /** Cálculo puro: toda validación ocurre antes de escribir ninguno de los cambios. */
@@ -204,6 +253,7 @@ export function planDayCorrection(
   completions: Completion[],
   events: ItemEvent[],
   confirmedDamage?: number,
+  snapshot?: DaySnapshot,
 ): CorrectionPlan {
   if (!isCorrectionDay(input.date)) throw new Error('Solo se pueden corregir hoy y ayer (el día cambia a las 02:00).')
   if (profile.dead) throw new Error('No se puede editar una expedición terminada.')
@@ -275,25 +325,14 @@ export function planDayCorrection(
   while (xpRemaining >= xpToNextLevel(level)) {
     xpRemaining -= xpToNextLevel(level)
     level += 1
-    maxHp += 5
+    maxHp += HP_PER_LEVEL
   }
   const leveledUp = level > profile.level
   nextProfile = { ...nextProfile, level, maxHp, xp: xpRemaining }
   const routes = { ...profile.routes }
   for (const id of ROUTE_IDS) {
     if (item.routeId !== id) continue
-    const progress = routes[id]
-    if (!progress.windowStart) continue
-    const activeLinked = items.filter((candidate) => candidate.routeId === id && !candidate.archived)
-    const startedOn = progress.startedOn
-      ?? activeLinked.map((candidate) => activityDateKey(candidate.createdAt)).sort()[0]
-      ?? progress.windowStart
-    const linked = items.filter((candidate) => candidate.routeId === id
-      && activityDateKey(candidate.createdAt) >= startedOn
-      && (!progress.startedAt || new Date(candidate.createdAt) >= new Date(progress.startedAt)))
-    routes[id] = evaluateRoute(
-      ROUTES[id], { ...progress, level: 0, windowStart: startedOn, startedOn }, linked, nextHistory, todayKey(),
-    )
+    routes[id] = recomputeRoute(id, routes[id], items, nextHistory, todayKey())
   }
   nextProfile = { ...nextProfile, routes }
   if (nextProfile.equippedRoute && routes[nextProfile.equippedRoute].level === 0) nextProfile.equippedRoute = null
@@ -327,18 +366,25 @@ export function planDayCorrection(
   const itemUpdate = complete && currentItem?.postponedUntil && currentItem.postponedUntil <= input.date
     ? { ...currentItem, postponedFrom: undefined, postponedUntil: undefined }
     : undefined
-  return { profile: nextProfile, completions: nextCompletions, events: nextEvents, leveledUp, itemUpdate }
+  const nextSnapshot = snapshot?.date === input.date && snapshot.runStartedAt === profile.runStartedAt
+    ? reconcileSnapshot(snapshot, xp - (existing?.xpEarned ?? 0), damageDelta)
+    : undefined
+  return {
+    profile: nextProfile, completions: nextCompletions, events: nextEvents, leveledUp, itemUpdate,
+    snapshot: nextSnapshot,
+  }
 }
 
 export async function saveDayCorrection(input: DayCorrection, confirmedDamage?: number): Promise<CorrectionPlan> {
   await settleDayPenalties()
-  return db.transaction('rw', [db.items, db.profile, db.completions, db.itemEvents], async () => {
+  return db.transaction('rw', [db.items, db.profile, db.completions, db.itemEvents, db.daySnapshots], async () => {
     const profile = await db.profile.get(1)
     if (!profile) throw new Error('No se ha encontrado el perfil del jugador.')
     const items = await db.items.toArray()
     const completions = await db.completions.toArray()
     const events = await db.itemEvents.toArray()
-    const plan = planDayCorrection(input, profile, items, completions, events, confirmedDamage)
+    const snapshot = await db.daySnapshots.get(input.date)
+    const plan = planDayCorrection(input, profile, items, completions, events, confirmedDamage, snapshot)
     const completionIds = new Set(plan.completions.map((completion) => completion.id))
     const eventIds = new Set(plan.events.map((event) => event.id))
     const originalCompletions = new Set(completions)
@@ -348,6 +394,7 @@ export async function saveDayCorrection(input: DayCorrection, confirmedDamage?: 
     await db.completions.bulkPut(plan.completions.filter((completion) => !originalCompletions.has(completion)))
     await db.itemEvents.bulkPut(plan.events.filter((event) => !originalEvents.has(event)))
     if (plan.itemUpdate) await db.items.put(plan.itemUpdate)
+    if (plan.snapshot) await db.daySnapshots.put(plan.snapshot)
     await db.profile.put(plan.profile)
     return plan
   })

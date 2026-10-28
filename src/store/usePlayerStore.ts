@@ -1,16 +1,16 @@
 import { create } from 'zustand'
 import { db, ensurePlayerProfile } from '../db/database'
 import { todayKey } from '../lib/date'
-import { xpToNextLevel } from '../lib/gamification'
+import { HP_PER_LEVEL, xpToNextLevel } from '../lib/gamification'
 import { defaultRoutes, effectiveMaxHp, evaluateRoute, ROUTE_IDS, ROUTES } from '../lib/routes'
 import { SYSTEM_RESOURCES } from '../lib/resources'
-import type { Completion, Item, PlayerProfile, RouteId } from '../types'
+import type { Completion, Item, LevelUpInfo, PlayerProfile, RouteId } from '../types'
 
 interface PlayerState {
   profile: PlayerProfile | null
   loading: boolean
-  /** Nivel recién alcanzado, pendiente de celebrar en la UI (null = nada pendiente). */
-  justLeveledUp: number | null
+  /** Subida de nivel reciente pendiente de celebrar en la UI (null = nada pendiente). */
+  justLeveledUp: LevelUpInfo | null
   clearLevelUp: () => void
   load: () => Promise<void>
   awardCompletion: (xp: number, coins: number) => Promise<void>
@@ -29,6 +29,21 @@ interface PlayerState {
   restartRun: () => Promise<void>
   setLastPenaltyCheck: (date: string) => Promise<void>
   spendCoins: (amount: number) => Promise<boolean>
+}
+
+/** Celebración de una subida de nivel; si ya había una pendiente, se amplía desde su nivel inicial. */
+export function mergeLevelUp(
+  pending: LevelUpInfo | null,
+  before: PlayerProfile,
+  after: PlayerProfile,
+): LevelUpInfo {
+  const from = pending?.from ?? before.level
+  return {
+    from,
+    to: after.level,
+    maxHpGain: (after.level - from) * HP_PER_LEVEL,
+    maxHp: effectiveMaxHp(after),
+  }
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -74,7 +89,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     while (currentXp >= xpToNextLevel(level)) {
       currentXp -= xpToNextLevel(level)
       level += 1
-      maxHp += 5
+      maxHp += HP_PER_LEVEL
       leveledUp = true
     }
 
@@ -87,7 +102,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       coins: current.coins + coins,
     }
     await db.profile.put(updated)
-    set({ profile: updated, justLeveledUp: leveledUp ? level : get().justLeveledUp })
+    set({
+      profile: updated,
+      justLeveledUp: leveledUp ? mergeLevelUp(get().justLeveledUp, current, updated) : get().justLeveledUp,
+    })
   },
 
   // Simplificado: no revierte subidas de nivel, solo resta XP/monedas dentro del nivel actual.

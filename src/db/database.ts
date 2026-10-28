@@ -5,6 +5,7 @@ import { migrateLegacyZone } from '../lib/zones'
 import type {
   Achievement,
   Completion,
+  DaySnapshot,
   Item,
   ItemEvent,
   PlayerProfile,
@@ -22,6 +23,7 @@ export class AppDatabase extends Dexie {
   achievements!: Table<Achievement, string>
   rewards!: Table<Reward, string>
   reminders!: Table<Reminder, string>
+  daySnapshots!: Table<DaySnapshot, string>
 
   constructor() {
     super('habitos-db')
@@ -66,6 +68,16 @@ export class AppDatabase extends Dexie {
       achievements: 'id',
       rewards: 'id',
       reminders: 'id',
+    })
+    this.version(5).stores({
+      items: 'id, type',
+      completions: 'id, itemId, date, [itemId+date]',
+      itemEvents: 'id, itemId, kind, scheduledDate, [itemId+scheduledDate+kind]',
+      profile: 'id',
+      achievements: 'id',
+      rewards: 'id',
+      reminders: 'id',
+      daySnapshots: 'date',
     })
   }
 }
@@ -115,6 +127,7 @@ export async function resetAllAppData(): Promise<void> {
       db.achievements,
       db.rewards,
       db.reminders,
+      db.daySnapshots,
     ],
     async () => {
       await Promise.all([
@@ -125,6 +138,7 @@ export async function resetAllAppData(): Promise<void> {
         db.achievements.clear(),
         db.rewards.clear(),
         db.reminders.clear(),
+        db.daySnapshots.clear(),
       ])
       const profile = await ensurePlayerProfile()
       await db.profile.put({ ...profile, lastPenaltyCheck: todayKey() })

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
 import Backdrop from './components/Backdrop'
+import DailySummaryModal from './components/DailySummaryModal'
 import HardcoreDeath from './components/HardcoreDeath'
 import LevelUpCelebration from './components/LevelUpCelebration'
 import { settleDayPenalties } from './lib/dayCorrections'
@@ -20,6 +21,7 @@ import TaskArchivePage from './pages/TaskArchivePage'
 import ProfilePage from './pages/ProfilePage'
 import StatsPage from './pages/StatsPage'
 import { useAchievementsStore } from './store/useAchievementsStore'
+import { useDailySummaryStore } from './store/useDailySummaryStore'
 import { useItemsStore } from './store/useItemsStore'
 import { usePlayerStore } from './store/usePlayerStore'
 import { useRemindersStore } from './store/useRemindersStore'
@@ -66,6 +68,7 @@ function App() {
         if (active) {
           setLoadError(null)
           setReady(true)
+          await useDailySummaryStore.getState().presentIfDue()
         }
       } catch (cause) {
         if (active) setLoadError(cause instanceof Error ? cause.message : 'No se pudieron cargar los datos.')
@@ -113,6 +116,7 @@ function App() {
     <div className="relative mx-auto flex h-full max-w-md flex-col border-x border-gold-600/30 bg-transparent">
       <Backdrop />
       <LevelUpCelebration />
+      <DailySummaryModal />
       <HardcoreDeath />
       <main className="relative z-10 flex-1 overflow-y-auto pb-20">
         {loadError && <p role="alert" className="p-3 font-body text-blood-400">No se pudo actualizar el día: {loadError}. Recarga para volver a intentarlo.</p>}

@@ -8,6 +8,7 @@ import RoutesPanel from '../components/RoutesPanel'
 import SectionTitle from '../components/SectionTitle'
 import { getAvatarStage, xpToNextLevel } from '../lib/gamification'
 import { clearReminderDate } from '../lib/notifications'
+import { clearSummaryMarker } from '../lib/summaryMarker'
 import { effectiveMaxHp } from '../lib/routes'
 import { restartExpedition } from '../store/routeActions'
 import { resetAllAppData } from '../db/database'
@@ -27,6 +28,7 @@ function ProfilePage() {
     try {
       await resetAllAppData()
       clearReminderDate()
+      clearSummaryMarker()
       clearLevelUp()
       await Promise.all([
         useItemsStore.getState().load(),

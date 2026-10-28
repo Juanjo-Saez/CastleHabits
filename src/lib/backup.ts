@@ -76,8 +76,10 @@ export async function importBackup(file: File): Promise<void> {
       db.achievements,
       db.rewards,
       db.reminders,
+      db.daySnapshots,
     ],
     async () => {
+      // Los snapshots del resumen no viajan en el backup: se descartan los del estado anterior.
       await Promise.all([
         db.items.clear(),
         db.completions.clear(),
@@ -86,6 +88,7 @@ export async function importBackup(file: File): Promise<void> {
         db.achievements.clear(),
         db.rewards.clear(),
         db.reminders.clear(),
+        db.daySnapshots.clear(),
       ])
       await Promise.all([
         db.items.bulkAdd(data.items),
