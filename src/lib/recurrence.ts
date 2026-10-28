@@ -1,5 +1,6 @@
-import { addDays, differenceInCalendarDays, format, isBefore, parseISO, setHours, startOfDay } from 'date-fns'
+import { addDays, differenceInCalendarDays, format, parseISO, setHours } from 'date-fns'
 import { RRule } from 'rrule'
+import { activityDateKey } from './date'
 import type { Completion, Item } from '../types'
 
 export type RecurrenceUnit = 'day' | 'week' | 'month'
@@ -176,7 +177,7 @@ export function describeWindow(item: Item): string | null {
 /** ¿Cae una aparición de la regla exactamente ese día? */
 function occursOn(item: Item, date: Date): boolean {
   const dateKey = format(date, 'yyyy-MM-dd')
-  if (isBefore(startOfDay(date), startOfDay(parseISO(item.createdAt)))) return false
+  if (dateKey < activityDateKey(item.createdAt)) return false
   if (item.startDate && dateKey < item.startDate) return false
   if (!item.recurrenceRule) return true
   return isDueOn(item.recurrenceRule, date)
@@ -257,7 +258,7 @@ export function isCompletedOn(
   const completion = completions.find((c) => c.date === dateKey)
   if (!completion) return false
   if (item.trackingType === 'quantity') {
-    return (completion.quantityDone ?? 0) >= (item.quantityGoal ?? 0)
+    return (completion.quantityDone ?? 0) >= (completion.quantityGoal ?? item.quantityGoal ?? 0)
   }
   return true
 }
@@ -291,7 +292,7 @@ export function completionInWindow(
 /** Un registro cumple la obligación: los cuantitativos necesitan alcanzar la meta. */
 function isMetCompletion(item: Item, completion: Completion): boolean {
   if (item.trackingType === 'quantity') {
-    return (completion.quantityDone ?? 0) >= (item.quantityGoal ?? 0)
+    return (completion.quantityDone ?? 0) >= (completion.quantityGoal ?? item.quantityGoal ?? 0)
   }
   return true
 }
@@ -332,7 +333,7 @@ export function missedCarryOf(
 ): string | null {
   if (item.type !== 'chore' || !isObligation(item) || !item.recurrenceRule) return null
   const today = parseISO(dateKey)
-  const createdKey = format(parseISO(item.createdAt), 'yyyy-MM-dd')
+  const createdKey = activityDateKey(item.createdAt)
   const floor = item.startDate && item.startDate > createdKey ? item.startDate : createdKey
   const span = differenceInCalendarDays(today, parseISO(floor))
   // Solo hace falta la aparición cerrada más reciente: si está cumplida, todo lo anterior también.
@@ -348,4 +349,3 @@ export function missedCarryOf(
   }
   return null
 }
-

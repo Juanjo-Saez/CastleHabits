@@ -42,7 +42,13 @@ export function buildDailyStats(
   missedEvents: ItemEvent[] = [],
 ): DayStat[] {
   const trackable = items.filter((item) => item.type !== 'todo' && !item.archived)
-  const missedById = new Map(missedEvents.map((event) => [event.id, event]))
+  const missedByOccurrence = new Map<string, ItemEvent[]>()
+  for (const event of missedEvents) {
+    const key = itemEventId(event.itemId, event.scheduledDate, 'missed')
+    const events = missedByOccurrence.get(key) ?? []
+    events.push(event)
+    missedByOccurrence.set(key, events)
+  }
   const today = startOfDay(logicalNow())
   const stats: DayStat[] = []
 
@@ -68,10 +74,9 @@ export function buildDailyStats(
       }
       // Los eventos de fallo se registran en la apertura de la ventana, no en su cierre.
       const scheduledKey = format(addDays(date, -(windowDaysOf(item) - 1)), 'yyyy-MM-dd')
-      const miss = missedById.get(itemEventId(item.id, scheduledKey, 'missed'))
-      if (!miss) continue
-      if ((miss.damage ?? 0) > 0) damaged = true
-      else if (miss.protectedBy) protectedMiss = true
+      const misses = missedByOccurrence.get(itemEventId(item.id, scheduledKey, 'missed')) ?? []
+      if (misses.some((event) => (event.damage ?? 0) > 0)) damaged = true
+      if (misses.some((event) => event.protectedBy)) protectedMiss = true
     }
 
     stats.push({

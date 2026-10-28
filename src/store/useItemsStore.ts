@@ -3,6 +3,7 @@ import { addDays, format } from 'date-fns'
 import { create } from 'zustand'
 import { db } from '../db/database'
 import { logicalNow, todayKey } from '../lib/date'
+import { isCorrectionDay, saveDayCorrection, type DayCorrection } from '../lib/dayCorrections'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
 import { itemEventId, recordItemEvent } from '../lib/itemEvents'
 import { completionInWindow, isItemDueOn, isObligation, marginDaysOf, scheduledDateFor } from '../lib/recurrence'
@@ -50,6 +51,7 @@ interface ItemsState {
   toggleBoolean: (itemId: string) => Promise<void>
   adjustQuantity: (itemId: string, delta: number) => Promise<void>
   postponeItem: (itemId: string) => Promise<boolean>
+  correctDay: (input: DayCorrection, confirmedDamage?: number) => Promise<void>
 }
 
 async function refreshItemHistory(itemId: string) {
@@ -86,6 +88,16 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
   completionsToday: {},
   completionsByItem: {},
   loading: true,
+
+  correctDay: async (input, confirmedDamage) => {
+    const plan = await saveDayCorrection(input, confirmedDamage)
+    usePlayerStore.setState({
+      profile: plan.profile,
+      justLeveledUp: plan.leveledUp ? plan.profile.level : usePlayerStore.getState().justLeveledUp,
+    })
+    await get().load()
+    await checkAchievements(get().items, get().completionsByItem)
+  },
 
   load: async () => {
     const [items, allCompletions] = await Promise.all([
@@ -136,6 +148,10 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     if (item?.trackingType !== 'boolean') return
 
     const existing = completionInWindow(item, get().completionsByItem[itemId] ?? [], todayKey())
+    if (usePlayerStore.getState().profile?.runStartedAt) {
+      await get().correctDay({ itemId, date: existing?.date ?? todayKey(), quantity: existing ? 0 : 1 })
+      return
+    }
     if (existing) {
       await db.completions.delete(existing.id)
       await recordItemEvent(item, 'undone', existing.date, {
@@ -216,6 +232,16 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     const prevQty = existing?.quantityDone ?? 0
     const nextQty = Math.min(Math.max(prevQty + delta, 0), goal)
     if (nextQty === prevQty) return
+    const runStartedAt = usePlayerStore.getState().profile?.runStartedAt
+    if (runStartedAt) {
+      if (existing && new Date(existing.createdAt) < new Date(runStartedAt)) {
+        throw new Error('El registro pertenece a una expedición anterior.')
+      }
+      if (!existing || isCorrectionDay(existing.date) || delta < 0) {
+        await get().correctDay({ itemId, date: existing?.date ?? todayKey(), quantity: nextQty })
+        return
+      }
+    }
 
     const wasComplete = prevQty >= goal
     const isComplete = nextQty >= goal
@@ -252,6 +278,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       itemId,
       date: existing?.date ?? todayKey(),
       quantityDone: nextQty,
+      quantityGoal: goal,
       xpEarned: isComplete ? xp : 0,
       coinsEarned: isComplete ? coins : 0,
       createdAt: existing?.createdAt ?? new Date().toISOString(),

@@ -1,5 +1,6 @@
 import { format, parseISO, startOfDay, subDays } from 'date-fns'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { describeDaysLeft, logicalNow, todayKey } from '../lib/date'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
 import {
@@ -66,6 +67,8 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
   const postponeTokens = usePlayerStore((s) => s.profile?.postponeTokens ?? 0)
   const profile = usePlayerStore((s) => s.profile)
   const [popup, setPopup] = useState<RewardPopup | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const isBoolean = item.trackingType === 'boolean'
   const goal = item.quantityGoal ?? 0
@@ -106,23 +109,33 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
     setTimeout(() => setPopup((p) => (p?.id === id ? null : p)), 1100)
   }
 
+  const perform = async (action: () => Promise<unknown>, reward?: 1 | -1) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await action()
+      if (reward) showReward(reward)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo guardar la actividad.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const handleCandle = () => {
     if (isBoolean) {
-      showReward(done ? -1 : 1)
-      void toggleBoolean(item.id)
+      void perform(() => toggleBoolean(item.id), done ? -1 : 1)
       return
     }
-    if (qty + step >= goal) showReward(1)
-    void adjustQuantity(item.id, step)
+    void perform(() => adjustQuantity(item.id, step), qty + step >= goal ? 1 : undefined)
   }
 
   const handleSubtractQuantity = () => {
-    if (qty >= goal && qty - step < goal) showReward(-1)
-    void adjustQuantity(item.id, -step)
+    void perform(() => adjustQuantity(item.id, -step), qty >= goal && qty - step < goal ? -1 : undefined)
   }
 
   const handlePostpone = () => {
-    void postponeItem(item.id)
+    void perform(() => postponeItem(item.id))
   }
 
   let candleLabel = done ? 'Apagar vela' : 'Encender vela'
@@ -133,7 +146,7 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
       <button
         type="button"
         onClick={handleCandle}
-        disabled={!isBoolean && done}
+        disabled={busy || profile?.dead || !isBoolean && done}
         className="shrink-0 px-1 transition-transform active:scale-90 disabled:cursor-default"
         aria-label={candleLabel}
       >
@@ -168,6 +181,12 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
         {meta.length > 0 && (
           <p className="mt-0.5 font-body text-sm text-silver-500 italic">{meta.join(' · ')}</p>
         )}
+        {error && (
+          <div role="alert" className="mt-1 font-body text-sm text-blood-400">
+            <p>{error}</p>
+            <Link to={`/calendario?date=${completion?.date ?? todayKey()}`} className="underline">Abrir detalle y corrección</Link>
+          </div>
+        )}
 
         {!isBoolean && (
           <div className="mt-1.5 flex items-center gap-2">
@@ -188,6 +207,7 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
         <button
           type="button"
           onClick={handlePostpone}
+          disabled={busy}
           className="cv-btn cv-btn--ghost shrink-0 px-2 py-1 text-sm"
           aria-label={`Posponer ${item.title}`}
         >
@@ -199,6 +219,7 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
         <button
           type="button"
           onClick={handleSubtractQuantity}
+          disabled={busy || profile?.dead}
           className="cv-btn shrink-0 px-2.5"
           aria-label={`Restar ${step}`}
         >

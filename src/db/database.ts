@@ -90,6 +90,7 @@ export async function ensurePlayerProfile(): Promise<PlayerProfile> {
     equippedRoute: null,
     hardcore: true,
     dead: false,
+    runStartedAt: new Date().toISOString(),
   }
 
   try {

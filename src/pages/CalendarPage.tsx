@@ -1,12 +1,14 @@
-import { addMonths, format, isSameDay, isSameMonth, startOfMonth, subMonths } from 'date-fns'
+import { addMonths, format, isSameDay, isSameMonth, parseISO, startOfMonth, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale/es'
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import CandleStack from '../components/CandleStack'
 import DayDetail from '../components/DayDetail'
 import PageHeader from '../components/PageHeader'
 import SectionTitle from '../components/SectionTitle'
 import { buildCandlesByDay, monthGridDays } from '../lib/calendar'
 import { logicalNow } from '../lib/date'
+import { yesterdayKey } from '../lib/dayCorrections'
 import { useItemsStore } from '../store/useItemsStore'
 
 const WEEKDAY_HEADERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
@@ -14,8 +16,12 @@ const WEEKDAY_HEADERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 function CalendarPage() {
   const items = useItemsStore((s) => s.items)
   const completionsByItem = useItemsStore((s) => s.completionsByItem)
-  const [month, setMonth] = useState(() => startOfMonth(logicalNow()))
-  const [selected, setSelected] = useState(() => logicalNow())
+  const [params, setParams] = useSearchParams()
+  const requested = params.get('date')
+  const parsed = requested && /^\d{4}-\d{2}-\d{2}$/.test(requested) ? parseISO(requested) : logicalNow()
+  const selected = Number.isNaN(parsed.getTime()) ? logicalNow() : parsed
+  const [month, setMonth] = useState(() => startOfMonth(selected))
+  const selectDay = (day: Date) => setParams({ date: format(day, 'yyyy-MM-dd') }, { replace: true })
 
   const today = logicalNow()
   const days = monthGridDays(month)
@@ -25,6 +31,14 @@ function CalendarPage() {
     <>
       <PageHeader title="Calendario" subtitle="Las velas marcan lo cumplido y lo que se avecina." />
       <section className="relative z-10 flex flex-col gap-3 px-3">
+        <div className="flex gap-2">
+          <button type="button" className="cv-btn px-3 py-1" onClick={() => { const day = parseISO(yesterdayKey()); selectDay(day); setMonth(startOfMonth(day)) }}>
+            Corregir ayer
+          </button>
+          <button type="button" className="cv-btn px-3 py-1" onClick={() => { selectDay(today); setMonth(startOfMonth(today)) }}>
+            Hoy
+          </button>
+        </div>
         <div className="cv-panel p-3">
           <div className="mb-3 flex items-center justify-between gap-2">
             <button
@@ -68,7 +82,7 @@ function CalendarPage() {
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setSelected(day)}
+                  onClick={() => selectDay(day)}
                   aria-pressed={isSelected}
                   aria-label={`${format(day, "d 'de' MMMM", { locale: es })}: ${entry.lit} cumplidas, ${entry.unlit} previstas`}
                   className={`flex aspect-square min-w-0 flex-col items-center justify-between gap-0.5 overflow-hidden border p-[2px] ${border} ${background} ${dim}`}

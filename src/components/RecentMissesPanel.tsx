@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { yesterdayKey } from '../lib/dayCorrections'
 import { recentMisses } from '../lib/streak'
 import { useItemsStore } from '../store/useItemsStore'
 import SectionTitle from './SectionTitle'
@@ -29,6 +31,9 @@ function RecentMissesPanel() {
 
       {open && (
         <div className="cv-panel flex flex-col gap-3 p-3">
+          <Link to={`/calendario?date=${yesterdayKey()}`} className="cv-btn px-2 py-1 text-center">
+            ¿Olvidaste apuntarlo? Corregir ayer
+          </Link>
           {misses.length === 0 ? (
             <p className="py-2 text-center font-pixel text-lg text-silver-700">
               — SIN FALLOS DE AYER —

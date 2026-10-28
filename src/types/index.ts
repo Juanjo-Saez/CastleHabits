@@ -9,6 +9,9 @@ export type ItemCommitment = 'obligation' | 'sideQuest'
 export type RouteId = 'vampire-hunter' | 'technomancer' | 'castle-within'
 
 export interface RouteProgress {
+  /** Inicio de la ruta en esta expedición, para recalcular sus tramos al corregir registros. */
+  startedOn?: string
+  startedAt?: string
   /** Tramos completados; es el nivel de la pasiva (0 = bloqueada). */
   level: number
   /** Primer día (yyyy-MM-dd) de la ventana del tramo actual; ausente si la ruta no se ha iniciado. */
@@ -63,6 +66,7 @@ export interface Completion {
   /** Día en formato yyyy-MM-dd, una entrada por item y día. */
   date: string
   quantityDone?: number
+  quantityGoal?: number
   xpEarned: number
   coinsEarned: number
   createdAt: string
@@ -78,6 +82,9 @@ export interface ItemEvent {
   /** Fecha de la aparición de la tarea, no necesariamente la fecha del evento. */
   scheduledDate: string
   occurredAt: string
+  /** Día operativo de la actividad; puede diferir del momento de una corrección. */
+  activityDate?: string
+  runStartedAt?: string
   quantityGoal?: number
   quantityDone?: number
   damage?: number
@@ -108,6 +115,19 @@ export interface PlayerProfile {
   dead: boolean
   /** Último día (yyyy-MM-dd) hasta el que ya se aplicó el daño por tareas vencidas. */
   lastPenaltyCheck?: string
+  /** Instante inicial de la expedición; ausente en perfiles antiguos pendientes de confirmar. */
+  runStartedAt?: string
+  /** Datos previos a evaluar ayer, para poder redistribuir sus defensas al corregirlo. */
+  penaltyCheckpoint?: PenaltyCheckpoint
+}
+
+export interface PenaltyCheckpoint {
+  date: string
+  items: Item[]
+  freezes: number
+  shieldEnabled: boolean
+  shieldReadyOn?: string
+  runStartedAt?: string
 }
 
 /** Pendiente sin fecha: idea para convertir en tarea más adelante. No se completa ni aplica daño o EXP. */

@@ -1,5 +1,5 @@
 import { addDays, format, isBefore, parseISO, startOfDay } from 'date-fns'
-import { logicalNow } from './date'
+import { activityDateKey, logicalNow } from './date'
 import { buildItemEvent, itemEventId } from './itemEvents'
 import { isObligation, isWindowClosingOn, isWindowCompleted, windowDaysOf } from './recurrence'
 import { SHIELD_RECHARGE_DAYS } from './routes'
@@ -48,7 +48,7 @@ function missedStreakBefore(
   completions: Completion[],
 ): number {
   let streak = 0
-  let cursor = startOfDay(parseISO(item.createdAt))
+  let cursor = parseISO(activityDateKey(item.createdAt))
   const dayBefore = addDays(startOfDay(date), -1)
 
   while (!isBefore(dayBefore, cursor)) {
@@ -74,6 +74,7 @@ export function computeMissedPenalties(
   lastCheckedDate: string | undefined,
   availableStreakFreezes = 0,
   shield: { enabled: boolean; readyOn?: string } = { enabled: false },
+  throughDate = format(addDays(startOfDay(logicalNow()), -1), 'yyyy-MM-dd'),
 ): {
   totalDamage: number
   newLastChecked: string
@@ -81,7 +82,7 @@ export function computeMissedPenalties(
   freezesUsed: number
   shieldReadyOn?: string
 } {
-  const yesterday = addDays(startOfDay(logicalNow()), -1)
+  const yesterday = parseISO(throughDate)
   let cursor = lastCheckedDate ? addDays(parseISO(lastCheckedDate), 1) : yesterday
   const streaks = new Map<string, number>()
   const protection: Protection = {
@@ -112,7 +113,7 @@ export function computeMissedPenalties(
       const eventId = itemEventId(item.id, scheduledKey, 'missed')
       const protectedBy = absorbMiss(protection, key)
       if (protectedBy) {
-        missedEvents.push(buildItemEvent(item, 'missed', scheduledKey, { damage: 0, protectedBy }, eventId))
+        missedEvents.push(buildItemEvent(item, 'missed', scheduledKey, { damage: 0, protectedBy, activityDate: key }, eventId))
         continue
       }
 
@@ -120,7 +121,7 @@ export function computeMissedPenalties(
       streaks.set(item.id, streak)
       const damage = damageForMissedStreak(streak)
       totalDamage += damage
-      missedEvents.push(buildItemEvent(item, 'missed', scheduledKey, { damage }, eventId))
+      missedEvents.push(buildItemEvent(item, 'missed', scheduledKey, { damage, activityDate: key }, eventId))
     }
     cursor = addDays(cursor, 1)
   }

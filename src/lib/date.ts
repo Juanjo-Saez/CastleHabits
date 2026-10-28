@@ -13,6 +13,10 @@ export function todayKey(): string {
   return format(logicalNow(), 'yyyy-MM-dd')
 }
 
+export function activityDateKey(timestamp: string): string {
+  return format(subHours(parseISO(timestamp), DAY_START_HOUR), 'yyyy-MM-dd')
+}
+
 /** Tiempo restante hasta una fecha límite yyyy-MM-dd, en días naturales. */
 export function describeDaysLeft(dueDate: string): string {
   const days = differenceInCalendarDays(parseISO(dueDate), logicalNow())

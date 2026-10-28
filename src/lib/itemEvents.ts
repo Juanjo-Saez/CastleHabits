@@ -1,5 +1,6 @@
 import { v4 as uuid } from 'uuid'
 import { db } from '../db/database'
+import { todayKey } from './date'
 import type { Item, ItemEvent, ItemEventKind } from '../types'
 
 export function itemEventId(itemId: string, scheduledDate: string, kind: ItemEventKind): string {
@@ -22,6 +23,7 @@ export function buildItemEvent(
     kind,
     scheduledDate,
     occurredAt: new Date().toISOString(),
+    activityDate: todayKey(),
     ...details,
   }
 }

@@ -3,6 +3,7 @@ import { es } from 'date-fns/locale/es'
 import { buildDaySummary } from '../lib/calendar'
 import { logicalNow } from '../lib/date'
 import { useItemsStore } from '../store/useItemsStore'
+import DayCorrection from './DayCorrection'
 
 /** Detalle de un día: qué se cumplió, lo ganado y lo que queda o quedó pendiente. */
 function DayDetail({ date }: Readonly<{ date: Date }>) {
@@ -19,7 +20,7 @@ function DayDetail({ date }: Readonly<{ date: Date }>) {
       </p>
 
       {isEmpty && (
-        <p className="font-body text-sm text-silver-500 italic">Nada registrado ni previsto este día.</p>
+        <p className="font-body text-sm text-silver-500 italic">Sin actividades completadas ni obligaciones pendientes este día.</p>
       )}
 
       {summary.done.length > 0 && (
@@ -59,6 +60,7 @@ function DayDetail({ date }: Readonly<{ date: Date }>) {
           </ul>
         </div>
       )}
+      <DayCorrection key={format(date, 'yyyy-MM-dd')} date={format(date, 'yyyy-MM-dd')} />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { format, parseISO, subDays } from 'date-fns'
+import { liveQuery } from 'dexie'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import DayDetail from '../components/DayDetail'
@@ -24,9 +25,17 @@ function StatsPage() {
   const completionsByItem = useItemsStore((s) => s.completionsByItem)
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [missedEvents, setMissedEvents] = useState<ItemEvent[]>([])
+  const [eventsError, setEventsError] = useState<string | null>(null)
 
   useEffect(() => {
-    void db.itemEvents.where('kind').equals('missed').toArray().then(setMissedEvents)
+    const subscription = liveQuery(() => db.itemEvents.where('kind').equals('missed').toArray()).subscribe({
+      next: (events) => {
+        setMissedEvents(events)
+        setEventsError(null)
+      },
+      error: (cause: unknown) => setEventsError(cause instanceof Error ? cause.message : 'No se pudieron leer los fallos.'),
+    })
+    return () => subscription.unsubscribe()
   }, [])
 
   const stats = buildDailyStats(items, completionsByItem, 35, missedEvents)
@@ -41,6 +50,7 @@ function StatsPage() {
     <>
       <PageHeader title="Crónicas" subtitle="El rastro de tus victorias recientes." />
       <section className="relative z-10 flex flex-col gap-4 px-3">
+        {eventsError && <p role="alert" className="font-body text-sm text-blood-400">{eventsError}</p>}
         <div className="grid grid-cols-2 gap-2">
           <div className="cv-panel p-3 text-center">
             <p className="cv-label">Completadas</p>

@@ -1,4 +1,21 @@
-# React + TypeScript + Vite
+# Hábitos
+
+## Corregir hoy y ayer
+
+En **Calendario**, pulsa **Corregir ayer** o **Hoy** y abre **Corregir este día**. También hay un acceso desde **Castillo → Recientes**. Se pueden marcar y desmarcar obligaciones, hábitos y misiones secundarias, o guardar la cantidad total de una aparición.
+
+- El día cambia a las **02:00**. Los días anteriores a ayer y los registros de expediciones terminadas no se pueden corregir.
+- Se ajustan EXP, oro, vida, defensas usadas en los fallos de ayer, rachas y rutas. Los niveles del personaje ya alcanzados se conservan; al desmarcar se resta solo la EXP disponible.
+- No se permite retirar oro ya gastado. Una corrección que causa la muerte requiere confirmación y no puede deshacerse después.
+- Las tareas con margen mantienen un solo registro acumulado. Para corregirlo hay que abrir su día; no se puede duplicar en otro día. El avance normal de una tarea cuantitativa con margen sigue disponible aunque comenzara antes de ayer.
+- Los perfiles antiguos requieren confirmar que hoy y ayer pertenecen a la expedición actual antes de habilitar la edición. No se borran datos. En nuevas expediciones el inicio se registra automáticamente.
+- Las correcciones se guardan en IndexedDB y se incluyen en las copias de seguridad. Esta versión no añade todavía el resumen diario animado.
+
+## Validación
+
+Con Node.js 24, `npm test` ejecuta las pruebas de corrección con el runner integrado de Node y el bundler de Vite, sin añadir dependencias de pruebas. `npm run build` comprueba tipos y genera la aplicación; `npm run lint` ejecuta ESLint.
+
+## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

@@ -205,7 +205,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
     const updated: PlayerProfile = {
       ...current,
-      routes: { ...current.routes, [routeId]: { level: 0, windowStart: todayKey() } },
+      routes: {
+        ...current.routes,
+        [routeId]: { level: 0, windowStart: todayKey(), startedOn: todayKey(), startedAt: new Date().toISOString() },
+      },
     }
     await db.profile.put(updated)
     set({ profile: updated })
@@ -273,6 +276,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       shieldReadyOn: undefined,
       dead: false,
       lastPenaltyCheck: todayKey(),
+      runStartedAt: new Date().toISOString(),
+      penaltyCheckpoint: undefined,
     }
     await db.transaction('rw', [db.items, db.profile], async () => {
       const routeItems = (await db.items.toArray()).filter(
