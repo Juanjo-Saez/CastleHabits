@@ -110,6 +110,16 @@ Estado revisado el 28 de octubre de 2026. Este documento refleja el punto actual
 - [ ] Añadir como siguientes variantes los efectos de zona (por ejemplo, daño aumentado o EXP reducida), las maldiciones y una forma de eliminarlas.
 - [ ] Explorar encuentros activados por patrones repetidos, como aplazar varias veces tareas de limpieza, con objetivos limitados a las tareas relacionadas con el patrón que los activó.
 - [ ] Explorar encuentros activados por una cantidad de fallos o por una racha especialmente larga de fallos.
+- [ ] Idea de boss: **Succubus / Carmilla la vampira**, un encuentro inverso en el que se vence perdiendo vida a propósito, fallando a drede responsabilidades.
+  - [ ] Definir qué cuenta como fallo voluntario (marcar una obligación como «sacrificada» antes de que venza, o dejar que venza) y cuántos hacen falta para vencerla.
+  - [ ] Definir cuánta vida se pierde, con un suelo de seguridad para que el encuentro nunca pueda matar al personaje en Hardcore.
+  - [ ] Decidir si el fallo voluntario evita o no el daño normal, y qué ocurre con las rachas, las defensas y las rutas al sacrificar una tarea.
+  - [ ] Pensar la tentación narrativa: si el jugador la ignora, ¿qué pierde o qué efecto le aplica (por ejemplo, encanto o maldición)?
+- [ ] Idea de boss: **Slogra y Gaibon**, un encuentro de golpes en el que cada tarea cumplida, sea obligación o misión secundaria, le hace daño.
+  - [ ] Dar a cada boss una barra de vida propia y fijar cuánto daño causa cada tarea según su dificultad.
+  - [ ] Decidir si las misiones secundarias de ruta y los hábitos hacen el mismo daño que las obligaciones, más o menos.
+  - [ ] Valorar un combate en dos fases (primero uno y luego el otro) y qué ocurre con el daño sobrante.
+  - [ ] Definir la derrota, un plazo máximo y la recompensa, y mostrar un golpe visual en el cielo o en la tarjeta del boss cada vez que se cumple una tarea.
 
 ### 4. Ampliar rutas, misiones y oficios
 
