@@ -1,6 +1,7 @@
 import { db } from '../db/database'
 import type {
   Achievement,
+  BossEncounter,
   Completion,
   Item,
   ItemEvent,
@@ -10,7 +11,7 @@ import type {
 } from '../types'
 
 interface BackupData {
-  version: 1 | 2 | 3
+  version: 1 | 2 | 3 | 4
   exportedAt: string
   items: Item[]
   completions: Completion[]
@@ -19,10 +20,11 @@ interface BackupData {
   achievements: Achievement[]
   rewards: Reward[]
   reminders?: Reminder[]
+  bossEncounters?: BossEncounter[]
 }
 
 export async function exportBackup(): Promise<void> {
-  const [items, completions, itemEvents, profile, achievements, rewards, reminders] =
+  const [items, completions, itemEvents, profile, achievements, rewards, reminders, bossEncounters] =
     await Promise.all([
       db.items.toArray(),
       db.completions.toArray(),
@@ -31,10 +33,11 @@ export async function exportBackup(): Promise<void> {
       db.achievements.toArray(),
       db.rewards.toArray(),
       db.reminders.toArray(),
+      db.bossEncounters.toArray(),
     ])
 
   const data: BackupData = {
-    version: 3,
+    version: 4,
     exportedAt: new Date().toISOString(),
     items,
     completions,
@@ -43,6 +46,7 @@ export async function exportBackup(): Promise<void> {
     achievements,
     rewards,
     reminders,
+    bossEncounters,
   }
 
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -58,13 +62,15 @@ export async function exportBackup(): Promise<void> {
 export async function importBackup(file: File): Promise<void> {
   const text = await file.text()
   const data = JSON.parse(text) as BackupData
-  if (data.version !== 1 && data.version !== 2 && data.version !== 3) {
+  if (data.version !== 1 && data.version !== 2 && data.version !== 3 && data.version !== 4) {
     throw new Error('Versión de backup no soportada')
   }
 
-  // Los backups v1 y v2 no incluyen eventos ni recordatorios: se importan vacíos.
+  // Los backups anteriores no incluyen eventos, recordatorios ni bosses: se importan vacíos
+  // y el boss se programa de nuevo al cargar.
   const itemEvents = data.itemEvents ?? []
   const reminders = data.reminders ?? []
+  const bossEncounters = data.bossEncounters ?? []
 
   await db.transaction(
     'rw',
@@ -77,6 +83,7 @@ export async function importBackup(file: File): Promise<void> {
       db.rewards,
       db.reminders,
       db.daySnapshots,
+      db.bossEncounters,
     ],
     async () => {
       // Los snapshots del resumen no viajan en el backup: se descartan los del estado anterior.
@@ -89,6 +96,7 @@ export async function importBackup(file: File): Promise<void> {
         db.rewards.clear(),
         db.reminders.clear(),
         db.daySnapshots.clear(),
+        db.bossEncounters.clear(),
       ])
       await Promise.all([
         db.items.bulkAdd(data.items),
@@ -98,6 +106,7 @@ export async function importBackup(file: File): Promise<void> {
         db.achievements.bulkAdd(data.achievements),
         db.rewards.bulkAdd(data.rewards),
         db.reminders.bulkAdd(reminders),
+        db.bossEncounters.bulkAdd(bossEncounters),
       ])
     },
   )

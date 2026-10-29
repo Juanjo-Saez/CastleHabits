@@ -127,6 +127,61 @@ export const BAT_B = [
 
 export const BAT_PALETTE: Palette = { O: '#0d0818', e: '#d8283f' }
 
+/** Murciélago gigante del primer boss: se dibuja la mitad izquierda y se refleja. */
+const GIANT_BAT_HALF = [
+  '.....OOO.................',
+  '....OAAAO.O..............',
+  '...OAAAAOOAOO............',
+  '...OAAaaAOAOAO...........',
+  '..OfaAOOAOAOAO...........',
+  '..OffAAOOAAAO............',
+  '..OfmaAAOOAO.............',
+  '.OffmmaAAAAO.............',
+  '.OffmmMaAAAO.............',
+  '.OfmmmMMaaAAOO...........',
+  '.OfmmMMMMaaAAAO......O...',
+  '.OfmmMMMMaaaAAAO....OBO..',
+  'OffmmMMMaaMaaaAAO...OBBO.',
+  'OffmmMMMaaMaMMaAAO..OBBBO',
+  'OffmmMMaMaMaMMMaAAO.OBBBB',
+  'OfmmmMMaMaMaMMMMaAAOBBBBB',
+  'OfmmmMaMaMMaMMMMMaABbbbBB',
+  'OfmmmMaMaMMaMMMMMMaBOccBB',
+  'OfmmmaMMaMMaMMMMMMMBBBBbb',
+  'OfmmmaMMaMMMaMMMMMMMBBBbO',
+  'OfmmaMMMaMMMaMMMMMMMBBFBO',
+  'OffmaMMaMMMMaMMMMmmMMBFBB',
+  'OffammmammMMaMMmmmmmBBBBB',
+  '.OfammmammmmaMmmmmmmBBBbb',
+  '.OaffmmammmmammmfffffBBbb',
+  '..OOffmafffmammffOOOfBBBb',
+  '....OfafOOffmaffO...OOBBb',
+  '.....OaO..OffafO.....OBBB',
+  '.....OaO...OfaO.......OBB',
+  '......O.....OaO.......OBO',
+  '.............O.........O.',
+  '.........................',
+]
+
+function mirrorRow(half: string): string {
+  return half + [...half].reverse().slice(1).join('')
+}
+
+export const GIANT_BAT = GIANT_BAT_HALF.map(mirrorRow)
+
+export const GIANT_BAT_PALETTE: Palette = {
+  O: '#0a0412',
+  A: '#eadccf',
+  a: '#a0847a',
+  M: '#4d0f30',
+  m: '#8f1d3c',
+  f: '#f0742a',
+  B: '#3c1a2c',
+  b: '#6e3649',
+  c: '#6af0ff',
+  F: '#fff4d6',
+}
+
 export const DIAMOND = ['..G..', '.GLG.', 'GLRLG', '.GLG.', '..G..']
 
 export const ORNAMENT = [

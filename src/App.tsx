@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Route, Routes } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import Backdrop from './components/Backdrop'
 import DailySummaryModal from './components/DailySummaryModal'
 import HardcoreDeath from './components/HardcoreDeath'
@@ -21,14 +21,16 @@ import TaskArchivePage from './pages/TaskArchivePage'
 import ProfilePage from './pages/ProfilePage'
 import StatsPage from './pages/StatsPage'
 import { useAchievementsStore } from './store/useAchievementsStore'
+import { useBossStore } from './store/useBossStore'
 import { useDailySummaryStore } from './store/useDailySummaryStore'
 import { useItemsStore } from './store/useItemsStore'
 import { usePlayerStore } from './store/usePlayerStore'
 import { useRemindersStore } from './store/useRemindersStore'
 import { useRewardsStore } from './store/useRewardsStore'
+import { useSkyViewStore } from './store/useSkyViewStore'
 
 const tabs = [
-  { to: '/', label: 'Hábitos', icon: '🕯️', end: true },
+  { to: '/habitos', label: 'Hábitos', icon: '🕯️', end: true },
   { to: '/tareas', label: 'Castillo', icon: '🏰' },
   { to: '/calendario', label: 'Calendario', icon: '🗓️' },
   { to: '/stats', label: 'Crónicas', icon: '📜' },
@@ -38,6 +40,7 @@ const tabs = [
 function App() {
   const [ready, setReady] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const contemplating = useSkyViewStore((s) => s.contemplating)
   const loadItems = useItemsStore((s) => s.load)
   const loadPlayer = usePlayerStore((s) => s.load)
   const loadAchievements = useAchievementsStore((s) => s.load)
@@ -59,6 +62,7 @@ function App() {
 
         await settleDayPenalties()
         await loadPlayer()
+        await useBossStore.getState().sync()
         const { items, completionsByItem } = useItemsStore.getState()
         await usePlayerStore.getState().evaluateRoutes(items, completionsByItem)
 
@@ -67,8 +71,9 @@ function App() {
         checkedDay = todayKey()
         if (active) {
           setLoadError(null)
-          setReady(true)
+          // El resumen se decide antes de mostrar la página para que ningún aviso se superponga.
           await useDailySummaryStore.getState().presentIfDue()
+          if (active) setReady(true)
         }
       } catch (cause) {
         if (active) setLoadError(cause instanceof Error ? cause.message : 'No se pudieron cargar los datos.')
@@ -123,7 +128,8 @@ function App() {
         {!ready && !loadError && <p role="status" className="p-3 font-body text-silver-400">Cargando grimorio…</p>}
         {ready && (
           <Routes>
-            <Route path="/" element={<HabitsPage />} />
+            <Route path="/" element={<Navigate to="/tareas" replace />} />
+            <Route path="/habitos" element={<HabitsPage />} />
             <Route path="/tareas" element={<ChoresPage />} />
             <Route path="/calendario" element={<CalendarPage />} />
             <Route path="/archivo" element={<TaskArchivePage />} />
@@ -134,7 +140,11 @@ function App() {
         )}
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto flex max-w-md border-t border-gold-600/40 bg-crypt-950/95 backdrop-blur">
+      <nav
+        aria-hidden={contemplating}
+        inert={contemplating}
+        className={`fixed inset-x-0 bottom-0 z-30 mx-auto flex max-w-md border-t border-gold-600/40 bg-crypt-950/95 backdrop-blur transition-transform duration-300 ${contemplating ? 'translate-y-full' : ''}`}
+      >
         <div className="ornate-divider absolute inset-x-0 top-0" />
         {tabs.map((tab) => (
           <NavLink

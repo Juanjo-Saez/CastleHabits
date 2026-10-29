@@ -1,7 +1,8 @@
 import { addDays, format, parseISO } from 'date-fns'
 import { v4 as uuid } from 'uuid'
 import { db } from '../db/database'
-import type { Completion, DaySnapshot, Item, ItemEvent, PenaltyCheckpoint, PlayerProfile } from '../types'
+import type { BossEncounter, Completion, DaySnapshot, Item, ItemEvent, PenaltyCheckpoint, PlayerProfile } from '../types'
+import { activeEncounter, bossXp } from './bosses'
 import { activityDateKey, logicalNow, todayKey } from './date'
 import { addXp, DIFFICULTY_COINS, DIFFICULTY_XP, HP_PER_LEVEL, rewindXp, xpToNextLevel } from './gamification'
 import { buildItemEvent, itemEventId } from './itemEvents'
@@ -307,6 +308,7 @@ export function planDayCorrection(
   events: ItemEvent[],
   confirmedDamage?: number,
   snapshot?: DaySnapshot,
+  boss?: BossEncounter | null,
 ): CorrectionPlan {
   if (!isCorrectionDay(input.date)) throw new Error('Solo se pueden corregir hoy y ayer (el día cambia a las 02:00).')
   if (profile.dead) throw new Error('No se puede editar una expedición terminada.')
@@ -339,7 +341,9 @@ export function planDayCorrection(
   const complete = input.quantity >= goal
   const previousQuantity = existing ? (item.trackingType === 'boolean' ? 1 : existing.quantityDone ?? 0) : 0
   if (previousQuantity === input.quantity) return { profile, completions, events, leveledUp: false }
-  const xp = complete ? (existing?.xpEarned || xpWithBonus(DIFFICULTY_XP[item.difficulty], profile)) : 0
+  const xp = complete
+    ? (existing?.xpEarned || bossXp(xpWithBonus(DIFFICULTY_XP[item.difficulty], profile), boss, input.date))
+    : 0
   const coins = complete ? (existing?.coinsEarned || DIFFICULTY_COINS[item.difficulty]) : 0
   const coinDelta = coins - (existing?.coinsEarned ?? 0)
   if (profile.coins + coinDelta < 0) {
@@ -430,14 +434,15 @@ export function planDayCorrection(
 
 export async function saveDayCorrection(input: DayCorrection, confirmedDamage?: number): Promise<CorrectionPlan> {
   await settleDayPenalties()
-  return db.transaction('rw', [db.items, db.profile, db.completions, db.itemEvents, db.daySnapshots], async () => {
+  return db.transaction('rw', [db.items, db.profile, db.completions, db.itemEvents, db.daySnapshots, db.bossEncounters], async () => {
     const profile = await db.profile.get(1)
     if (!profile) throw new Error('No se ha encontrado el perfil del jugador.')
     const items = await db.items.toArray()
     const completions = await db.completions.toArray()
     const events = await db.itemEvents.toArray()
     const snapshot = await db.daySnapshots.get(input.date)
-    const plan = planDayCorrection(input, profile, items, completions, events, confirmedDamage, snapshot)
+    const boss = activeEncounter(await db.bossEncounters.toArray())
+    const plan = planDayCorrection(input, profile, items, completions, events, confirmedDamage, snapshot, boss)
     const completionIds = new Set(plan.completions.map((completion) => completion.id))
     const eventIds = new Set(plan.events.map((event) => event.id))
     const originalCompletions = new Set(completions)

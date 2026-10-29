@@ -83,11 +83,33 @@ Estado revisado el 28 de octubre de 2026. Este documento refleja el punto actual
 
 ### 3. Primer encuentro con boss
 
-- [ ] Diseñar e implementar un boss inicial que use eventos reales y tenga una condición clara de activación, progreso, victoria y derrota.
-- [ ] Empezar con un formato acotado: por ejemplo, completar un conjunto de tareas durante un periodo o responder una pregunta verificable sobre el historial.
-- [ ] Definir qué ventanas de estadísticas puede consultar cada encuentro: expedición, últimos siete días, desde el encuentro anterior o historial completo.
+- [x] Diseñar e implementar un boss inicial que use eventos reales y tenga una condición clara de activación, progreso, victoria y derrota.
+- [x] **Diseño acordado para el boss inicial (murciélago gigante):**
+  - [x] Activarlo automáticamente tras un intervalo aleatorio de entre 10 y 15 días desde el inicio del punto de referencia.
+  - [x] Mantenerlo activo durante un máximo de 5 días operativos.
+  - [x] Contabilizar los días en los que se completan todas las obligaciones debidas; no tienen que ser consecutivos.
+  - [x] Vencerlo inmediatamente al alcanzar 2 días completos, aunque todavía queden días de la ventana.
+  - [x] Si termina la ventana sin alcanzar 2 días completos, infligir 20 puntos de daño.
+  - [x] Mientras esté activo, reducir en un 30% la EXP obtenida.
+  - [x] Al vencerlo, conceder EXP, oro y un recurso consumible aleatorio.
+  - [x] Tras finalizar, entrar en un enfriamiento aleatorio de entre 10 y 15 días antes de poder reaparecer.
+  - [x] Mostrar un modal al entrar en el Castillo y una tarjeta persistente mientras esté activo.
+  - [x] Modificar visualmente el Castillo para mostrar al boss sobre la luna.
+  - [x] Permitir desplazar la vista del Castillo hacia arriba en un modo de contemplación que oculte el HUD y permita ver la escena completa sin elementos del interfaz sobre el castillo.
+  - [x] Marcar visualmente las tareas que contribuyen al encuentro activo con un brillo animado y sutil, similar a un reflejo de luz recorriendo una superficie dorada.
+  - [x] Hacer interactivo el boss situado sobre la luna: al pulsarlo, abrir una tarjeta con su nombre, efecto activo, progreso, condiciones de victoria y derrota, duración restante y recompensas.
+  - [x] Empezar a contar el primer intervalo desde la publicación de la funcionalidad.
+  - [x] Considerar como obligaciones válidas las tareas recurrentes y los pergaminos con vencimiento ese día; excluir las misiones secundarias vinculadas a rutas.
+  - [x] Un día válido requiere al menos una obligación debida y todas deben estar completadas; los días sin obligaciones no cuentan.
+  - [x] Conceder 100 EXP, 50 monedas y un consumible aleatorio entre sello de aplazamiento, poción de vigor y congelación de racha.
+  - [x] Aplicar durante el encuentro el 70% de la EXP obtenida y redondear hacia arriba.
+  - [x] Aplicar los 20 puntos de derrota como daño directo, sin defensas.
+  - [x] Permitir que el boss reaparezca indefinidamente después de cada enfriamiento.
+- [x] Empezar con un formato acotado y basado en eventos reales: completar todas las obligaciones durante 2 días dentro de una ventana de 5 días.
+- [ ] Definir qué ventanas de estadísticas puede consultar cada encuentro: el boss inicial contará desde el inicio de su propio punto de referencia; los futuros podrán usar expedición, últimos siete días, desde el encuentro anterior o historial completo.
 - [ ] Añadir como siguientes variantes los efectos de zona (por ejemplo, daño aumentado o EXP reducida), las maldiciones y una forma de eliminarlas.
-- [ ] Explorar encuentros activados por patrones repetidos, como aplazar varias veces tareas de limpieza.
+- [ ] Explorar encuentros activados por patrones repetidos, como aplazar varias veces tareas de limpieza, con objetivos limitados a las tareas relacionadas con el patrón que los activó.
+- [ ] Explorar encuentros activados por una cantidad de fallos o por una racha especialmente larga de fallos.
 
 ### 4. Ampliar rutas, misiones y oficios
 

@@ -163,6 +163,34 @@ export interface Reminder {
   createdAt: string
 }
 
+export type BossId = 'giant-bat'
+
+/** `scheduled` es la espera inicial; `cooldown`, la espera posterior a un encuentro resuelto. */
+export type BossStatus = 'scheduled' | 'active' | 'victory' | 'defeat' | 'cooldown'
+
+export type BossResource = 'postponeToken' | 'vitalityPotion' | 'streakFreeze'
+
+/** Una aparición de un boss. Solo existe una sin resolver a la vez; el progreso se deriva de los completados. */
+export interface BossEncounter {
+  /** Determinista (`bossId:sequence`) para que una escritura repetida no cree duplicados. */
+  id: string
+  bossId: BossId
+  sequence: number
+  status: BossStatus
+  /** Primer día operativo (yyyy-MM-dd) en que puede activarse. */
+  scheduledFor: string
+  windowStart?: string
+  windowEnd?: string
+  resolvedOn?: string
+  /** Día en que podrá activarse la siguiente aparición, fijado al resolver. */
+  nextActivationOn?: string
+  rewardGranted: boolean
+  damageApplied: boolean
+  rewardResource?: BossResource
+  /** Identifica la aparición para los avisos de la interfaz, aunque se reinicien los datos. */
+  createdAt: string
+}
+
 export interface Achievement {
   id: string
   name: string

@@ -1,0 +1,79 @@
+import { create } from 'zustand'
+import { db } from '../db/database'
+import { todayKey } from '../lib/date'
+import { activeEncounter, bossXp, planBossSync } from '../lib/bosses'
+import type { BossEncounter, Completion } from '../types'
+import { mergeLevelUp, usePlayerStore } from './usePlayerStore'
+
+interface BossState {
+  encounters: BossEncounter[]
+  loaded: boolean
+  /** Avanza el ciclo del boss hasta hoy y aplica, una sola vez, recompensa o daño. */
+  sync: () => Promise<void>
+}
+
+async function runSync(): Promise<void> {
+  const before = usePlayerStore.getState().profile
+  const result = await db.transaction(
+    'rw',
+    [db.profile, db.items, db.completions, db.bossEncounters],
+    async () => {
+      const profile = await db.profile.get(1)
+      if (!profile) return null
+      const [items, completions, encounters] = await Promise.all([
+        db.items.toArray(),
+        db.completions.toArray(),
+        db.bossEncounters.toArray(),
+      ])
+      const completionsByItem: Record<string, Completion[]> = {}
+      for (const completion of completions) (completionsByItem[completion.itemId] ??= []).push(completion)
+      const plan = planBossSync({ today: todayKey(), profile, items, completionsByItem, encounters })
+      if (plan.changed.length > 0) await db.bossEncounters.bulkPut(plan.changed)
+      const profileChanged = plan.profile !== profile
+      if (profileChanged) await db.profile.put(plan.profile)
+      return { plan, profileChanged }
+    },
+  )
+  if (!result) return
+
+  const { plan, profileChanged } = result
+  useBossStore.setState({ encounters: plan.encounters, loaded: true })
+  if (profileChanged) {
+    await usePlayerStore.getState().load()
+    const after = usePlayerStore.getState().profile
+    if (plan.leveledUp && before && after) {
+      usePlayerStore.setState({ justLeveledUp: mergeLevelUp(usePlayerStore.getState().justLeveledUp, before, after) })
+    }
+  }
+}
+
+// Las sincronizaciones se encadenan para que dos disparos seguidos no compitan por la misma escritura.
+let queue: Promise<void> = Promise.resolve()
+
+export const useBossStore = create<BossState>(() => ({
+  encounters: [],
+  loaded: false,
+  sync: () => {
+    const next = queue.then(runSync, runSync)
+    queue = next.catch(() => undefined)
+    return next
+  },
+}))
+
+/** Boss activo ahora mismo, o null. */
+export function currentActiveBoss(): BossEncounter | null {
+  return activeEncounter(useBossStore.getState().encounters)
+}
+
+/** Aplica el efecto del boss activo a una cantidad de EXP calculada con los bonos normales. */
+export function xpAfterBoss(xp: number, dateKey = todayKey()): number {
+  return bossXp(xp, currentActiveBoss(), dateKey)
+}
+
+// Una expedición nueva borra los encuentros: se vuelve a programar de inmediato.
+usePlayerStore.subscribe((state, previous) => {
+  const next = state.profile?.runStartedAt
+  if (previous.profile && next && previous.profile.runStartedAt !== next) {
+    void useBossStore.getState().sync().catch(() => undefined)
+  }
+})

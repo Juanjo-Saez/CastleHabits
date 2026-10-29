@@ -1,5 +1,9 @@
 import { addDays, format } from 'date-fns'
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
+import BossAnnouncement from '../components/BossAnnouncement'
+import BossBanner from '../components/BossBanner'
+import BossDialog from '../components/BossDialog'
+import BossSky from '../components/BossSky'
 import EmptyState from '../components/EmptyState'
 import ItemCard from '../components/ItemCard'
 import ItemDetails from '../components/ItemDetails'
@@ -10,6 +14,7 @@ import RemindersPanel from '../components/RemindersPanel'
 import SectionTitle from '../components/SectionTitle'
 import SortPicker from '../components/SortPicker'
 import TomorrowPanel from '../components/TomorrowPanel'
+import { activeEncounter, summarizeBoss } from '../lib/bosses'
 import { logicalNow, todayKey } from '../lib/date'
 import {
   isItemDueOn,
@@ -19,16 +24,52 @@ import {
   missedCarryOf,
 } from '../lib/recurrence'
 import { sortTasks, type TaskSortKey } from '../lib/taskSort'
+import { useBossStore } from '../store/useBossStore'
 import { useItemsStore } from '../store/useItemsStore'
+import { useSkyViewStore } from '../store/useSkyViewStore'
+
+function prefersReducedMotion(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
 
 function ChoresPage() {
   const items = useItemsStore((s) => s.items)
   const completionsByItem = useItemsStore((s) => s.completionsByItem)
   const loading = useItemsStore((s) => s.loading)
+  const encounters = useBossStore((s) => s.encounters)
   const [showForm, setShowForm] = useState(false)
   const [sortKey, setSortKey] = useState<TaskSortKey>('difficulty')
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [bossOpen, setBossOpen] = useState(false)
+  const skyRef = useRef<HTMLDivElement>(null)
   const selectedItem = items.find((item) => item.id === selectedItemId && !item.archived)
+
+  // La página arranca bajo el cielo; desplazarla hacia arriba lo deja ver sin HUD ni navegación.
+  useLayoutEffect(() => {
+    const sky = skyRef.current
+    const scroller = sky?.closest('main')
+    if (!sky || !scroller) return
+    scroller.scrollTop = sky.offsetHeight
+    const onScroll = () => {
+      useSkyViewStore.getState().setContemplating(scroller.scrollTop < sky.offsetHeight * 0.5)
+    }
+    scroller.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      scroller.removeEventListener('scroll', onScroll)
+      useSkyViewStore.getState().setContemplating(false)
+      scroller.scrollTop = 0
+    }
+  }, [])
+
+  const scrollSky = (top: 'sky' | 'tasks') => {
+    const sky = skyRef.current
+    const scroller = sky?.closest('main')
+    if (!sky || !scroller) return
+    scroller.scrollTo({
+      top: top === 'sky' ? 0 : sky.offsetHeight,
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    })
+  }
 
   const today = logicalNow()
   const key = todayKey()
@@ -72,64 +113,86 @@ function ChoresPage() {
     sortKey,
   )
 
+  const bossEncounter = activeEncounter(encounters)
+  const bossSummary = bossEncounter ? summarizeBoss(bossEncounter, items, completionsByItem, key) : null
+
   return (
     <>
-      <PageHeader title="El Castillo" subtitle="Cada estancia guarda una tarea pendiente." />
-      <section className="relative z-10 flex flex-col gap-3 px-3">
-        <SectionTitle
-          action={
-            <button
-              type="button"
-              onClick={() => setShowForm((visible) => !visible)}
-              className="cv-btn cv-btn--gold px-2 py-1 text-base"
-            >
-              {showForm ? 'Cerrar' : '+ Nueva'}
-            </button>
-          }
-        >
-          Hoy en el castillo
-        </SectionTitle>
+      <BossSky
+        ref={skyRef}
+        bossActive={bossSummary !== null}
+        onOpenBoss={() => setBossOpen(true)}
+        onReturn={() => scrollSky('tasks')}
+      />
+      <div className="min-h-[calc(100dvh-5rem)]">
+        <PageHeader title="El Castillo" subtitle="Cada estancia guarda una tarea pendiente." />
+        <section className="relative z-10 flex flex-col gap-3 px-3">
+          <button
+            type="button"
+            onClick={() => scrollSky('sky')}
+            className="cv-btn cv-btn--ghost self-center bg-night-950/70 px-2 py-1 text-base"
+          >
+            🌙 Contemplar el castillo
+          </button>
+          {bossSummary && <BossBanner summary={bossSummary} onOpen={() => setBossOpen(true)} />}
 
-        {showForm && <NewTaskForm onClose={() => setShowForm(false)} />}
+          <SectionTitle
+            action={
+              <button
+                type="button"
+                onClick={() => setShowForm((visible) => !visible)}
+                className="cv-btn cv-btn--gold px-2 py-1 text-base"
+              >
+                {showForm ? 'Cerrar' : '+ Nueva'}
+              </button>
+            }
+          >
+            Hoy en el castillo
+          </SectionTitle>
 
-        <SortPicker value={sortKey} onChange={setSortKey} />
+          {showForm && <NewTaskForm onClose={() => setShowForm(false)} />}
 
-        {loading ? (
-          <p className="py-8 text-center font-pixel text-xl text-silver-500">Cargando grimorio...</p>
-        ) : (
-          <>
-            {dueToday.length === 0 ? (
-              <EmptyState icon={<span className="text-4xl">🏰</span>}>
-                Nada te reclama hoy. Consulta el calendario para planificar lo que viene.
-              </EmptyState>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {dueToday.map((item) => (
-                  <ItemCard key={item.id} item={item} onOpen={() => setSelectedItemId(item.id)} />
-                ))}
-              </div>
-            )}
+          <SortPicker value={sortKey} onChange={setSortKey} />
 
-            <SectionTitle>Pergaminos</SectionTitle>
-            {scrolls.length === 0 ? (
-              <p className="py-2 text-center font-pixel text-lg text-silver-700">
-                — SIN PERGAMINOS PENDIENTES —
-              </p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {scrolls.map((item) => (
-                  <ItemCard key={item.id} item={item} onOpen={() => setSelectedItemId(item.id)} />
-                ))}
-              </div>
-            )}
+          {loading ? (
+            <p className="py-8 text-center font-pixel text-xl text-silver-500">Cargando grimorio...</p>
+          ) : (
+            <>
+              {dueToday.length === 0 ? (
+                <EmptyState icon={<span className="text-4xl">🏰</span>}>
+                  Nada te reclama hoy. Consulta el calendario para planificar lo que viene.
+                </EmptyState>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {dueToday.map((item) => (
+                    <ItemCard key={item.id} item={item} onOpen={() => setSelectedItemId(item.id)} />
+                  ))}
+                </div>
+              )}
 
-            <RemindersPanel />
-            <RecentMissesPanel />
-            <TomorrowPanel items={dueTomorrow} />
-          </>
-        )}
-      </section>
+              <SectionTitle>Pergaminos</SectionTitle>
+              {scrolls.length === 0 ? (
+                <p className="py-2 text-center font-pixel text-lg text-silver-700">
+                  — SIN PERGAMINOS PENDIENTES —
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {scrolls.map((item) => (
+                    <ItemCard key={item.id} item={item} onOpen={() => setSelectedItemId(item.id)} />
+                  ))}
+                </div>
+              )}
+
+              <RemindersPanel />
+              <RecentMissesPanel />
+              <TomorrowPanel items={dueTomorrow} />
+            </>
+          )}
+        </section>
+      </div>
       {selectedItem && <ItemDetails item={selectedItem} onClose={() => setSelectedItemId(null)} />}
+      {bossOpen && bossSummary && <BossDialog summary={bossSummary} onClose={() => setBossOpen(false)} />}
+      <BossAnnouncement />
     </>
   )
 }

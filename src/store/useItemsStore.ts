@@ -9,6 +9,7 @@ import { itemEventId, recordItemEvent } from '../lib/itemEvents'
 import { completionInWindow, isItemDueOn, isObligation, marginDaysOf, scheduledDateFor } from '../lib/recurrence'
 import { xpWithBonus } from '../lib/routes'
 import { useAchievementsStore } from './useAchievementsStore'
+import { useBossStore, xpAfterBoss } from './useBossStore'
 import { usePlayerStore, mergeLevelUp } from './usePlayerStore'
 import type {
   Completion,
@@ -101,6 +102,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     })
     await get().load()
     await checkAchievements(get().items, get().completionsByItem)
+    await useBossStore.getState().sync()
   },
 
   load: async () => {
@@ -136,6 +138,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     const updated = { ...item, ...changes }
     await db.items.put(updated)
     set({ items: get().items.map((candidate) => candidate.id === itemId ? updated : candidate) })
+    await useBossStore.getState().sync()
   },
 
   archiveItem: async (itemId) => {
@@ -145,6 +148,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
         item.id === itemId ? { ...item, archived: true } : item,
       ),
     })
+    await useBossStore.getState().sync()
   },
 
   toggleBoolean: async (itemId) => {
@@ -174,10 +178,11 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
           [itemId]: await refreshItemHistory(itemId),
         },
       })
+      await useBossStore.getState().sync()
       return
     }
 
-    const xp = xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile)
+    const xp = xpAfterBoss(xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile))
     const coins = DIFFICULTY_COINS[item.difficulty]
     const today = todayKey()
     const scheduledDate = scheduledDateFor(item, logicalNow())
@@ -224,6 +229,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     })
     await usePlayerStore.getState().evaluateRoutes(get().items, completionsByItem)
     await checkAchievements(get().items, completionsByItem)
+    await useBossStore.getState().sync()
   },
 
   adjustQuantity: async (itemId, delta) => {
@@ -249,7 +255,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
 
     const wasComplete = prevQty >= goal
     const isComplete = nextQty >= goal
-    const xp = xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile)
+    const xp = xpAfterBoss(xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile))
     const coins = DIFFICULTY_COINS[item.difficulty]
 
     if (!wasComplete && isComplete) {
@@ -274,6 +280,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
           },
         })
       }
+      await useBossStore.getState().sync()
       return
     }
 
@@ -318,6 +325,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       await usePlayerStore.getState().evaluateRoutes(get().items, completionsByItem)
       await checkAchievements(get().items, completionsByItem)
     }
+    await useBossStore.getState().sync()
   },
 
   postponeItem: async (itemId) => {
@@ -345,6 +353,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       ),
     })
     await recordItemEvent(item, 'postponed', today, { postponedUntil })
+    await useBossStore.getState().sync()
     return true
   },
 }))

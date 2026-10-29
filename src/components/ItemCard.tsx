@@ -1,6 +1,7 @@
 import { format, parseISO, startOfDay, subDays } from 'date-fns'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { activeEncounter, bossCountsFor } from '../lib/bosses'
 import { describeDaysLeft, logicalNow, todayKey } from '../lib/date'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
 import {
@@ -17,6 +18,7 @@ import {
 import { xpWithBonus } from '../lib/routes'
 import { playWhip } from '../lib/sound'
 import { computeMissStreak, computeStreak } from '../lib/streak'
+import { useBossStore, xpAfterBoss } from '../store/useBossStore'
 import { useItemsStore } from '../store/useItemsStore'
 import { usePlayerStore } from '../store/usePlayerStore'
 import type { Item } from '../types'
@@ -66,7 +68,9 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
   const postponeItem = useItemsStore((s) => s.postponeItem)
   const postponeTokens = usePlayerStore((s) => s.profile?.postponeTokens ?? 0)
   const profile = usePlayerStore((s) => s.profile)
+  const countsForBoss = useBossStore((s) => bossCountsFor(item, activeEncounter(s.encounters), todayKey()))
   const [popup, setPopup] = useState<RewardPopup | null>(null)
+  const popupSeq = useRef(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -98,23 +102,28 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
   const frameClass = getFrameClass(done, overdue)
   const meta = getItemMeta(item, effectiveDueDate)
 
-  const showReward = (direction: 1 | -1) => {
+  const showReward = (direction: 1 | -1, xp: number) => {
     playWhip()
-    const id = Date.now()
+    const id = popupSeq.current + 1
+    popupSeq.current = id
     setPopup({
       id,
-      xp: direction * xpWithBonus(DIFFICULTY_XP[item.difficulty], profile),
+      xp: direction * xp,
       coins: direction * DIFFICULTY_COINS[item.difficulty],
     })
     setTimeout(() => setPopup((p) => (p?.id === id ? null : p)), 1100)
   }
 
   const perform = async (action: () => Promise<unknown>, reward?: 1 | -1) => {
+    // Se calcula antes de actuar: una victoria al completar apaga el efecto del boss durante la acción.
+    const earned = reward === -1 && completion?.xpEarned
+      ? completion.xpEarned
+      : xpAfterBoss(xpWithBonus(DIFFICULTY_XP[item.difficulty], profile))
     setBusy(true)
     setError(null)
     try {
       await action()
-      if (reward) showReward(reward)
+      if (reward) showReward(reward, earned)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo guardar la actividad.')
     } finally {
@@ -142,7 +151,7 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
   if (!isBoolean) candleLabel = `Sumar ${step}`
 
   return (
-    <div className={`cv-panel ${frameClass} flex items-center gap-3 px-2 py-2`}>
+    <div className={`cv-panel ${frameClass} ${countsForBoss ? 'cv-boss-glow' : ''} flex items-center gap-3 px-2 py-2`}>
       <button
         type="button"
         onClick={handleCandle}
@@ -164,6 +173,11 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
             {item.title}
           </button>
           {(dueToday || missedOn !== null) && !done && <span className="cv-tag cv-tag--gold">Hoy</span>}
+          {countsForBoss && (
+            <span className="cv-tag cv-tag--boss">
+              Boss<span className="sr-only">: cuenta para el boss</span>
+            </span>
+          )}
           {!isObligation(item) && <span className="cv-tag cv-tag--gold">Misión</span>}
           {overdue && <span className="cv-tag cv-tag--blood">Vencida</span>}
           {lastWindowDay && <span className="cv-tag cv-tag--blood">¡Último día!</span>}

@@ -297,13 +297,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       runStartedAt: new Date().toISOString(),
       penaltyCheckpoint: undefined,
     }
-    await db.transaction('rw', [db.items, db.profile], async () => {
+    await db.transaction('rw', [db.items, db.profile, db.bossEncounters], async () => {
       const routeItems = (await db.items.toArray()).filter(
         (item) => item.routeId && !item.archived,
       )
       if (routeItems.length > 0) {
         await db.items.bulkPut(routeItems.map((item) => ({ ...item, archived: true })))
       }
+      // El boss de la expedición anterior no debe herir ni frenar a la nueva.
+      await db.bossEncounters.clear()
       await db.profile.put(updated)
     })
     set({ profile: updated, justLeveledUp: null })
