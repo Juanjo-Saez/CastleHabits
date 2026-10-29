@@ -64,6 +64,59 @@ export function correctionCandidates(
   })
 }
 
+export interface CorrectionCandidateGroups {
+  failed: Item[]
+  registered: Item[]
+  pending: Item[]
+  sideQuests: Item[]
+  failureEvents: Record<string, ItemEvent[]>
+}
+
+export function groupCorrectionCandidates(
+  candidates: Item[],
+  history: Record<string, Completion[]>,
+  date: string,
+  events: ItemEvent[],
+  itemsForDate: Item[],
+  runStartedAt?: string,
+): CorrectionCandidateGroups {
+  const failureEvents: Record<string, ItemEvent[]> = {}
+  for (const event of events) {
+    if (event.kind !== 'missed' || (!(event.damage ?? 0) && !event.protectedBy)
+      || !belongsToRun(event, runStartedAt) || penaltyDate(event, itemsForDate) !== date) continue
+    const itemEvents = failureEvents[event.itemId] ?? []
+    itemEvents.push(event)
+    failureEvents[event.itemId] = itemEvents
+  }
+
+  const groups: CorrectionCandidateGroups = {
+    failed: [],
+    registered: [],
+    pending: [],
+    sideQuests: [],
+    failureEvents,
+  }
+  for (const item of candidates) {
+    if (item.commitment === 'sideQuest') {
+      groups.sideQuests.push(item)
+    } else if (failureEvents[item.id]) {
+      groups.failed.push(item)
+    } else if (completionInWindow(item, history[item.id] ?? [], date)?.date === date) {
+      groups.registered.push(item)
+    } else {
+      groups.pending.push(item)
+    }
+  }
+  const byTitle = (left: Item, right: Item) => left.title.localeCompare(right.title, 'es', { sensitivity: 'base' })
+  const damageFor = (item: Item) =>
+    failureEvents[item.id]?.reduce((total, event) => total + (event.damage ?? 0), 0) ?? 0
+  groups.failed.sort((left, right) => damageFor(right) - damageFor(left) || byTitle(left, right))
+  groups.registered.sort(byTitle)
+  groups.pending.sort(byTitle)
+  groups.sideQuests.sort(byTitle)
+  return groups
+}
+
 function historyByItem(completions: Completion[]): Record<string, Completion[]> {
   const history: Record<string, Completion[]> = {}
   for (const completion of completions) (history[completion.itemId] ??= []).push(completion)

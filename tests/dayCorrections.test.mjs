@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import { beforeEach, test } from 'node:test'
 import { addDays, format, parseISO } from 'date-fns'
-import { planDayCorrection, CorrectionDeathError, isCorrectionDay } from '../src/lib/dayCorrections.ts'
+import {
+  planDayCorrection,
+  CorrectionDeathError,
+  groupCorrectionCandidates,
+  isCorrectionDay,
+} from '../src/lib/dayCorrections.ts'
 import { computeMissedPenalties } from '../src/lib/penalties.ts'
 import { defaultRoutes } from '../src/lib/routes.ts'
 import { buildItemStats } from '../src/lib/itemStats.ts'
@@ -63,6 +68,47 @@ test('registrar ayer devuelve daño y registra la actividad en ayer, no como rec
   assert.equal(next.events.filter((event) => event.kind === 'missed').length, 0)
   assert.equal(next.events[0].kind, 'completed')
   assert.equal(next.events[0].activityDate, yesterday)
+})
+
+test('agrupa fallos, registros, pendientes y misiones secundarias en ese orden semántico', () => {
+  const runStartedAt = '2026-10-26T02:00:00'
+  const items = [
+    activity({ id: 'damaged' }),
+    activity({ id: 'protected' }),
+    activity({ id: 'registered' }),
+    activity({ id: 'pending' }),
+    activity({ id: 'quest', commitment: 'sideQuest', routeId: 'technomancer' }),
+  ]
+  const events = [
+    {
+      id: 'damaged:missed', itemId: 'damaged', kind: 'missed', scheduledDate: yesterday,
+      activityDate: yesterday, occurredAt: `${yesterday}T12:00:00`, damage: 2, runStartedAt,
+    },
+    {
+      id: 'protected:missed', itemId: 'protected', kind: 'missed', scheduledDate: yesterday,
+      activityDate: yesterday, occurredAt: `${yesterday}T12:00:00`, damage: 0,
+      protectedBy: 'freeze', runStartedAt,
+    },
+    {
+      id: 'other-run:missed', itemId: 'pending', kind: 'missed', scheduledDate: yesterday,
+      activityDate: yesterday, occurredAt: `${yesterday}T12:00:00`, damage: 99,
+      runStartedAt: '2026-10-20T02:00:00',
+    },
+  ]
+  const groups = groupCorrectionCandidates(
+    items,
+    { registered: [completion('registered')] },
+    yesterday,
+    events,
+    items,
+    runStartedAt,
+  )
+
+  assert.deepEqual(groups.failed.map((item) => item.id), ['damaged', 'protected'])
+  assert.deepEqual(groups.registered.map((item) => item.id), ['registered'])
+  assert.deepEqual(groups.pending.map((item) => item.id), ['pending'])
+  assert.deepEqual(groups.sideQuests.map((item) => item.id), ['quest'])
+  assert.equal(groups.failureEvents.protected[0].protectedBy, 'freeze')
 })
 
 test('guardar dos veces es idempotente y desmarcar revierte recompensas y daño', () => {
