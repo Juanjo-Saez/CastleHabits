@@ -18,7 +18,9 @@ import {
   effectPercentOn,
   evaluateBossDay,
   hitProgress,
+  initialLifeStolen,
   isBossDueOn,
+  lifeProgress,
   migrateEncounter,
   pickBoss,
   pieceProgress,
@@ -30,6 +32,7 @@ import {
   shiftKey,
   splitBars,
   summarizeBoss,
+  hidesTomorrow,
 } from '../src/lib/bosses.ts'
 import { addCurse, CURSES, cureCost, tickCurses } from '../src/lib/curses.ts'
 import { planDayCorrection } from '../src/lib/dayCorrections.ts'
@@ -41,6 +44,7 @@ const BAT = BOSSES['giant-bat']
 const SLOGRA = BOSSES['slogra-gaibon']
 const LEGION = BOSSES.legion
 const FRANKENSTEIN = BOSSES.frankenstein
+const SUCCUBUS = BOSSES.succubus
 
 function chore(id, changes = {}) {
   return {
@@ -89,6 +93,14 @@ function frankensteinBoss(windowStart = '2026-10-10', changes = {}) {
   return {
     id: 'enc:1', bossId: 'frankenstein', sequence: 1, status: 'active', scheduledFor: windowStart,
     windowStart, windowEnd: shiftKey(windowStart, 4), goal: 3, zones: ['A', 'B', 'C'],
+    rewardGranted: false, damageApplied: false, createdAt: '2026-10-01T00:00:00.000Z', ...changes,
+  }
+}
+
+function succubusBoss(windowStart = '2026-10-10', changes = {}) {
+  return {
+    id: 'enc:1', bossId: 'succubus', sequence: 1, status: 'active', scheduledFor: windowStart,
+    windowStart, windowEnd: shiftKey(windowStart, 4), goal: 10,
     rewardGranted: false, damageApplied: false, createdAt: '2026-10-01T00:00:00.000Z', ...changes,
   }
 }
@@ -180,6 +192,71 @@ test('se activa al llegar su día con una ventana de cinco fechas y fija su meta
   assert.equal(boss.windowEnd, '2026-10-15')
   assert.equal(typeof boss.goal, 'number')
   assert.equal(sync({ encounters: activated.encounters }, '2026-10-11').changed.length, 0)
+})
+
+test('Succubus roba hasta diez de vida al activarse y cada tarea recupera sangre', () => {
+  const scheduled = {
+    id: 'enc:1', bossId: 'succubus', sequence: 1, status: 'scheduled', scheduledFor: '2026-10-10',
+    rewardGranted: false, damageApplied: false, createdAt: '2026-10-01T00:00:00.000Z',
+  }
+  const activated = sync({ encounters: [scheduled], profile: profile({ hp: 8, maxHp: 20 }) }, '2026-10-10')
+  const encounter = activated.encounters.find((entry) => entry.sequence === 1)
+  assert.equal(initialLifeStolen(profile({ hp: 8 })), 7)
+  assert.equal(encounter.status, 'active')
+  assert.equal(encounter.goal, 7)
+  assert.equal(activated.profile.hp, 1)
+  assert.equal(activated.profile.dead, false)
+
+  const items = [chore('easy'), chore('hard', { difficulty: 'hard' })]
+  const progress = lifeProgress(
+    { ...encounter, goal: 7 },
+    items,
+    byItem([done('easy', '2026-10-10'), done('hard', '2026-10-10'), done('hard', '2026-10-10', { id: 'hard:duplicate' })]),
+    '2026-10-10',
+  )
+  assert.equal(progress.recovered, 3)
+  assert.equal(progress.reachedOn, undefined)
+  assert.equal(bossCountsFor(items[0], encounter, '2026-10-10'), true)
+  assert.equal(hidesTomorrow(SUCCUBUS), true)
+})
+
+test('Succubus se vence recuperando toda la sangre sin volver a descontar vida', () => {
+  const items = Array.from({ length: 5 }, (_, index) => chore(`hard-${index}`, { difficulty: 'hard' }))
+  const completions = items.map((item) => done(item.id, '2026-10-10'))
+  const result = sync({
+    items,
+    completions,
+    encounters: [succubusBoss()],
+    profile: profile({ hp: 30 }),
+  }, '2026-10-10', () => 0)
+  const victory = result.encounters.find((entry) => entry.sequence === 1)
+  assert.equal(victory.status, 'victory')
+  assert.equal(victory.resolvedOn, '2026-10-10')
+  assert.equal(result.profile.hp, 55)
+  assert.equal(result.profile.curses.length, 0)
+  assert.deepEqual(victory.rewards, {
+    xp: 120, coins: 60, items: { postponeToken: 1, vitalityPotion: 1, streakFreeze: 1, holyWater: 1 },
+  })
+  const summary = summarizeBoss(victory, items, byItem(completions), '2026-10-10')
+  assert.equal(summary.damage, 10)
+  assert.equal(summary.bars[0].hp, 0)
+})
+
+test('Succubus derrota sin daño adicional y aplica Encanto durante cinco días', () => {
+  const result = sync({
+    encounters: [succubusBoss('2026-10-10', { windowEnd: '2026-10-10' })],
+    profile: profile({ hp: 30 }),
+  }, '2026-10-11', () => 0)
+  const defeat = result.encounters.find((entry) => entry.sequence === 1)
+  assert.equal(defeat.status, 'defeat')
+  assert.equal(defeat.curse, 'charm')
+  assert.equal(result.profile.hp, 30)
+  assert.deepEqual(result.profile.curses, [{
+    id: 'charm',
+    sourceBoss: 'succubus',
+    startedOn: '2026-10-11',
+    expiresOn: '2026-10-16',
+  }])
 })
 
 test('la victoria llega con dos días completos, concede una sola vez y programa el enfriamiento', () => {
@@ -606,8 +683,8 @@ test('la mecánica describe el objetivo de cada boss con sus unidades', () => {
 
 test('el siguiente boss no repite el último y respeta el sorteo ponderado', () => {
   assert.equal(pickBoss('giant-bat', () => 0), 'slogra-gaibon')
-  assert.equal(pickBoss('slogra-gaibon', () => 0.99), 'frankenstein')
-  assert.deepEqual(new Set([pickBoss(undefined, () => 0), pickBoss(undefined, () => 0.99)]), new Set(['giant-bat', 'frankenstein']))
+  assert.equal(pickBoss('slogra-gaibon', () => 0.99), 'succubus')
+  assert.deepEqual(new Set([pickBoss(undefined, () => 0), pickBoss(undefined, () => 0.99)]), new Set(['giant-bat', 'succubus']))
 })
 
 test('un disparador reactivo se impone al sorteo al acabar el enfriamiento', () => {

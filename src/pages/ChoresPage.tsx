@@ -15,7 +15,7 @@ import RemindersPanel from '../components/RemindersPanel'
 import SectionTitle from '../components/SectionTitle'
 import SortPicker from '../components/SortPicker'
 import TomorrowPanel from '../components/TomorrowPanel'
-import { activeEncounter, summarizeBoss } from '../lib/bosses'
+import { activeEncounter, BOSSES, hidesTomorrow, summarizeBoss } from '../lib/bosses'
 import { logicalNow, todayKey } from '../lib/date'
 import {
   isItemDueOn,
@@ -187,7 +187,9 @@ function ChoresPage() {
 
               <RemindersPanel />
               <RecentMissesPanel />
-              <TomorrowPanel items={dueTomorrow} />
+              {(!bossEncounter || !hidesTomorrow(BOSSES[bossEncounter.bossId])) && (
+                <TomorrowPanel items={dueTomorrow} />
+              )}
             </>
           )}
         </section>

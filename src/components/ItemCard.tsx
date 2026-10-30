@@ -30,8 +30,9 @@ interface RewardPopup {
   id: number
   xp: number
   coins: number
-  /** Golpe al boss de golpes que provoca esta tarea; 0 si no hay. */
+  /** Progreso del boss que provoca esta tarea; 0 si no hay. */
   hit: number
+  bossProgress: 'damage' | 'recovery'
 }
 
 function isDueTodayBadge(item: Item): boolean {
@@ -72,11 +73,16 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
   const postponeTokens = usePlayerStore((s) => s.profile?.postponeTokens ?? 0)
   const profile = usePlayerStore((s) => s.profile)
   const countsForBoss = useBossStore((s) => bossCountsFor(item, activeEncounter(s.encounters), todayKey()))
-  const hitDamage = useBossStore((s) => {
-    const boss = activeEncounter(s.encounters)
-    const objective = boss ? BOSSES[boss.bossId].objective : null
-    return objective?.kind === 'hits' && bossCountsFor(item, boss, todayKey()) ? objective.damage[item.difficulty] : 0
-  })
+  const activeBoss = useBossStore((s) => activeEncounter(s.encounters))
+  const bossObjective = activeBoss ? BOSSES[activeBoss.bossId].objective : null
+  const bossProgress =
+    !bossObjective || !bossCountsFor(item, activeBoss, todayKey())
+      ? { amount: 0, kind: 'damage' as const }
+      : bossObjective.kind === 'hits'
+        ? { amount: bossObjective.damage[item.difficulty], kind: 'damage' as const }
+        : bossObjective.kind === 'lifeSteal'
+          ? { amount: bossObjective.recovery[item.difficulty], kind: 'recovery' as const }
+          : { amount: 0, kind: 'damage' as const }
   const [popup, setPopup] = useState<RewardPopup | null>(null)
   const popupSeq = useRef(0)
   const [busy, setBusy] = useState(false)
@@ -111,7 +117,12 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
   const frameClass = getFrameClass(done, overdue || missedOn !== null)
   const meta = getItemMeta(item, effectiveDueDate)
 
-  const showReward = (direction: 1 | -1, xp: number, coins: number, hit: number) => {
+  const showReward = (
+    direction: 1 | -1,
+    xp: number,
+    coins: number,
+    progress: { amount: number; kind: 'damage' | 'recovery' },
+  ) => {
     playWhip()
     const id = popupSeq.current + 1
     popupSeq.current = id
@@ -119,7 +130,8 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
       id,
       xp: direction * xp,
       coins: direction * coins,
-      hit: direction * hit,
+      hit: direction * progress.amount,
+      bossProgress: progress.kind,
     })
     setTimeout(() => setPopup((p) => (p?.id === id ? null : p)), 1100)
   }
@@ -136,7 +148,7 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
     setError(null)
     try {
       await action()
-      if (reward) showReward(reward, earned, earnedCoins, hitDamage)
+      if (reward) showReward(reward, earned, earnedCoins, bossProgress)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo guardar la actividad.')
     } finally {
@@ -284,8 +296,10 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
           {popup.hit !== 0 && (
             <>
               {' '}
-              <span className={popup.hit > 0 ? 'text-blood-400' : 'text-silver-300'}>
-                ⚔ {popup.hit > 0 ? '−' : '+'}{Math.abs(popup.hit)}
+              <span className={popup.bossProgress === 'recovery' ? 'text-green-300' : popup.hit > 0 ? 'text-blood-400' : 'text-silver-300'}>
+                {popup.bossProgress === 'recovery' ? '♥' : '⚔'} {popup.bossProgress === 'recovery'
+                  ? (popup.hit > 0 ? '+' : '−')
+                  : (popup.hit > 0 ? '−' : '+')}{Math.abs(popup.hit)}
               </span>
             </>
           )}

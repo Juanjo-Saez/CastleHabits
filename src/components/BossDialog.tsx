@@ -49,7 +49,8 @@ function headline(summary: BossSummary, mode: BossDialogMode): string | null {
   if (encounter.status === 'defeat' && mode === 'result') {
     const curse = encounter.curse ? ` Te alcanza la maldición ${CURSES[encounter.curse].name}.` : ''
     const verb = definition.grammar.plural ? 'se retiran' : 'se retira'
-    return `${definition.grammar.subject} ${verb} tras herirte: pierdes ${definition.defeatDamage} de vida.${curse}`
+    const consequence = definition.defeatText ?? `Pierdes ${definition.defeatDamage} de vida`
+    return `${definition.grammar.subject} ${verb} tras el combate: ${consequence}.${curse}`
   }
   if (mode === 'intro') return `${definition.grammar.subject} ${definition.grammar.plural ? 'rondan' : 'ronda'} el castillo.`
   return null
@@ -157,7 +158,10 @@ function BossDialog({
                 {kind === 'days' ? (
                   <Plate label="Hoy" value={today.due === 0 ? '—' : `${today.done}/${today.due}`} />
                 ) : (
-                  <Plate label={kind === 'pieces' ? 'Piezas' : 'Golpes'} value={`${damage}/${goal}`} />
+                  <Plate
+                    label={kind === 'pieces' ? 'Piezas' : kind === 'lifeSteal' ? 'Sangre' : 'Golpes'}
+                    value={`${damage}/${goal}`}
+                  />
                 )}
               </div>
 
@@ -182,7 +186,10 @@ function BossDialog({
                   </p>
                 </section>
               ) : (
-                <section aria-label={kind === 'pieces' ? 'Piezas del boss' : 'Vida del boss'} className="flex flex-col gap-2">
+                <section
+                  aria-label={kind === 'pieces' ? 'Piezas del boss' : kind === 'lifeSteal' ? 'Sangre robada' : 'Vida del boss'}
+                  className="flex flex-col gap-2"
+                >
                   {bars.map((bar) => (
                     <div key={bar.name}>
                       <div className="mb-1 flex justify-between font-pixel text-base leading-none text-silver-300">
@@ -192,7 +199,13 @@ function BossDialog({
                       <div
                         className="cv-bar"
                         role="progressbar"
-                        aria-label={kind === 'pieces' ? `Estado de la pieza de ${bar.name}` : `Vida de ${bar.name}`}
+                        aria-label={
+                          kind === 'pieces'
+                            ? `Estado de la pieza de ${bar.name}`
+                            : kind === 'lifeSteal'
+                              ? `Sangre robada de ${bar.name}`
+                              : `Vida de ${bar.name}`
+                        }
                         aria-valuemin={0}
                         aria-valuemax={bar.max}
                         aria-valuenow={bar.hp}
@@ -204,6 +217,11 @@ function BossDialog({
                   {objective.kind === 'hits' && (
                     <p className="mt-1 text-center font-pixel text-base leading-none text-silver-500">
                       Golpe: trivial {objective.damage.trivial} · fácil {objective.damage.easy} · media {objective.damage.medium} · difícil {objective.damage.hard}
+                    </p>
+                  )}
+                  {objective.kind === 'lifeSteal' && (
+                    <p className="mt-1 text-center font-pixel text-base leading-none text-silver-500">
+                      Recuperación: trivial {objective.recovery.trivial} · fácil {objective.recovery.easy} · media {objective.recovery.medium} · difícil {objective.recovery.hard}
                     </p>
                   )}
                 </section>
@@ -227,6 +245,10 @@ function BossDialog({
                 <>
                   {bestiaryMechanic(definition)} Debes desactivar todas las piezas seleccionadas en {definition.windowDays} días.
                 </>
+              ) : objective.kind === 'lifeSteal' ? (
+                <>
+                  {bestiaryMechanic(definition)} Debes recuperar toda la sangre robada antes de que termine la ventana de {definition.windowDays} días.
+                </>
               ) : (
                 <>
                   {bestiaryMechanic(definition)} Debes agotar su vida ({goal || 'según tu carga'})
@@ -235,7 +257,8 @@ function BossDialog({
               )}
             </Rule>
             <Rule icon={<PixelArt rows={HEART} palette={HEART_PALETTE} scale={3} />} title="Si fallas">
-              Al acabar el plazo recibes {definition.defeatDamage} de daño directo: ninguna defensa lo detiene.
+              {definition.defeatText ?? `Al acabar el plazo recibes ${definition.defeatDamage} de daño directo: ninguna defensa lo detiene.`}
+              {definition.defeatText ? '.' : ''}
               {definition.defeatCurse && (
                 <> Además te alcanza la maldición <strong>{CURSES[definition.defeatCurse.id].name}</strong> durante {definition.defeatCurse.days} días: {CURSES[definition.defeatCurse.id].description.toLowerCase()}</>
               )}

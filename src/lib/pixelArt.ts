@@ -333,6 +333,32 @@ export const FRANKENSTEIN_PALETTE: Palette = {
   L: '#f3e3a8',
 }
 
+/** Succubus: una figura alada rodeada por la niebla de rosas. */
+export const SUCCUBUS = [
+  '......OOO......',
+  '....OOrrrOO....',
+  '...OrrLLLrrO...',
+  '..OrrLPLPLrrO..',
+  '..OrrLLLLLrrO..',
+  '...OrrLrrrO....',
+  '...OOmMmOO.....',
+  '..OmmMMMmmO....',
+  '.OmmMMMMMmmO...',
+  '.OmmMMMMMmmO...',
+  '..OmmMMMmmO....',
+  '...OmmMmmO.....',
+  '..OOO...OOO....',
+]
+
+export const SUCCUBUS_PALETTE: Palette = {
+  O: '#0a0412',
+  r: '#8f1d3c',
+  L: '#f3b4c8',
+  P: '#4d0f30',
+  m: '#5d2b63',
+  M: '#2a1638',
+}
+
 export const DIAMOND = ['..G..', '.GLG.', 'GLRLG', '.GLG.', '..G..']
 
 export const ORNAMENT = [

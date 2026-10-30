@@ -23,6 +23,10 @@ export type BossObjective =
   | { kind: 'days'; targetDays: number }
   | { kind: 'pieces'; maxPieces: number }
   | {
+    kind: 'lifeSteal'
+    recovery: Record<Difficulty, number>
+  }
+  | {
     kind: 'hits'
     /** Fracción de la vida total que tiene la primera barra. */
     share: number
@@ -37,6 +41,7 @@ export type EnvEffect =
   | { kind: 'xpPercent'; percent: number }
   | { kind: 'potionPercent'; percent: number }
   | { kind: 'damagePercent'; percent: number }
+  | { kind: 'hideTomorrow' }
   | { kind: 'zonePercent'; xpPercent: number; damagePercent: number }
 
 /** Una entrada de la tabla de premios; cada una se sortea por separado. */
@@ -68,6 +73,8 @@ export interface BossDefinition {
   defeatCurse?: { id: CurseId; days: number }
   reward: { xp: number; coins: number }
   drops: DropEntry[]
+  /** Texto específico para explicar una derrota cuando no hay daño directo adicional. */
+  defeatText?: string
   /** Rango inclusivo, en días, del enfriamiento antes de la siguiente aparición. */
   minDelay: number
   maxDelay: number
@@ -190,6 +197,32 @@ export const BOSSES: Record<BossId, BossDefinition> = {
       { item: 'streakFreeze', chance: 0.3, min: 1, max: 1 },
       { item: 'holyWater', chance: 0.1, min: 1, max: 1 },
     ],
+    minDelay: 10,
+    maxDelay: 15,
+    weight: 1,
+  },
+  succubus: {
+    id: 'succubus',
+    name: 'Succubus',
+    parts: ['Sangre robada'],
+    grammar: { subject: 'Succubus', object: 'a Succubus', plural: false },
+    mechanic: 'Robo de vida',
+    description: 'Una seductora nocturna que convierte tu propia vitalidad en una barra que debes recuperar.',
+    lore: 'Succubus no necesita perseguirte: basta con que cruces su umbral para que una parte de tu sangre abandone el cuerpo. Cada tarea cumplida hace volver una gota, pero la criatura conserva para siempre lo que no rescates antes del amanecer.',
+    soulChance: 0.03,
+    windowDays: 5,
+    objective: { kind: 'lifeSteal', recovery: { trivial: 1, easy: 1, medium: 1, hard: 2 } },
+    effects: [{ kind: 'hideTomorrow' }],
+    defeatDamage: 0,
+    defeatCurse: { id: 'charm', days: 5 },
+    reward: { xp: 120, coins: 60 },
+    drops: [
+      { item: 'postponeToken', chance: 0.2, min: 1, max: 1 },
+      { item: 'vitalityPotion', chance: 0.6, min: 1, max: 1 },
+      { item: 'streakFreeze', chance: 0.3, min: 1, max: 1 },
+      { item: 'holyWater', chance: 0.25, min: 1, max: 1 },
+    ],
+    defeatText: 'La sangre que no recuperes se pierde para siempre',
     minDelay: 10,
     maxDelay: 15,
     weight: 1,
@@ -406,8 +439,13 @@ export function clamp(value: number, min: number, max: number): number {
 export function bossGoal(boss: BossDefinition, items: Item[], today: string): number {
   if (boss.objective.kind === 'days') return boss.objective.targetDays
   if (boss.objective.kind === 'pieces') return bossZones(boss, items).length
+  if (boss.objective.kind === 'lifeSteal') return 0
   const { days, factor, min, max } = boss.objective.load
   return clamp(Math.round(dailyLoad(items, today) * days * factor), min, max)
+}
+
+export function initialLifeStolen(profile: PlayerProfile): number {
+  return Math.min(10, Math.max(0, profile.hp - 1))
 }
 
 /** Zonas fijadas al activar Frankenstein; el orden estable evita resultados distintos entre dispositivos. */
@@ -435,6 +473,7 @@ export function splitBars(boss: BossDefinition, goal: number, damage: number, gu
       { name: boss.parts[1] ?? 'Núcleo', max: goal, hp: Math.max(0, goal - damage) },
     ]
   }
+
   if (boss.objective.kind !== 'hits' || boss.parts.length < 2) {
     return [{ name: boss.parts[0], max: goal, hp: Math.max(0, goal - damage) }]
   }
@@ -447,6 +486,15 @@ export function splitBars(boss: BossDefinition, goal: number, damage: number, gu
   ]
 }
 
+export function lifeBars(boss: BossDefinition, goal: number, recovered: number): BossBar[] {
+  if (boss.objective.kind !== 'lifeSteal') return []
+  return [{
+    name: boss.parts[0],
+    max: goal,
+    hp: Math.max(0, goal - recovered),
+  }]
+}
+
 export interface HitProgress {
   damage: number
   /** Primer día en que el daño acumulado alcanza la meta. */
@@ -454,6 +502,11 @@ export interface HitProgress {
   /** Golpes que han roto la cáscara, si el boss tiene una. */
   guardHits?: number
   guardBrokenOn?: string
+}
+
+export interface LifeProgress {
+  recovered: number
+  reachedOn?: string
 }
 
 export interface PieceProgress {
@@ -524,6 +577,7 @@ export function hitProgress(
         difficulty: item.difficulty,
       })
     }
+
   }
   completions.sort((left, right) => left.date.localeCompare(right.date)
     || left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id))
@@ -552,6 +606,52 @@ export function hitProgress(
     if (!reachedOn && goal > 0 && total >= goal) reachedOn = day
   }
   return { damage: total, reachedOn, guardHits: guard ? guardHits : undefined, guardBrokenOn }
+}
+
+/** Sangre recuperada por completados durante la ventana del encuentro. */
+export function lifeProgress(
+  encounter: BossEncounter,
+  items: Item[],
+  completionsByItem: Record<string, Completion[]>,
+  today: string,
+): LifeProgress {
+  const boss = BOSSES[encounter.bossId]
+  if (boss.objective.kind !== 'lifeSteal' || !encounter.windowStart || !encounter.windowEnd) {
+    return { recovered: 0 }
+  }
+  const last = encounter.windowEnd < today ? encounter.windowEnd : today
+  const recoveryByDifficulty = boss.objective.recovery
+  const completions: { itemId: string; date: string; createdAt: string; id: string; recovery: number }[] = []
+  for (const item of items) {
+    for (const completion of completionsByItem[item.id] ?? []) {
+      if (completion.date < encounter.windowStart || completion.date > last || !isMetCompletion(item, completion)) continue
+      completions.push({
+        itemId: item.id,
+        date: completion.date,
+        createdAt: completion.createdAt,
+        id: completion.id,
+        recovery: recoveryByDifficulty[item.difficulty],
+      })
+    }
+  }
+  completions.sort((left, right) => left.date.localeCompare(right.date)
+    || left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id))
+  const perDay = new Map<string, number>()
+  const seen = new Set<string>()
+  for (const completion of completions) {
+    const itemDay = `${completion.itemId}:${completion.date}`
+    if (seen.has(itemDay)) continue
+    seen.add(itemDay)
+    perDay.set(completion.date, (perDay.get(completion.date) ?? 0) + completion.recovery)
+  }
+  const goal = encounter.goal ?? 0
+  let total = 0
+  let reachedOn: string | undefined
+  for (let day = encounter.windowStart; day <= last; day = shiftKey(day, 1)) {
+    total += perDay.get(day) ?? 0
+    if (!reachedOn && total >= goal) reachedOn = day
+  }
+  return { recovered: total, reachedOn }
 }
 
 export interface BossSummary {
@@ -583,12 +683,15 @@ export function summarizeBoss(
   const goal = encounter.goal ?? (definition.objective.kind === 'days' ? definition.objective.targetDays : 0)
   const completedDates = active && kind === 'days' ? completeDatesOf(encounter, items, completionsByItem, today) : []
   const progress = kind === 'hits' && active ? hitProgress(encounter, items, completionsByItem, today) : null
+  const life = kind === 'lifeSteal' && active ? lifeProgress(encounter, items, completionsByItem, today) : null
   const pieces = kind === 'pieces' && active
     ? pieceProgress(encounter, items, completionsByItem, today)
     : { disabledZones: encounter.status === 'victory' ? encounter.zones ?? [] : [] }
   const damage = kind === 'hits'
     ? (active ? progress?.damage ?? 0 : (encounter.status === 'victory' ? goal : 0))
-    : kind === 'pieces' ? pieces.disabledZones.length : 0
+    : kind === 'pieces' ? pieces.disabledZones.length
+      : kind === 'lifeSteal' ? (active ? life?.recovered ?? 0 : (encounter.status === 'victory' ? goal : 0))
+        : 0
   const guardHits = kind === 'hits' && definition.objective.kind === 'hits' && definition.objective.guard
     ? (active ? (progress?.guardHits ?? 0)
       : (encounter.status === 'victory' ? definition.objective.guard.hits : 0))
@@ -609,7 +712,7 @@ export function summarizeBoss(
           max: 1,
           hp: pieces.disabledZones.includes(zone) ? 0 : 1,
         }))
-        : [],
+        : kind === 'lifeSteal' ? lifeBars(definition, goal, damage) : [],
     guardHits,
     daysLeft: active && encounter.windowEnd
       ? Math.max(0, differenceInCalendarDays(parseISO(encounter.windowEnd), parseISO(today)) + 1)
@@ -625,7 +728,9 @@ export function bossCountsFor(item: Item, encounter: BossEncounter | null, dateK
     ? !item.archived
     : BOSSES[encounter.bossId].objective.kind === 'pieces'
       ? Boolean(item.zone && encounter.zones?.includes(item.zone) && isBossDueOn(item, dateKey))
-    : isBossDueOn(item, dateKey)
+      : BOSSES[encounter.bossId].objective.kind === 'lifeSteal'
+        ? !item.archived
+        : isBossDueOn(item, dateKey)
 }
 
 /** Etiqueta corta de un efecto de entorno, para chips y placas. */
@@ -635,6 +740,7 @@ export function describeEffect(effect: EnvEffect): string {
   if (effect.kind === 'damagePercent') {
     return `Daño por fallo ×${(effect.percent / 100).toLocaleString('es-ES', { maximumFractionDigits: 2 })}`
   }
+  if (effect.kind === 'hideTomorrow') return 'Niebla de rosas · Mañana oculta'
   return 'Relámpagos · EXP y daño ×2 en una zona'
 }
 
@@ -645,12 +751,19 @@ export function describeEffectLong(effect: EnvEffect): string {
   if (effect.kind === 'damagePercent') {
     return `Mientras esté activo, el daño por fallo se multiplica por ${(effect.percent / 100).toLocaleString('es-ES', { maximumFractionDigits: 2 })}.`
   }
+  if (effect.kind === 'hideTomorrow') return 'Una niebla de rosas oculta el panel de «Mañana» mientras el boss esté activo.'
   return 'Cada día una zona queda cargada: sus tareas dan el doble de EXP y causan el doble de daño por fallo.'
 }
+
+export function hidesTomorrow(boss: BossDefinition): boolean {
+  return boss.effects.some((effect) => effect.kind === 'hideTomorrow')
+}
+
 /** Texto corto del avance: días conseguidos o daño hecho. */
 export function encounterSummaryLine(summary: BossSummary): string {
   if (summary.kind === 'hits') return `${summary.damage}/${summary.goal} de daño`
   if (summary.kind === 'pieces') return `${summary.damage}/${summary.goal} piezas`
+  if (summary.kind === 'lifeSteal') return `${summary.damage}/${summary.goal} de sangre recuperada`
   return `${summary.completedDates.length}/${summary.target} días`
 }
 
@@ -702,6 +815,9 @@ export function bestiaryMechanic(boss: BossDefinition): string {
   }
   if (boss.objective.kind === 'pieces') {
     return `Desactiva hasta ${boss.objective.maxPieces} piezas ligadas a zonas cumpliendo sus obligaciones; Igor remienda una pieza cada día con deudas.`
+  }
+  if (boss.objective.kind === 'lifeSteal') {
+    return 'Al aparecer roba hasta 10 puntos de vida; cada tarea cumplida recupera 1 punto y una tarea difícil recupera 2.'
   }
   if (boss.objective.guard) {
     const labels: Record<Difficulty, string> = {
@@ -869,6 +985,10 @@ function verdictOf(
     const progress = pieceProgress(encounter, items, completionsByItem, today)
     return { won: Boolean(progress.reachedOn), resolvedOn: progress.reachedOn }
   }
+  if (boss.objective.kind === 'lifeSteal') {
+    const progress = lifeProgress(encounter, items, completionsByItem, today)
+    return { won: Boolean(progress.reachedOn), resolvedOn: progress.reachedOn }
+  }
   const progress = hitProgress(encounter, items, completionsByItem, today)
   if (boss.objective.guard && (progress.guardHits ?? 0) < boss.objective.guard.hits) {
     return { won: false }
@@ -927,13 +1047,19 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
       const chosen = reactiveBoss({ today, profile, items, completionsByItem, encounters: [...records.values()] })
         ?? current.bossId
       const boss = BOSSES[chosen]
+      const goal = boss.objective.kind === 'lifeSteal'
+        ? initialLifeStolen(profile)
+        : bossGoal(boss, items, today)
+      if (boss.objective.kind === 'lifeSteal' && goal > 0) {
+        profile = applyBossDamage(profile, goal)
+      }
       current = {
         ...current,
         bossId: chosen,
         status: 'active',
         windowStart: today,
         windowEnd: shiftKey(today, boss.windowDays - 1),
-        goal: bossGoal(boss, items, today),
+        goal,
         zones: bossZones(boss, items),
       }
       save(current)

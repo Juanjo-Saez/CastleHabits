@@ -22,4 +22,4 @@
 - [x] 3.3 Tests de derrota, Costuras y regresión del catálogo de bosses.
 - [x] 3.4 `npm test` (78 casos) y `npx tsc -b`.
 - [x] 3.5 `npm run build` y ESLint sobre los archivos modificados.
-- [ ] 3.6 Comprobación visual de un encuentro activo.
+- [x] 3.6 Comprobación visual de un encuentro activo con piezas, sprite, Relámpagos y progreso tras una completación.

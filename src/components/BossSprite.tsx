@@ -10,6 +10,8 @@ import {
   LEGION_PALETTE,
   SLOGRA,
   SLOGRA_PALETTE,
+  SUCCUBUS,
+  SUCCUBUS_PALETTE,
 } from '../lib/pixelArt'
 import PixelArt from './PixelArt'
 
@@ -32,6 +34,9 @@ function BossSprite({ bossId, scale = 3, className = '' }: Readonly<{ bossId: Bo
   }
   if (bossId === 'frankenstein') {
     return <PixelArt rows={FRANKENSTEIN} palette={FRANKENSTEIN_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
+  }
+  if (bossId === 'succubus') {
+    return <PixelArt rows={SUCCUBUS} palette={SUCCUBUS_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
   }
   return <PixelArt rows={GIANT_BAT} palette={GIANT_BAT_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
 }

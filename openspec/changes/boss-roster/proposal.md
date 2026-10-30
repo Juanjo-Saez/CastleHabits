@@ -31,15 +31,17 @@ Diseño de los siguientes encuentros tras el Murciélago gigante. Es un document
 | Bestiario: datos (`bestiaryOf`) | Hecho |
 | Bestiario: pantalla en el Perfil con desbloqueos por victorias | Hecho |
 | Almas, reliquias, élite, látigo y maldiciones graves | Pendiente; se implementa en `boss-almas-reliquias`, `boss-premios-elite` y `boss-maldiciones-graves` |
-| Resto de bosses (Succubus, Death, Medusa, Cerbero, Doppelgänger, Hidra, Drácula, Sukamon) | Pendiente; un change por boss |
+| Succubus | Hecho en `boss-succubus` |
+| Resto de bosses (Death, Medusa, Cerbero, Doppelgänger, Hidra, Drácula, Sukamon) | Pendiente; un change por boss |
 
 ### Modelo de datos
 
-- **`BossDefinition`** (`lib/bosses.ts`): id, partes, nombre gramatical, ventana, objetivo (`days`, `hits` o `pieces`), efectos, daño y maldición de derrota, premio base, tabla de objetos, enfriamiento, peso y disparador opcional.
+- **`BossDefinition`** (`lib/bosses.ts`): id, partes, nombre gramatical, ventana, objetivo (`days`, `hits`, `pieces` o `lifeSteal`), efectos, daño y maldición de derrota, premio base, tabla de objetos, enfriamiento, peso y disparador opcional.
 - **`BossEncounter`**: una aparición. El id es `enc:<sequence>` (los anteriores conservan `giant-bat:<n>`). `bossId` es provisional mientras está pendiente y un disparador puede cambiarlo al activarse. Guarda `goal` (meta fijada al activarse), `zones` cuando el boss fija zonas, `rewards` (EXP, oro y objetos concedidos) y `curse` (maldición aplicada al perder).
 - **Perfil:** `holyWater` y `curses` (máximo 2, con `startedOn`, `expiresOn` y `lastTickOn`). Se reinician al jubilarse.
 - **Golpes:** sin restricción por fecha de creación; el único límite es un completado por tarea y día.
 - **Progreso derivado:** los golpes y los días completos se calculan siempre desde los completados reales, así que corregir ayer o deshacer una tarea los recalcula solos.
+- **Robo de vida:** Succubus fija en `goal` la vida robada al activarse y deriva la sangre recuperada de los completados, sin guardar contadores manuales.
 - **Maldiciones:** rigen desde el día en que se aplican hasta el anterior a `expiresOn`; el daño diario se cobra una vez por día, desde el mismo día en que se aplican, y nunca baja la vida de 1.
 - **Disparadores:** `trigger` se evalúa al acabar el enfriamiento y prima sobre el sorteo.
 

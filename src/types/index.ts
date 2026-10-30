@@ -169,7 +169,7 @@ export interface Reminder {
   createdAt: string
 }
 
-export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein'
+export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus'
 
 /** `scheduled` es la espera inicial; `cooldown`, la espera posterior a un encuentro resuelto. */
 export type BossStatus = 'scheduled' | 'active' | 'victory' | 'defeat' | 'cooldown'
