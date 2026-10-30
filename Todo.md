@@ -107,19 +107,20 @@ Estado revisado el 28 de octubre de 2026. Este documento refleja el punto actual
   - [x] Permitir que el boss reaparezca indefinidamente después de cada enfriamiento.
 - [x] Empezar con un formato acotado y basado en eventos reales: completar todas las obligaciones durante 2 días dentro de una ventana de 5 días.
 - [ ] Definir qué ventanas de estadísticas puede consultar cada encuentro: el boss inicial contará desde el inicio de su propio punto de referencia; los futuros podrán usar expedición, últimos siete días, desde el encuentro anterior o historial completo.
-- [ ] Añadir como siguientes variantes los efectos de zona (por ejemplo, daño aumentado o EXP reducida), las maldiciones y una forma de eliminarlas.
-- [ ] Explorar encuentros activados por patrones repetidos, como aplazar varias veces tareas de limpieza, con objetivos limitados a las tareas relacionadas con el patrón que los activó.
-- [ ] Explorar encuentros activados por una cantidad de fallos o por una racha especialmente larga de fallos.
-- [ ] Idea de boss: **Succubus / Carmilla la vampira**, un encuentro inverso en el que se vence perdiendo vida a propósito, fallando a drede responsabilidades.
-  - [ ] Definir qué cuenta como fallo voluntario (marcar una obligación como «sacrificada» antes de que venza, o dejar que venza) y cuántos hacen falta para vencerla.
-  - [ ] Definir cuánta vida se pierde, con un suelo de seguridad para que el encuentro nunca pueda matar al personaje en Hardcore.
-  - [ ] Decidir si el fallo voluntario evita o no el daño normal, y qué ocurre con las rachas, las defensas y las rutas al sacrificar una tarea.
-  - [ ] Pensar la tentación narrativa: si el jugador la ignora, ¿qué pierde o qué efecto le aplica (por ejemplo, encanto o maldición)?
-- [ ] Idea de boss: **Slogra y Gaibon**, un encuentro de golpes en el que cada tarea cumplida, sea obligación o misión secundaria, le hace daño.
-  - [ ] Dar a cada boss una barra de vida propia y fijar cuánto daño causa cada tarea según su dificultad.
-  - [ ] Decidir si las misiones secundarias de ruta y los hábitos hacen el mismo daño que las obligaciones, más o menos.
-  - [ ] Valorar un combate en dos fases (primero uno y luego el otro) y qué ocurre con el daño sobrante.
-  - [ ] Definir la derrota, un plazo máximo y la recompensa, y mostrar un golpe visual en el cielo o en la tarjeta del boss cada vez que se cumple una tarea.
+- [x] Diseñar el plantel de bosses, los efectos de entorno, las maldiciones, los premios y el bestiario (ver `openspec/changes/boss-roster/proposal.md`).
+- [ ] **Motor general de bosses**: tipos de objetivo (constancia, golpes, robo de vida, piezas, enjambre, estatuas, cabezas, duelo, reloj, fases), efectos de entorno, maldiciones y tabla de premios por boss.
+  - [ ] Dejar de borrar los encuentros resueltos al jubilarse, para conservar el bestiario y las almas.
+  - [ ] Sustituir el recurso único al azar del Murciélago por el sorteo independiente por objeto.
+  - [ ] Calcular las metas con la carga real del jugador, sin contar tareas nuevas ni triviales.
+- [ ] **Aparición mixta**: sorteo ponderado tras cada enfriamiento, disparadores reactivos (aplazamientos, fallos, rachas, zona abandonada, misiones secundarias olvidadas) y jefes finales por hito.
+- [ ] **Bosses** (uno por cambio): Slogra y Gaibon, Succubus (robo de vida), Death, Frankenstein, Legion, Medusa, Cerbero, Doppelgänger, Hidra/Escila, Sukamon y Drácula.
+- [ ] **Efectos de entorno**: luna de sangre, eclipse, avaricia, silencio, tormenta, mirada, sangre rancia, niebla, zona maldita, bendición lunar y espejo.
+- [ ] **Maldiciones**: leves que caducan y graves que se curan con sacerdotisa, agua bendita, penitencia o revancha; máximo dos a la vez.
+- [ ] **Premios**: agua bendita, látigo y bolsa de oro; almas con probabilidad baja, piedad y rangos; reliquias; títulos, marcos y auras.
+- [ ] **Almas equipables** persistentes entre expediciones, con casillas según el nivel (1, 2 y 3 en los niveles 5, 10 y 20). Las reliquias se reinician al jubilarse.
+- [ ] **Bestiario**: silueta sin victorias; página y recompensas con 1; probabilidades de consumibles con 5; versión élite y lore con 10; probabilidad del alma con 20.
+- [ ] **Versión élite** de cada boss tras 10 victorias, con 1/10 de probabilidad de aparecer en cada encuentro.
+- [x] Decidir las preguntas abiertas del diseño: las almas y el bestiario persisten y las reliquias no, la apuesta de Death se pierde de verdad, la versión élite es opcional con 1/10 de probabilidad por aparición y el minijefe de aplazamientos es el Sukamon de Digimon.
 
 ### 4. Ampliar rutas, misiones y oficios
 
@@ -160,6 +161,11 @@ Estado revisado el 28 de octubre de 2026. Este documento refleja el punto actual
 - [x] Tras corregir ayer, recalcular el resumen y mostrar los resultados corregidos al volver a consultarlo, sin marcas ni apartados especiales de edición.
 - [x] Ampliar la celebración de subida de nivel existente con una animación más vistosa, mostrando el nivel anterior, el nuevo nivel y las mejoras obtenidas.
 - [x] Separar la reproducción de las animaciones de la aplicación de sus efectos: consultar o repetir un resumen no vuelve a conceder EXP, oro, niveles ni daño.
+
+### 8. Hábitos de registro único y señal de fallo recurrente
+
+- [x] En Hábitos, la tarea de trabajar no debe registrarse de 5 en 5 minutos: debe poder marcarse como completada de una vez o registrarse 3 veces.
+- [x] Mostrar en rojo una tarea recurrente que falló ayer, igual que los pergaminos fallados.
 
 ## Visión a largo plazo
 

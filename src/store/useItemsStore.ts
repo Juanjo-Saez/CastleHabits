@@ -34,6 +34,7 @@ export interface NewItemInput {
   routeId?: RouteId
   trackingType: TrackingType
   quantityGoal?: number
+  quantityStep?: number
   unit?: string
   dueDate?: string | null
 }

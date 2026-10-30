@@ -80,7 +80,7 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
   const qty = completion?.quantityDone ?? 0
   // Con margen, la tarea cuenta como hecha si se cumplió en cualquier día de su ventana.
   const done = isWindowCompleted(item, history, todayKey())
-  const step = Math.max(1, Math.round(goal / 10))
+  const step = item.quantityStep ?? Math.max(1, Math.round(goal / 10))
   const streak = computeStreak(item, history)
   // Solo una se muestra a la vez: una racha positiva anula los fallos previos.
   const missStreak = streak === 0 ? computeMissStreak(item, history) : 0
@@ -99,7 +99,7 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
   const lastWindowDay =
     marginDaysOf(item) > 1 && !done && isWindowClosingOn(item, logicalNow())
 
-  const frameClass = getFrameClass(done, overdue)
+  const frameClass = getFrameClass(done, overdue || missedOn !== null)
   const meta = getItemMeta(item, effectiveDueDate)
 
   const showReward = (direction: 1 | -1, xp: number) => {
@@ -141,6 +141,10 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
 
   const handleSubtractQuantity = () => {
     void perform(() => adjustQuantity(item.id, -step), qty >= goal && qty - step < goal ? -1 : undefined)
+  }
+
+  const handleCompleteQuantity = () => {
+    void perform(() => adjustQuantity(item.id, goal - qty), qty < goal ? 1 : undefined)
   }
 
   const handlePostpone = () => {
@@ -238,6 +242,18 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
           aria-label={`Restar ${step}`}
         >
           −
+        </button>
+      )}
+
+      {!isBoolean && item.type === 'habit' && (
+        <button
+          type="button"
+          onClick={handleCompleteQuantity}
+          disabled={busy || profile?.dead || done}
+          className="cv-btn cv-btn--gold shrink-0 px-2 py-1 text-sm"
+          aria-label={`Completar ${item.title}`}
+        >
+          Completar
         </button>
       )}
 

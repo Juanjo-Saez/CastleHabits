@@ -20,6 +20,7 @@ export interface RouteActivityTemplate {
   difficulty: Difficulty
   trackingType: TrackingType
   quantityGoal?: number
+  quantityStep?: number
   unit?: string
 }
 
@@ -63,7 +64,14 @@ export const ROUTES: Record<RouteId, RouteDef> = {
     baseMinPerDay: 2,
     activities: [
       { title: 'Estudiar programaci\u00f3n', difficulty: 'hard', trackingType: 'quantity', quantityGoal: 60, unit: 'min' },
-      { title: 'Trabajar en H\u00e1bitos', difficulty: 'medium', trackingType: 'quantity', quantityGoal: 30, unit: 'min' },
+      {
+        title: 'Trabajar en H\u00e1bitos',
+        difficulty: 'medium',
+        trackingType: 'quantity',
+        quantityGoal: 30,
+        quantityStep: 10,
+        unit: 'min',
+      },
       { title: 'Repasar lo aprendido', difficulty: 'easy', trackingType: 'boolean' },
     ],
   },

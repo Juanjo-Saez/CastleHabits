@@ -50,6 +50,8 @@ export interface Item {
   trackingType: TrackingType
   /** Meta a alcanzar cuando trackingType es "quantity" (ej. 100 sentadillas). */
   quantityGoal?: number
+  /** Cantidad que añade cada registro normal; por defecto se calcula desde la meta. */
+  quantityStep?: number
   unit?: string
   /** Solo para todos puntuales, ISO date. */
   dueDate?: string | null
