@@ -290,7 +290,7 @@ export function completionInWindow(
 }
 
 /** Un registro cumple la obligación: los cuantitativos necesitan alcanzar la meta. */
-function isMetCompletion(item: Item, completion: Completion): boolean {
+export function isMetCompletion(item: Item, completion: Completion): boolean {
   if (item.trackingType === 'quantity') {
     return (completion.quantityDone ?? 0) >= (completion.quantityGoal ?? item.quantityGoal ?? 0)
   }

@@ -1,10 +1,13 @@
 import { create } from 'zustand'
 import { db, ensurePlayerProfile } from '../db/database'
+import { activeEncounter } from '../lib/bosses'
+import { cureCost, removeCurse } from '../lib/curses'
 import { todayKey } from '../lib/date'
+import { potionRecovery } from '../lib/modifiers'
 import { HP_PER_LEVEL, xpToNextLevel } from '../lib/gamification'
 import { defaultRoutes, effectiveMaxHp, evaluateRoute, ROUTE_IDS, ROUTES } from '../lib/routes'
 import { SYSTEM_RESOURCES } from '../lib/resources'
-import type { Completion, Item, LevelUpInfo, PlayerProfile, RouteId } from '../types'
+import type { Completion, CurseId, Item, LevelUpInfo, PlayerProfile, RouteId } from '../types'
 
 interface PlayerState {
   profile: PlayerProfile | null
@@ -20,6 +23,8 @@ interface PlayerState {
   spendPostponeToken: () => Promise<boolean>
   buyVitalityPotion: (cost: number) => Promise<boolean>
   consumeVitalityPotion: () => Promise<boolean>
+  /** Cura una maldición con agua bendita o pagando a la sacerdotisa. */
+  cureCurse: (id: CurseId, method: 'holyWater' | 'priest') => Promise<boolean>
   buyStreakFreeze: (cost: number) => Promise<boolean>
   setStreakFreezes: (quantity: number) => Promise<void>
   startRoute: (routeId: RouteId) => Promise<boolean>
@@ -62,6 +67,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       postponeTokens: profile.postponeTokens ?? 0,
       vitalityPotions: profile.vitalityPotions ?? 0,
       streakFreezes: profile.streakFreezes ?? 0,
+      holyWater: profile.holyWater ?? 0,
+      curses: profile.curses ?? [],
       routes: { ...defaultRoutes(), ...profile.routes },
       equippedRoute: profile.equippedRoute ?? null,
     }
@@ -71,6 +78,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       normalized.postponeTokens !== profile.postponeTokens
       || normalized.vitalityPotions !== profile.vitalityPotions
       || normalized.streakFreezes !== profile.streakFreezes
+      || profile.holyWater === undefined
+      || profile.curses === undefined
       || profile.routes === undefined
       || profile.equippedRoute === undefined
     ) {
@@ -184,10 +193,35 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const maxHp = current ? effectiveMaxHp(current) : 0
     if (!current || current.dead || current.vitalityPotions <= 0 || current.hp >= maxHp) return false
 
+    const boss = activeEncounter(await db.bossEncounters.toArray())
+    const recovery = potionRecovery(
+      SYSTEM_RESOURCES.vitalityPotion.recovery, { boss, curses: current.curses }, todayKey(),
+    )
+    // Una maldición que anula la curación no gasta la poción.
+    if (recovery <= 0) return false
+
     const updated: PlayerProfile = {
       ...current,
-      hp: Math.min(maxHp, current.hp + SYSTEM_RESOURCES.vitalityPotion.recovery),
+      hp: Math.min(maxHp, current.hp + recovery),
       vitalityPotions: current.vitalityPotions - 1,
+    }
+    await db.profile.put(updated)
+    set({ profile: updated })
+    return true
+  },
+
+  cureCurse: async (id, method) => {
+    const current = get().profile
+    if (!current || current.dead || !current.curses?.some((curse) => curse.id === id)) return false
+    if (method === 'holyWater' && (current.holyWater ?? 0) <= 0) return false
+    const cost = cureCost(current.level)
+    if (method === 'priest' && current.coins < cost) return false
+
+    const updated: PlayerProfile = {
+      ...current,
+      curses: removeCurse(current.curses, id),
+      holyWater: method === 'holyWater' ? (current.holyWater ?? 0) - 1 : current.holyWater,
+      coins: method === 'priest' ? current.coins - cost : current.coins,
     }
     await db.profile.put(updated)
     set({ profile: updated })
@@ -289,6 +323,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       hp: 50,
       maxHp: 50,
       streakFreezes: 0,
+      holyWater: 0,
+      curses: [],
       routes: defaultRoutes(),
       equippedRoute: null,
       shieldReadyOn: undefined,
@@ -304,8 +340,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       if (routeItems.length > 0) {
         await db.items.bulkPut(routeItems.map((item) => ({ ...item, archived: true })))
       }
-      // El boss de la expedición anterior no debe herir ni frenar a la nueva.
-      await db.bossEncounters.clear()
+      // El boss pendiente o activo de la expedición anterior no debe herir ni frenar a la nueva;
+      // los resueltos se conservan porque forman el bestiario.
+      await db.bossEncounters.where('status').anyOf('scheduled', 'cooldown', 'active').delete()
       await db.profile.put(updated)
     })
     set({ profile: updated, justLeveledUp: null })

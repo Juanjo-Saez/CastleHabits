@@ -4,6 +4,7 @@ import BossAnnouncement from '../components/BossAnnouncement'
 import BossBanner from '../components/BossBanner'
 import BossDialog from '../components/BossDialog'
 import BossSky from '../components/BossSky'
+import CurseBadges from '../components/CurseBadges'
 import EmptyState from '../components/EmptyState'
 import ItemCard from '../components/ItemCard'
 import ItemDetails from '../components/ItemDetails'
@@ -120,7 +121,7 @@ function ChoresPage() {
     <>
       <BossSky
         ref={skyRef}
-        bossActive={bossSummary !== null}
+        bossId={bossEncounter?.bossId ?? null}
         onOpenBoss={() => setBossOpen(true)}
         onReturn={() => scrollSky('tasks')}
       />
@@ -134,6 +135,7 @@ function ChoresPage() {
           >
             🌙 Contemplar el castillo
           </button>
+          <CurseBadges />
           {bossSummary && <BossBanner summary={bossSummary} onOpen={() => setBossOpen(true)} />}
 
           <SectionTitle

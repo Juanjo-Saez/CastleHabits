@@ -182,6 +182,100 @@ export const GIANT_BAT_PALETTE: Palette = {
   F: '#fff4d6',
 }
 
+/** Gaibon, el demonio alado de Slogra y Gaibon: se dibuja la mitad izquierda y se refleja. */
+const GAIBON_HALF = [
+'........OHOO.....',
+  '.O.......OHHO....',
+  'OAO.......OHHO...',
+  'OwAO......OHHO...',
+  'OwwAO......OHHOOO',
+  'wwwwAO.....OHHRRR',
+  'wwwwwAOO....OHHRR',
+  'wwwwwwAAO..ORReRR',
+  'wwwwwwwwAO.OReeRR',
+  'aawwwwwwwAOORRRRR',
+  'OwaaaawwwwAOORRLL',
+  '.OWWWWaaaawARRFRF',
+  '.OWWWWWWWWaaRrRRR',
+  '..OWWWWWaaaarrrRR',
+  '..OWOaaaWWWrrrrrR',
+  '..OaaOOWWWarrrrrR',
+  '...OO.OWWWarrrrrR',
+  '......OWWaOrrrrrR',
+  '.......OOaOrrrrrR',
+  '.......OaO.OrrCRR',
+  '........O...OCRRr',
+  '............OCORr',
+  '...........OCO.Or',
+  '..........OCO..Or',
+]
+
+export const GAIBON = GAIBON_HALF.map(mirrorRow)
+
+export const GAIBON_PALETTE: Palette = {
+  O: '#0a0412',
+  A: '#eadccf',
+  a: '#a0847a',
+  W: '#7b1f3a',
+  w: '#c4453f',
+  R: '#c8312b',
+  r: '#7d1b24',
+  L: '#f08a4a',
+  H: '#efe3cf',
+  e: '#ffe45a',
+  F: '#fff4d6',
+  C: '#efe3cf',
+}
+
+/** Slogra, el esqueleto con lanza. */
+export const SLOGRA = [
+'.......................O....',
+  '......................OTO...',
+  '.........O...........OTTTO..',
+  '.......OOBOO.........OTTTTO.',
+  '......OBBBBBO.........OSSSO.',
+  '....OOBBBBBBBO.........OSSO.',
+  '...ObBBeeBBBBBO.......OSSO..',
+  '..ObbBBBBBBBBBO.......OSSO..',
+  '.ObbbBBBBBBBBBO.......OSSO..',
+  '..ObbMMBBBBBBO........OSSO..',
+  '...OOOOMMBBBBO........OSSO..',
+  '.......OOBOOBBO......OSSO...',
+  '.........OOOBBOOOOOO.OSSO...',
+  '.........ObbbBBBBBBBOOSSO...',
+  '........ObbbbbMMMMBBOOSSO...',
+  '.........ObbbBBBBBBBBOSSO...',
+  '..........OOOOMMMMMOBBSO....',
+  '............OBBBBBBBOBBBO...',
+  '.............OMMMMMOOBBBO...',
+  '............OBBBBBBOOBBBO...',
+  '.............OMMMMMOOSSO....',
+  '............OBBBBBBOOSSO....',
+  '.............OObbbOOSSO.....',
+  '..............OBBbbbbbOOOO..',
+  '.............OBBOBBOSbbbbbOO',
+  '.............OBBOOBBSSOOObbb',
+  '............OBBO.OBBSSO..OOb',
+  '...........OBBO...OBBO....Ob',
+  '............OBBO..OSBBO....O',
+  '.............OBBO.OSSBBO....',
+  '..............OBBOOSSOBBO...',
+  '............OOOBBBOSSOOBBO..',
+  '..........OOBBBBOOSSOBBBO...',
+  '.........OBBBOOO.OSBBBOO....',
+  '..........OOO...OBBBOO......',
+  '.................OOO........',
+]
+
+export const SLOGRA_PALETTE: Palette = {
+  O: '#0a0412',
+  B: '#e9dec9',
+  b: '#a5927f',
+  M: '#1b0f1c',
+  e: '#ffe45a',
+  S: '#7a5a3a',
+  T: '#d7deea',
+}
 export const DIAMOND = ['..G..', '.GLG.', 'GLRLG', '.GLG.', '..G..']
 
 export const ORNAMENT = [

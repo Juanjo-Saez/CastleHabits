@@ -1,59 +1,152 @@
-import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns'
+import { differenceInCalendarDays, parseISO } from 'date-fns'
 import type {
   BossEncounter,
   BossId,
   BossResource,
+  BossRewards,
   Completion,
+  CurseId,
+  Difficulty,
   Item,
   PlayerProfile,
 } from '../types'
-import { activityDateKey } from './date'
+import { addCurse, tickCurses } from './curses'
+import { activityDateKey, shiftDateKey } from './date'
 import { HP_PER_LEVEL, xpToNextLevel } from './gamification'
-import { isItemDueOn, isObligation, isWindowCompleted } from './recurrence'
+import { isItemDueOn, isMetCompletion, isObligation, isWindowCompleted } from './recurrence'
 import { effectiveMaxHp } from './routes'
+
+type Random = () => number
+
+/** Cómo se vence un boss: días completos de constancia, o golpes (una tarea cumplida = un golpe). */
+export type BossObjective =
+  | { kind: 'days'; targetDays: number }
+  | {
+    kind: 'hits'
+    /** Fracción de la vida total que tiene la primera barra. */
+    share: number
+    damage: Record<Difficulty, number>
+    load: { days: number; factor: number; min: number; max: number }
+  }
+
+/** Efectos de entorno: rigen mientras el boss está activo. */
+export type EnvEffect =
+  | { kind: 'xpPercent'; percent: number }
+  | { kind: 'potionPercent'; percent: number }
+
+/** Una entrada de la tabla de premios; cada una se sortea por separado. */
+export interface DropEntry {
+  /** `goldBag` suma monedas (el rango es la cantidad de oro). */
+  item: BossResource | 'goldBag'
+  chance: number
+  min: number
+  max: number
+}
 
 export interface BossDefinition {
   id: BossId
   name: string
-  /** Días operativos que permanece activo, contando el primero. */
+  /** Nombre de cada barra de vida o parte; uno solo si no tiene partes. */
+  parts: string[]
+  /** Cómo nombrarlo en las frases: sujeto, complemento directo y si el verbo va en plural. */
+  grammar: { subject: string; object: string; plural: boolean }
+  mechanic: string
+  /** Texto del bestiario: descripción breve y lore completo (este último con 10 victorias). */
+  description: string
+  lore: string
+  /** Probabilidad base del alma en cada victoria; se muestra en el bestiario con 20 victorias. */
+  soulChance: number
   windowDays: number
-  /** Días completos necesarios para vencerlo. */
-  targetDays: number
+  objective: BossObjective
+  effects: EnvEffect[]
   defeatDamage: number
-  /** Porcentaje de la EXP que se conserva mientras está activo. */
-  xpPercent: number
+  defeatCurse?: { id: CurseId; days: number }
   reward: { xp: number; coins: number }
-  resources: readonly BossResource[]
-  /** Rango inclusivo, en días, de la espera antes de aparecer y entre apariciones. */
+  drops: DropEntry[]
+  /** Rango inclusivo, en días, del enfriamiento antes de la siguiente aparición. */
   minDelay: number
   maxDelay: number
+  /** Peso en el sorteo del siguiente boss. */
+  weight: number
+  /** Si devuelve true al acabar el enfriamiento, este boss aparece antes que el sorteo. */
+  trigger?: (context: BossTriggerContext) => boolean
+}
+
+export interface BossTriggerContext {
+  today: string
+  profile: PlayerProfile
+  items: Item[]
+  completionsByItem: Record<string, Completion[]>
+  encounters: BossEncounter[]
 }
 
 export const BOSSES: Record<BossId, BossDefinition> = {
   'giant-bat': {
     id: 'giant-bat',
     name: 'Murciélago gigante',
+    parts: ['Murciélago gigante'],
+    grammar: { subject: 'El Murciélago gigante', object: 'al Murciélago gigante', plural: false },
+    mechanic: 'Constancia',
+    description: 'Una criatura que se descuelga de las vigas cuando la rutina del castillo se resquebraja.',
+    lore: 'Nadie sabe si el Murciélago gigante es un guardián o un castigo. Vuela más alto cada vez que dejas una obligación a medias y solo se aquieta cuando el castillo recupera su ritmo.',
+    soulChance: 0.03,
     windowDays: 5,
-    targetDays: 2,
+    objective: { kind: 'days', targetDays: 2 },
+    effects: [{ kind: 'xpPercent', percent: 70 }],
     defeatDamage: 20,
-    xpPercent: 70,
     reward: { xp: 100, coins: 50 },
-    resources: ['postponeToken', 'vitalityPotion', 'streakFreeze'],
+    drops: [
+      { item: 'postponeToken', chance: 0.45, min: 1, max: 1 },
+      { item: 'vitalityPotion', chance: 0.45, min: 1, max: 1 },
+      { item: 'streakFreeze', chance: 0.35, min: 1, max: 1 },
+      { item: 'holyWater', chance: 0.05, min: 1, max: 1 },
+    ],
     minDelay: 10,
     maxDelay: 15,
+    weight: 1,
+  },
+  'slogra-gaibon': {
+    id: 'slogra-gaibon',
+    name: 'Slogra y Gaibon',
+    parts: ['Slogra', 'Gaibon'],
+    grammar: { subject: 'Slogra y Gaibon', object: 'a Slogra y Gaibon', plural: true },
+    mechanic: 'Golpes',
+    description: 'Dos hermanos de piedra que custodian la puerta del castillo y se turnan para cerrarte el paso.',
+    lore: 'Slogra cayó primero ante un cazador, y Gaibon juró vengarlo desde la torre. Cada golpe les quiebra un trozo de piedra, pero siempre queda algo de ellos en pie.',
+    soulChance: 0.025,
+    windowDays: 5,
+    objective: {
+      kind: 'hits',
+      share: 0.55,
+      damage: { trivial: 1, easy: 2, medium: 3, hard: 5 },
+      load: { days: 5, factor: 0.9, min: 10, max: 80 },
+    },
+    effects: [{ kind: 'potionPercent', percent: 50 }],
+    defeatDamage: 15,
+    defeatCurse: { id: 'impaledSpear', days: 3 },
+    reward: { xp: 120, coins: 60 },
+    drops: [
+      { item: 'postponeToken', chance: 0.4, min: 1, max: 1 },
+      { item: 'vitalityPotion', chance: 0.5, min: 1, max: 1 },
+      { item: 'holyWater', chance: 0.08, min: 1, max: 1 },
+    ],
+    minDelay: 10,
+    maxDelay: 15,
+    weight: 1,
   },
 }
+
+export const BOSS_IDS = Object.keys(BOSSES) as BossId[]
 
 export const RESOURCE_LABEL: Record<BossResource, string> = {
   postponeToken: 'Sello de aplazamiento',
   vitalityPotion: 'Poción de vigor',
   streakFreeze: 'Congelación de racha',
+  holyWater: 'Agua bendita',
 }
 
-type Random = () => number
-
 export function shiftKey(dateKey: string, days: number): string {
-  return format(addDays(parseISO(dateKey), days), 'yyyy-MM-dd')
+  return shiftDateKey(dateKey, days)
 }
 
 /** Entero aleatorio en [min, max], ambos incluidos. */
@@ -103,16 +196,27 @@ export function isEffectActiveOn(encounter: BossEncounter | null | undefined, da
     && dateKey <= (encounter.windowEnd as string)
 }
 
+/** Porcentaje de un efecto de entorno que rige ese día, o 100 si no hay. */
+export function effectPercent(
+  encounter: BossEncounter | null | undefined,
+  kind: EnvEffect['kind'],
+  dateKey: string,
+): number {
+  if (!encounter || !isEffectActiveOn(encounter, dateKey)) return 100
+  return BOSSES[encounter.bossId].effects
+    .filter((effect) => effect.kind === kind)
+    .reduce((percent, effect) => (percent * effect.percent) / 100, 100)
+}
+
 /** EXP tras el efecto del boss: se aplica después de los bonos normales y redondea hacia arriba. */
 export function bossXp(xp: number, encounter: BossEncounter | null | undefined, dateKey: string): number {
-  if (!isEffectActiveOn(encounter, dateKey)) return xp
-  const { xpPercent } = BOSSES[(encounter as BossEncounter).bossId]
-  return Math.ceil((xp * xpPercent) / 100)
+  const percent = effectPercent(encounter, 'xpPercent', dateKey)
+  return percent === 100 ? xp : Math.ceil((xp * percent) / 100)
 }
 
 /**
- * Obligación que cuenta para el boss: recurrentes del Castillo y pergaminos con vencimiento ese día.
- * Quedan fuera los hábitos y las misiones secundarias (también las de ruta).
+ * Obligación que cuenta para el boss de constancia: recurrentes del Castillo y pergaminos con
+ * vencimiento ese día. Quedan fuera los hábitos y las misiones secundarias (también las de ruta).
  */
 export function isBossObligation(item: Item): boolean {
   return !item.archived && item.type !== 'habit' && isObligation(item)
@@ -162,11 +266,98 @@ export function completeDatesOf(
   return dates
 }
 
+/**
+ * Carga diaria real: mediana de obligaciones debidas por día en los 14 días anteriores,
+ * solo con tareas que ya existían una semana antes. Se usa para calibrar la meta de cada boss.
+ */
+export function dailyLoad(items: Item[], today: string): number {
+  const settled = items.filter((item) => activityDateKey(item.createdAt) <= shiftKey(today, -7))
+  const counts: number[] = []
+  for (let offset = 14; offset >= 1; offset -= 1) {
+    const day = shiftKey(today, -offset)
+    counts.push(settled.filter((item) => isBossDueOn(item, day)).length)
+  }
+  counts.sort((left, right) => left - right)
+  return (counts[6] + counts[7]) / 2
+}
+
+export function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
+/** Meta que se fija al activar el boss: días a lograr, o vida total de un boss de golpes. */
+export function bossGoal(boss: BossDefinition, items: Item[], today: string): number {
+  if (boss.objective.kind === 'days') return boss.objective.targetDays
+  const { days, factor, min, max } = boss.objective.load
+  return clamp(Math.round(dailyLoad(items, today) * days * factor), min, max)
+}
+
+export interface BossBar {
+  name: string
+  max: number
+  hp: number
+}
+
+/** Reparte el daño total entre las barras: la primera se agota antes de herir la segunda. */
+export function splitBars(boss: BossDefinition, goal: number, damage: number): BossBar[] {
+  if (boss.objective.kind !== 'hits' || boss.parts.length < 2) {
+    return [{ name: boss.parts[0], max: goal, hp: Math.max(0, goal - damage) }]
+  }
+  const first = Math.round(goal * boss.objective.share)
+  const dealtFirst = Math.min(damage, first)
+  const dealtSecond = clamp(damage - first, 0, goal - first)
+  return [
+    { name: boss.parts[0], max: first, hp: first - dealtFirst },
+    { name: boss.parts[1], max: goal - first, hp: goal - first - dealtSecond },
+  ]
+}
+
+export interface HitProgress {
+  damage: number
+  /** Primer día en que el daño acumulado alcanza la meta. */
+  reachedOn?: string
+}
+
+/** Daño acumulado por cumplidos de la ventana; se deriva siempre de los registros reales. */
+export function hitProgress(
+  encounter: BossEncounter,
+  items: Item[],
+  completionsByItem: Record<string, Completion[]>,
+  today: string,
+): HitProgress {
+  const boss = BOSSES[encounter.bossId]
+  if (boss.objective.kind !== 'hits' || !encounter.windowStart || !encounter.windowEnd) return { damage: 0 }
+  const { damage: table } = boss.objective
+  const last = encounter.windowEnd < today ? encounter.windowEnd : today
+  const perDay = new Map<string, number>()
+  // Todas las tareas golpean, también las creadas durante el combate; archivadas incluidas si ya cumplieron.
+  for (const item of items) {
+    for (const completion of completionsByItem[item.id] ?? []) {
+      if (completion.date < encounter.windowStart || completion.date > last || !isMetCompletion(item, completion)) continue
+      perDay.set(completion.date, (perDay.get(completion.date) ?? 0) + table[item.difficulty])
+    }
+  }
+  const goal = encounter.goal ?? 0
+  let total = 0
+  let reachedOn: string | undefined
+  for (let day = encounter.windowStart; day <= last; day = shiftKey(day, 1)) {
+    total += perDay.get(day) ?? 0
+    if (!reachedOn && goal > 0 && total >= goal) reachedOn = day
+  }
+  return { damage: total, reachedOn }
+}
+
 export interface BossSummary {
   encounter: BossEncounter
   definition: BossDefinition
+  kind: BossObjective['kind']
+  /** Constancia: fechas completas y días necesarios. */
   completedDates: string[]
   target: number
+  /** Golpes: daño hecho, vida total y barras. */
+  damage: number
+  goal: number
+  bars: BossBar[]
   /** Días que quedan de la ventana, contando hoy; 0 si no está activo. */
   daysLeft: number
   today: BossDayStatus
@@ -180,11 +371,21 @@ export function summarizeBoss(
 ): BossSummary {
   const definition = BOSSES[encounter.bossId]
   const active = encounter.status === 'active'
+  const kind = definition.objective.kind
+  const goal = encounter.goal ?? (definition.objective.kind === 'days' ? definition.objective.targetDays : 0)
+  const completedDates = active && kind === 'days' ? completeDatesOf(encounter, items, completionsByItem, today) : []
+  const damage = kind === 'hits'
+    ? (active ? hitProgress(encounter, items, completionsByItem, today).damage : (encounter.status === 'victory' ? goal : 0))
+    : 0
   return {
     encounter,
     definition,
-    completedDates: active ? completeDatesOf(encounter, items, completionsByItem, today) : [],
-    target: definition.targetDays,
+    kind,
+    completedDates,
+    target: definition.objective.kind === 'days' ? definition.objective.targetDays : 0,
+    damage,
+    goal,
+    bars: kind === 'hits' ? splitBars(definition, goal, damage) : [],
     daysLeft: active && encounter.windowEnd
       ? Math.max(0, differenceInCalendarDays(parseISO(encounter.windowEnd), parseISO(today)) + 1)
       : 0,
@@ -194,7 +395,118 @@ export function summarizeBoss(
 
 /** ¿Esta tarea cuenta hoy para el boss activo? Sirve para destacarla en la interfaz. */
 export function bossCountsFor(item: Item, encounter: BossEncounter | null, dateKey: string): boolean {
-  return isEffectActiveOn(encounter, dateKey) && isBossDueOn(item, dateKey)
+  if (!encounter || !isEffectActiveOn(encounter, dateKey)) return false
+  return BOSSES[encounter.bossId].objective.kind === 'hits'
+    ? !item.archived
+    : isBossDueOn(item, dateKey)
+}
+
+/** Etiqueta corta de un efecto de entorno, para chips y placas. */
+export function describeEffect(effect: EnvEffect): string {
+  return effect.kind === 'xpPercent' ? `EXP −${100 - effect.percent}%` : `Poción −${100 - effect.percent}%`
+}
+
+/** Explicación completa de un efecto de entorno. */
+export function describeEffectLong(effect: EnvEffect): string {
+  return effect.kind === 'xpPercent'
+    ? `Mientras esté activo, la EXP que ganas se reduce un ${100 - effect.percent} %.`
+    : `Mientras esté activo, las pociones de vigor curan un ${100 - effect.percent} % menos.`
+}
+/** Texto corto del avance: días conseguidos o daño hecho. */
+export function encounterSummaryLine(summary: BossSummary): string {
+  if (summary.kind === 'hits') return `${summary.damage}/${summary.goal} de daño`
+  return `${summary.completedDates.length}/${summary.target} días`
+}
+
+/** Medidor del bestiario: victorias y derrotas por boss, calculadas desde los encuentros resueltos. */
+export interface BestiaryEntry {
+  bossId: BossId
+  victories: number
+  defeats: number
+  firstVictoryOn?: string
+}
+
+export function bestiaryOf(encounters: BossEncounter[]): Record<BossId, BestiaryEntry> {
+  const entries = Object.fromEntries(
+    BOSS_IDS.map((id) => [id, { bossId: id, victories: 0, defeats: 0 } as BestiaryEntry]),
+  ) as Record<BossId, BestiaryEntry>
+  for (const encounter of encounters) {
+    const entry = entries[encounter.bossId]
+    if (!entry) continue
+    if (encounter.status === 'victory') {
+      entry.victories += 1
+      if (encounter.resolvedOn && (!entry.firstVictoryOn || encounter.resolvedOn < entry.firstVictoryOn)) {
+        entry.firstVictoryOn = encounter.resolvedOn
+      }
+    }
+    if (encounter.status === 'defeat') entry.defeats += 1
+  }
+  return entries
+}
+
+/** Victorias necesarias para cada parte de la página del bestiario. */
+export const BESTIARY_UNLOCKS = { page: 1, odds: 5, lore: 10, elite: 10, soul: 20 } as const
+
+export type BestiaryUnlockKey = keyof typeof BESTIARY_UNLOCKS
+
+export function bestiaryUnlocks(victories: number): Record<BestiaryUnlockKey, boolean> {
+  return {
+    page: victories >= BESTIARY_UNLOCKS.page,
+    odds: victories >= BESTIARY_UNLOCKS.odds,
+    lore: victories >= BESTIARY_UNLOCKS.lore,
+    elite: victories >= BESTIARY_UNLOCKS.elite,
+    soul: victories >= BESTIARY_UNLOCKS.soul,
+  }
+}
+
+/** Cómo se vence al boss, en una frase derivada de su objetivo. */
+export function bestiaryMechanic(boss: BossDefinition): string {
+  if (boss.objective.kind === 'days') {
+    return `Completa todas tus obligaciones durante ${boss.objective.targetDays} días dentro de una ventana de ${boss.windowDays} días.`
+  }
+  const order = boss.parts.length > 1 ? `, en orden: ${boss.parts.join(' y luego ')}` : ''
+  return `Cada tarea cumplida le asesta un golpe${order}.`
+}
+
+/** Los registros anteriores guardaban un único recurso: se convierten al formato de premios. */
+export function migrateEncounter(encounter: BossEncounter): BossEncounter {
+  if (encounter.status === 'victory' && encounter.rewardGranted && !encounter.rewards) {
+    return {
+      ...encounter,
+      rewards: {
+        xp: 100,
+        coins: 50,
+        items: encounter.rewardResource ? { [encounter.rewardResource]: 1 } : {},
+      },
+    }
+  }
+  return encounter
+}
+
+export function rewardMultiplier(level: number): number {
+  return 1 + 0.1 * Math.floor(level / 5)
+}
+
+/** Sortea cada objeto por separado; si no sale ninguno, concede el más probable. */
+export function rollRewards(boss: BossDefinition, level: number, random: Random = Math.random): BossRewards {
+  const multiplier = rewardMultiplier(level)
+  let coins = Math.round(boss.reward.coins * multiplier)
+  const items: BossRewards['items'] = {}
+  const grant = (drop: DropEntry, quantity: number) => {
+    if (drop.item === 'goldBag') coins += quantity
+    else items[drop.item] = (items[drop.item] ?? 0) + quantity
+  }
+  let dropped = false
+  for (const drop of boss.drops) {
+    if (random() >= drop.chance) continue
+    dropped = true
+    grant(drop, randomInt(drop.min, drop.max, random))
+  }
+  if (!dropped && boss.drops.length > 0) {
+    const likeliest = boss.drops.reduce((best, drop) => (drop.chance > best.chance ? drop : best))
+    grant(likeliest, likeliest.min)
+  }
+  return { xp: Math.round(boss.reward.xp * multiplier), coins, items }
 }
 
 function newEncounter(
@@ -204,7 +516,7 @@ function newEncounter(
   scheduledFor: string,
 ): BossEncounter {
   return {
-    id: `${bossId}:${sequence}`,
+    id: `enc:${sequence}`,
     bossId,
     sequence,
     status,
@@ -223,11 +535,10 @@ export function applyBossDamage(profile: PlayerProfile, damage: number): PlayerP
 /** Misma progresión que una completación normal: sube niveles y restaura la vida al subir. */
 export function applyBossReward(
   profile: PlayerProfile,
-  boss: BossDefinition,
-  resource: BossResource,
+  rewards: BossRewards,
 ): { profile: PlayerProfile; leveledUp: boolean } {
   let { level, maxHp } = profile
-  let xp = profile.xp + boss.reward.xp
+  let xp = profile.xp + rewards.xp
   let leveledUp = false
   while (xp >= xpToNextLevel(level)) {
     xp -= xpToNextLevel(level)
@@ -235,20 +546,39 @@ export function applyBossReward(
     maxHp += HP_PER_LEVEL
     leveledUp = true
   }
+  const gained = (resource: BossResource) => rewards.items[resource] ?? 0
   const next: PlayerProfile = {
     ...profile,
     level,
     xp,
     maxHp,
-    coins: profile.coins + boss.reward.coins,
-    postponeTokens: profile.postponeTokens + (resource === 'postponeToken' ? 1 : 0),
-    vitalityPotions: profile.vitalityPotions + (resource === 'vitalityPotion' ? 1 : 0),
-    streakFreezes: profile.streakFreezes + (resource === 'streakFreeze' ? 1 : 0),
+    coins: profile.coins + rewards.coins,
+    postponeTokens: profile.postponeTokens + gained('postponeToken'),
+    vitalityPotions: profile.vitalityPotions + gained('vitalityPotion'),
+    streakFreezes: profile.streakFreezes + gained('streakFreeze'),
+    holyWater: (profile.holyWater ?? 0) + gained('holyWater'),
   }
   return {
     profile: leveledUp ? { ...next, hp: effectiveMaxHp(next) } : next,
     leveledUp,
   }
+}
+
+/** Boss que no puede esperar al sorteo porque se cumplió su disparador; null si ninguno. */
+export function reactiveBoss(context: BossTriggerContext): BossId | null {
+  return BOSS_IDS.find((id) => BOSSES[id].trigger?.(context)) ?? null
+}
+
+/** Sorteo ponderado del siguiente boss, sin repetir el último si hay otro disponible. */
+export function pickBoss(previous: BossId | undefined, random: Random = Math.random): BossId {
+  const pool = BOSS_IDS.length > 1 ? BOSS_IDS.filter((id) => id !== previous) : BOSS_IDS
+  const total = pool.reduce((sum, id) => sum + BOSSES[id].weight, 0)
+  let roll = random() * total
+  for (const id of pool) {
+    roll -= BOSSES[id].weight
+    if (roll < 0) return id
+  }
+  return pool[pool.length - 1]
 }
 
 export interface BossSyncInput {
@@ -269,6 +599,27 @@ export interface BossSyncResult {
   leveledUp: boolean
 }
 
+interface Verdict {
+  won: boolean
+  resolvedOn?: string
+}
+
+function verdictOf(
+  encounter: BossEncounter,
+  items: Item[],
+  completionsByItem: Record<string, Completion[]>,
+  today: string,
+): Verdict {
+  const boss = BOSSES[encounter.bossId]
+  if (boss.objective.kind === 'days') {
+    const dates = completeDatesOf(encounter, items, completionsByItem, today)
+    const target = encounter.goal ?? boss.objective.targetDays
+    return { won: dates.length >= target, resolvedOn: dates[target - 1] }
+  }
+  const progress = hitProgress(encounter, items, completionsByItem, today)
+  return { won: Boolean(progress.reachedOn), resolvedOn: progress.reachedOn }
+}
+
 /**
  * Avanza el ciclo del boss hasta hoy. Es idempotente: con los registros ya resueltos
  * (recompensa y daño marcados) una nueva evaluación no cambia nada.
@@ -276,9 +627,13 @@ export interface BossSyncResult {
 export function planBossSync(input: BossSyncInput): BossSyncResult {
   const { today, items, completionsByItem } = input
   const random = input.random ?? Math.random
-  const definition = BOSSES['giant-bat']
   const changed = new Map<string, BossEncounter>()
-  const records = new Map(input.encounters.map((encounter) => [encounter.id, encounter]))
+  const records = new Map<string, BossEncounter>()
+  for (const encounter of input.encounters) {
+    const migrated = migrateEncounter(encounter)
+    records.set(migrated.id, migrated)
+    if (migrated !== encounter) changed.set(migrated.id, migrated)
+  }
   let profile = input.profile
   let leveledUp = false
 
@@ -286,63 +641,81 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
     records.set(encounter.id, encounter)
     changed.set(encounter.id, encounter)
   }
-  const unchanged = (): BossSyncResult => ({
-    encounters: input.encounters, changed: [], profile: input.profile, leveledUp: false,
+  const finish = (): BossSyncResult => ({
+    encounters: changed.size === 0 && profile === input.profile
+      ? input.encounters
+      : [...records.values()].sort((left, right) => left.sequence - right.sequence),
+    changed: [...changed.values()],
+    profile,
+    leveledUp,
   })
-  if (profile.dead) return unchanged()
+  if (profile.dead) return { encounters: input.encounters, changed: [], profile, leveledUp: false }
+
+  const tick = tickCurses(profile.curses, profile.hp, today)
+  if (tick.changed) profile = { ...profile, curses: tick.curses, hp: tick.hp }
 
   let current = latestEncounter([...records.values()])
-  if (!current) {
-    current = newEncounter(definition.id, 1, 'scheduled', shiftKey(today, rollDelay(definition, random)))
+  // Sin encuentros, o con el último ya resuelto y sin sucesor (p. ej. tras renacer), se programa otro.
+  if (!current || isResolved(current)) {
+    const first = pickBoss(current?.bossId, random)
+    current = newEncounter(
+      first, (current?.sequence ?? 0) + 1, 'scheduled', shiftKey(today, rollDelay(BOSSES[first], random)),
+    )
     save(current)
   }
 
   // Una resolución crea la siguiente aparición; el tope evita bucles tras una ausencia muy larga.
   for (let step = 0; step < 4 && current; step += 1) {
-    const boss = BOSSES[current.bossId]
     if (isPending(current)) {
       if (today < current.scheduledFor) break
+      const chosen = reactiveBoss({ today, profile, items, completionsByItem, encounters: [...records.values()] })
+        ?? current.bossId
+      const boss = BOSSES[chosen]
       current = {
         ...current,
+        bossId: chosen,
         status: 'active',
         windowStart: today,
         windowEnd: shiftKey(today, boss.windowDays - 1),
+        goal: bossGoal(boss, items, today),
       }
       save(current)
     }
     if (current.status !== 'active') break
 
-    const dates = completeDatesOf(current, items, completionsByItem, today)
+    const boss = BOSSES[current.bossId]
+    const verdict = verdictOf(current, items, completionsByItem, today)
     let resolved: BossEncounter | null = null
-    if (dates.length >= boss.targetDays) {
-      const resource = boss.resources[randomInt(0, boss.resources.length - 1, random)]
-      const reward = applyBossReward(profile, boss, resource)
-      profile = reward.profile
-      leveledUp = leveledUp || reward.leveledUp
+    if (verdict.won) {
+      const rewards = rollRewards(boss, profile.level, random)
+      const applied = applyBossReward(profile, rewards)
+      profile = applied.profile
+      leveledUp = leveledUp || applied.leveledUp
       resolved = {
-        ...current, status: 'victory', resolvedOn: dates[boss.targetDays - 1],
-        rewardGranted: true, rewardResource: resource,
+        ...current, status: 'victory', resolvedOn: verdict.resolvedOn, rewardGranted: true, rewards,
       }
     } else if (today > (current.windowEnd as string)) {
       profile = applyBossDamage(profile, boss.defeatDamage)
+      if (boss.defeatCurse && !profile.dead) {
+        profile = { ...profile, curses: addCurse(profile.curses, boss.defeatCurse.id, boss.id, today, boss.defeatCurse.days) }
+      }
       resolved = {
-        ...current, status: 'defeat', resolvedOn: shiftKey(current.windowEnd as string, 1), damageApplied: true,
+        ...current,
+        status: 'defeat',
+        resolvedOn: shiftKey(current.windowEnd as string, 1),
+        damageApplied: true,
+        curse: boss.defeatCurse?.id,
       }
     }
     if (!resolved) break
 
+    const next = pickBoss(boss.id, random)
     const nextActivationOn = shiftKey(resolved.resolvedOn as string, rollDelay(boss, random))
     save({ ...resolved, nextActivationOn })
-    current = newEncounter(boss.id, resolved.sequence + 1, 'cooldown', nextActivationOn)
+    current = newEncounter(next, resolved.sequence + 1, 'cooldown', nextActivationOn)
     save(current)
     if (profile.dead) break
   }
 
-  const changedList = [...changed.values()]
-  return {
-    encounters: [...records.values()].sort((left, right) => left.sequence - right.sequence),
-    changed: changedList,
-    profile,
-    leveledUp,
-  }
+  return finish()
 }

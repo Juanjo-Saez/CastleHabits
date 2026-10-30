@@ -1,4 +1,4 @@
-import { differenceInCalendarDays, format, parseISO, subHours } from 'date-fns'
+import { addDays, differenceInCalendarDays, format, parseISO, subHours } from 'date-fns'
 
 /** Hora a la que empieza el nuevo día: lo que se hace de madrugada cuenta como del día anterior. */
 export const DAY_START_HOUR = 2
@@ -15,6 +15,11 @@ export function todayKey(): string {
 
 export function activityDateKey(timestamp: string): string {
   return format(subHours(parseISO(timestamp), DAY_START_HOUR), 'yyyy-MM-dd')
+}
+
+/** Desplaza una clave yyyy-MM-dd el número de días indicado. */
+export function shiftDateKey(dateKey: string, days: number): string {
+  return format(addDays(parseISO(dateKey), days), 'yyyy-MM-dd')
 }
 
 /** Tiempo restante hasta una fecha límite yyyy-MM-dd, en días naturales. */

@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { db } from '../db/database'
 import { todayKey } from '../lib/date'
-import { activeEncounter, bossXp, planBossSync } from '../lib/bosses'
+import { activeEncounter, planBossSync } from '../lib/bosses'
+import { modifyCoins, modifyXp, type ModifierContext } from '../lib/modifiers'
 import type { BossEncounter, Completion } from '../types'
 import { mergeLevelUp, usePlayerStore } from './usePlayerStore'
 
@@ -65,12 +66,21 @@ export function currentActiveBoss(): BossEncounter | null {
   return activeEncounter(useBossStore.getState().encounters)
 }
 
-/** Aplica el efecto del boss activo a una cantidad de EXP calculada con los bonos normales. */
-export function xpAfterBoss(xp: number, dateKey = todayKey()): number {
-  return bossXp(xp, currentActiveBoss(), dateKey)
+/** Boss y maldiciones que alteran las reglas ahora mismo. */
+export function currentModifiers(): ModifierContext {
+  return { boss: currentActiveBoss(), curses: usePlayerStore.getState().profile?.curses }
 }
 
-// Una expedición nueva borra los encuentros: se vuelve a programar de inmediato.
+/** Aplica los efectos del boss y las maldiciones a una cantidad de EXP ya calculada con los bonos normales. */
+export function xpAfterModifiers(xp: number, dateKey = todayKey()): number {
+  return modifyXp(xp, currentModifiers(), dateKey)
+}
+
+export function coinsAfterModifiers(coins: number, dateKey = todayKey()): number {
+  return modifyCoins(coins, currentModifiers(), dateKey)
+}
+
+// Una expedición nueva borra los encuentros pendientes: se vuelve a programar de inmediato.
 usePlayerStore.subscribe((state, previous) => {
   const next = state.profile?.runStartedAt
   if (previous.profile && next && previous.profile.runStartedAt !== next) {

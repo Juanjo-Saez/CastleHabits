@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import BackupSettings from '../components/BackupSettings'
+import BestiaryPanel from '../components/BestiaryPanel'
+import CursesPanel from '../components/CursesPanel'
 import HunterPortrait from '../components/HunterPortrait'
 import NotificationSettings from '../components/NotificationSettings'
 import PageHeader from '../components/PageHeader'
@@ -13,6 +15,7 @@ import { effectiveMaxHp } from '../lib/routes'
 import { restartExpedition } from '../store/routeActions'
 import { resetAllAppData } from '../db/database'
 import { useAchievementsStore } from '../store/useAchievementsStore'
+import { useBossStore } from '../store/useBossStore'
 import { useItemsStore } from '../store/useItemsStore'
 import { usePlayerStore } from '../store/usePlayerStore'
 import { useRewardsStore } from '../store/useRewardsStore'
@@ -36,6 +39,7 @@ function ProfilePage() {
         useAchievementsStore.getState().load(),
         useRewardsStore.getState().load(),
       ])
+      await useBossStore.getState().sync()
       setConfirmFullReset(false)
       setResetError(false)
     } catch {
@@ -78,6 +82,10 @@ function ProfilePage() {
         </div>
 
         <RoutesPanel />
+
+        <CursesPanel />
+
+        <BestiaryPanel />
 
         <RewardsShop />
 

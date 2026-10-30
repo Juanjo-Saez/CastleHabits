@@ -107,6 +107,10 @@ export interface PlayerProfile {
   hp: number
   maxHp: number
   streakFreezes: number
+  /** Consumible que cura una maldición; lo dan algunos bosses. */
+  holyWater: number
+  /** Maldiciones activas (máximo 2). Se reinician al empezar otra expedición. */
+  curses: ActiveCurse[]
   routes: Record<RouteId, RouteProgress>
   /** Oficio equipado: su pasiva es la única activa. */
   equippedRoute: RouteId | null
@@ -165,17 +169,37 @@ export interface Reminder {
   createdAt: string
 }
 
-export type BossId = 'giant-bat'
+export type BossId = 'giant-bat' | 'slogra-gaibon'
 
 /** `scheduled` es la espera inicial; `cooldown`, la espera posterior a un encuentro resuelto. */
 export type BossStatus = 'scheduled' | 'active' | 'victory' | 'defeat' | 'cooldown'
 
-export type BossResource = 'postponeToken' | 'vitalityPotion' | 'streakFreeze'
+/** Consumibles de inventario que pueden soltar los bosses. */
+export type BossResource = 'postponeToken' | 'vitalityPotion' | 'streakFreeze' | 'holyWater'
+
+export type CurseId = 'impaledSpear' | 'heaviness' | 'avarice' | 'silence' | 'poison' | 'charm' | 'shadow'
+
+/** Maldición en curso: rige desde `startedOn` hasta el día anterior a `expiresOn`. */
+export interface ActiveCurse {
+  id: CurseId
+  sourceBoss: BossId
+  startedOn: string
+  expiresOn: string
+  /** Último día (yyyy-MM-dd) cuyo daño diario ya se aplicó. */
+  lastTickOn?: string
+}
+
+export interface BossRewards {
+  xp: number
+  coins: number
+  items: Partial<Record<BossResource, number>>
+}
 
 /** Una aparición de un boss. Solo existe una sin resolver a la vez; el progreso se deriva de los completados. */
 export interface BossEncounter {
-  /** Determinista (`bossId:sequence`) para que una escritura repetida no cree duplicados. */
+  /** Estable: una escritura repetida no crea duplicados. Los nuevos son `enc:<sequence>`. */
   id: string
+  /** Boss de esta aparición; mientras está pendiente es provisional y un disparador puede cambiarlo. */
   bossId: BossId
   sequence: number
   status: BossStatus
@@ -183,16 +207,21 @@ export interface BossEncounter {
   scheduledFor: string
   windowStart?: string
   windowEnd?: string
+  /** Meta fijada al activarse según la carga real (p. ej. vida total del boss de golpes). */
+  goal?: number
   resolvedOn?: string
   /** Día en que podrá activarse la siguiente aparición, fijado al resolver. */
   nextActivationOn?: string
   rewardGranted: boolean
   damageApplied: boolean
+  rewards?: BossRewards
+  /** Maldición aplicada al perder. */
+  curse?: CurseId
+  /** Solo en registros anteriores a `rewards`; se migra al leerlos. */
   rewardResource?: BossResource
   /** Identifica la aparición para los avisos de la interfaz, aunque se reinicien los datos. */
   createdAt: string
 }
-
 export interface Achievement {
   id: string
   name: string

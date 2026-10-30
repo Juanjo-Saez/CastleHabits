@@ -1,16 +1,24 @@
 import { format, parseISO } from 'date-fns'
 import { useEffect, useRef, type ReactNode } from 'react'
-import { RESOURCE_LABEL, type BossSummary } from '../lib/bosses'
+import {
+  describeEffect,
+  describeEffectLong,
+  RESOURCE_LABEL,
+  rewardMultiplier,
+  type BossSummary,
+} from '../lib/bosses'
+import { CURSES } from '../lib/curses'
 import {
   COIN,
   COIN_PALETTE,
   DIAMOND,
-  GIANT_BAT,
-  GIANT_BAT_PALETTE,
   GOLD_GEM_PALETTE,
   HEART,
   HEART_PALETTE,
 } from '../lib/pixelArt'
+import { usePlayerStore } from '../store/usePlayerStore'
+import type { BossResource } from '../types'
+import BossSprite from './BossSprite'
 import Candle from './Candle'
 import CastleSilhouette from './CastleSilhouette'
 import Ornament from './Ornament'
@@ -22,16 +30,27 @@ function dayLabel(dateKey: string): string {
   return format(parseISO(dateKey), 'dd/MM')
 }
 
+function itemsText(items: Partial<Record<BossResource, number>>): string {
+  return Object.entries(items)
+    .filter(([, quantity]) => (quantity ?? 0) > 0)
+    .map(([resource, quantity]) => `${quantity} × ${RESOURCE_LABEL[resource as BossResource].toLowerCase()}`)
+    .join(', ')
+}
+
 function headline(summary: BossSummary, mode: BossDialogMode): string | null {
   const { encounter, definition } = summary
   if (encounter.status === 'victory' && mode === 'result') {
-    const resource = encounter.rewardResource ? ` y ${RESOURCE_LABEL[encounter.rewardResource].toLowerCase()}` : ''
-    return `¡Has vencido al ${definition.name}! Recibes ${definition.reward.xp} EXP, ${definition.reward.coins} monedas${resource}.`
+    const rewards = encounter.rewards
+    if (!rewards) return `¡Has vencido ${definition.grammar.object}!`
+    const items = itemsText(rewards.items)
+    return `¡Has vencido ${definition.grammar.object}! Recibes ${rewards.xp} EXP, ${rewards.coins} monedas${items ? ` y ${items}` : ''}.`
   }
   if (encounter.status === 'defeat' && mode === 'result') {
-    return `El ${definition.name} se retira tras herirte: pierdes ${definition.defeatDamage} de vida.`
+    const curse = encounter.curse ? ` Te alcanza la maldición ${CURSES[encounter.curse].name}.` : ''
+    const verb = definition.grammar.plural ? 'se retiran' : 'se retira'
+    return `${definition.grammar.subject} ${verb} tras herirte: pierdes ${definition.defeatDamage} de vida.${curse}`
   }
-  if (mode === 'intro') return `Un ${definition.name.toLowerCase()} ronda el castillo.`
+  if (mode === 'intro') return `${definition.grammar.subject} ${definition.grammar.plural ? 'rondan' : 'ronda'} el castillo.`
   return null
 }
 
@@ -72,9 +91,15 @@ function BossDialog({
   onClose,
 }: Readonly<{ summary: BossSummary; mode?: BossDialogMode; onClose: () => void }>) {
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const { definition, encounter, completedDates, target, today } = summary
+  const level = usePlayerStore((s) => s.profile?.level ?? 1)
+  const { definition, encounter, completedDates, target, today, kind, bars, damage, goal } = summary
   const active = encounter.status === 'active'
   const notice = headline(summary, mode)
+  const multiplier = rewardMultiplier(level)
+  const objective = definition.objective
+  const dropLabels = definition.drops
+    .map((drop) => (drop.item === 'goldBag' ? 'bolsa de oro' : RESOURCE_LABEL[drop.item].toLowerCase()))
+    .join(', ')
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -94,7 +119,7 @@ function BossDialog({
           <div className="cv-moon absolute top-5 left-1/2 h-24 w-24 -translate-x-1/2" />
           <CastleSilhouette className="absolute inset-x-0 bottom-0 h-32 w-full opacity-95" />
           <div className="absolute inset-0 flex items-center justify-center pb-4">
-            <PixelArt rows={GIANT_BAT} palette={GIANT_BAT_PALETTE} scale={4} className="cv-boss-float" />
+            <BossSprite bossId={definition.id} scale={definition.id === 'giant-bat' ? 4 : 3} className="cv-boss-float" />
           </div>
           <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-night-950 to-transparent" />
           <button
@@ -109,7 +134,7 @@ function BossDialog({
 
         <div className="flex flex-col gap-4 px-4 pt-3 pb-4">
           <header className="text-center">
-            <p className="cv-label">Encuentro con boss</p>
+            <p className="cv-label">Encuentro con boss · {definition.mechanic}</p>
             <h2 id="boss-dialog-title" className="cv-title mt-1 text-4xl">{definition.name}</h2>
             <Ornament className="mt-2" />
             <p className={`cv-tag cv-tag--still mt-3 inline-block ${active ? 'cv-tag--blood' : 'cv-tag--gold'}`}>{stateText(summary)}</p>
@@ -123,43 +148,97 @@ function BossDialog({
             <>
               <div className="grid grid-cols-3 gap-2">
                 <Plate label="Plazo" value={summary.daysLeft === 1 ? 'Hoy' : `${summary.daysLeft} días`} />
-                <Plate label="Efecto" value={`EXP −${100 - definition.xpPercent}%`} tone="text-blood-400" />
-                <Plate label="Hoy" value={today.due === 0 ? '—' : `${today.done}/${today.due}`} />
+                <Plate
+                  label="Efecto"
+                  value={definition.effects[0] ? describeEffect(definition.effects[0]) : '—'}
+                  tone="text-blood-400"
+                />
+                {kind === 'days' ? (
+                  <Plate label="Hoy" value={today.due === 0 ? '—' : `${today.done}/${today.due}`} />
+                ) : (
+                  <Plate label="Golpes" value={`${damage}/${goal}`} />
+                )}
               </div>
 
-              <section aria-label="Progreso">
-                <p className="cv-label text-center">Días con todas las obligaciones cumplidas</p>
-                <div className="mt-2 flex items-end justify-center gap-8">
-                  {Array.from({ length: target }, (_, index) => (
-                    <div key={index} className="flex flex-col items-center gap-1">
-                      <Candle lit={index < completedDates.length} scale={4} />
-                      <span className="font-pixel text-lg leading-none text-silver-500">
-                        {completedDates[index] ? dayLabel(completedDates[index]) : '—'}
-                      </span>
+              {kind === 'days' ? (
+                <section aria-label="Progreso">
+                  <p className="cv-label text-center">Días con todas las obligaciones cumplidas</p>
+                  <div className="mt-2 flex items-end justify-center gap-8">
+                    {Array.from({ length: target }, (_, index) => (
+                      <div key={index} className="flex flex-col items-center gap-1">
+                        <Candle lit={index < completedDates.length} scale={4} />
+                        <span className="font-pixel text-lg leading-none text-silver-500">
+                          {completedDates[index] ? dayLabel(completedDates[index]) : '—'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="sr-only">{completedDates.length} de {target} días conseguidos.</p>
+                  <p className="mt-2 text-center font-body text-sm text-silver-500 italic">
+                    {today.due === 0
+                      ? 'Hoy no hay obligaciones que cuenten para el boss.'
+                      : `Hoy llevas ${today.done} de ${today.due} obligaciones.`}
+                  </p>
+                </section>
+              ) : (
+                <section aria-label="Vida del boss" className="flex flex-col gap-2">
+                  {bars.map((bar) => (
+                    <div key={bar.name}>
+                      <div className="mb-1 flex justify-between font-pixel text-base leading-none text-silver-300">
+                        <span>{bar.name}</span>
+                        <span>{bar.hp}/{bar.max}</span>
+                      </div>
+                      <div
+                        className="cv-bar"
+                        role="progressbar"
+                        aria-label={`Vida de ${bar.name}`}
+                        aria-valuemin={0}
+                        aria-valuemax={bar.max}
+                        aria-valuenow={bar.hp}
+                      >
+                        <span className="cv-fill-hp" style={{ width: `${bar.max ? (bar.hp / bar.max) * 100 : 0}%` }} />
+                      </div>
                     </div>
                   ))}
-                </div>
-                <p className="sr-only">{completedDates.length} de {target} días conseguidos.</p>
-                <p className="mt-2 text-center font-body text-sm text-silver-500 italic">
-                  {today.due === 0
-                    ? 'Hoy no hay obligaciones que cuenten para el boss.'
-                    : `Hoy llevas ${today.done} de ${today.due} obligaciones.`}
-                </p>
-              </section>
+                  {objective.kind === 'hits' && (
+                    <p className="mt-1 text-center font-pixel text-base leading-none text-silver-500">
+                      Golpe: trivial {objective.damage.trivial} · fácil {objective.damage.easy} · media {objective.damage.medium} · difícil {objective.damage.hard}
+                    </p>
+                  )}
+                </section>
+              )}
             </>
           )}
 
           <ul className="flex flex-col gap-3">
+            {definition.effects.length > 0 && (
+              <Rule icon={<span className="font-pixel text-2xl text-blood-400">☾</span>} title="Entorno">
+                {definition.effects.map(describeEffectLong).join(' ')}
+              </Rule>
+            )}
             <Rule icon={<PixelArt rows={DIAMOND} palette={GOLD_GEM_PALETTE} scale={3} />} title="Cómo vencerlo">
-              Cumple todas las obligaciones recurrentes y pergaminos que vencen ese día (al menos una) en {definition.targetDays} días,
-              seguidos o no, dentro de {definition.windowDays} días. Hábitos y misiones secundarias no cuentan.
+              {objective.kind === 'days' ? (
+                <>
+                  Cumple todas las obligaciones recurrentes y pergaminos que vencen ese día (al menos una) en {objective.targetDays} días,
+                  seguidos o no, dentro de {definition.windowDays} días. Hábitos y misiones secundarias no cuentan.
+                </>
+              ) : (
+                <>
+                  Cada tarea cumplida, sea obligación, pergamino, hábito o misión secundaria, le hace un golpe según su
+                  dificultad. Debes agotar su vida ({goal || 'según tu carga'})
+                  en {definition.windowDays} días.
+                </>
+              )}
             </Rule>
             <Rule icon={<PixelArt rows={HEART} palette={HEART_PALETTE} scale={3} />} title="Si fallas">
               Al acabar el plazo recibes {definition.defeatDamage} de daño directo: ninguna defensa lo detiene.
+              {definition.defeatCurse && (
+                <> Además te alcanza la maldición <strong>{CURSES[definition.defeatCurse.id].name}</strong> durante {definition.defeatCurse.days} días: {CURSES[definition.defeatCurse.id].description.toLowerCase()}</>
+              )}
             </Rule>
             <Rule icon={<PixelArt rows={COIN} palette={COIN_PALETTE} scale={3} />} title="Recompensa">
-              {definition.reward.xp} EXP, {definition.reward.coins} monedas y un recurso al azar: sello de aplazamiento,
-              poción de vigor o congelación de racha.
+              {Math.round(definition.reward.xp * multiplier)} EXP y {Math.round(definition.reward.coins * multiplier)} monedas,
+              más objetos al azar: {dropLabels}.
             </Rule>
           </ul>
 

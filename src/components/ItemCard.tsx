@@ -1,7 +1,7 @@
 import { format, parseISO, startOfDay, subDays } from 'date-fns'
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { activeEncounter, bossCountsFor } from '../lib/bosses'
+import { activeEncounter, BOSSES, bossCountsFor } from '../lib/bosses'
 import { describeDaysLeft, logicalNow, todayKey } from '../lib/date'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
 import {
@@ -16,9 +16,10 @@ import {
   missedCarryOf,
 } from '../lib/recurrence'
 import { xpWithBonus } from '../lib/routes'
+import { canPostpone as postponeAllowed } from '../lib/modifiers'
 import { playWhip } from '../lib/sound'
 import { computeMissStreak, computeStreak } from '../lib/streak'
-import { useBossStore, xpAfterBoss } from '../store/useBossStore'
+import { coinsAfterModifiers, useBossStore, xpAfterModifiers } from '../store/useBossStore'
 import { useItemsStore } from '../store/useItemsStore'
 import { usePlayerStore } from '../store/usePlayerStore'
 import type { Item } from '../types'
@@ -29,6 +30,8 @@ interface RewardPopup {
   id: number
   xp: number
   coins: number
+  /** Golpe al boss de golpes que provoca esta tarea; 0 si no hay. */
+  hit: number
 }
 
 function isDueTodayBadge(item: Item): boolean {
@@ -69,6 +72,11 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
   const postponeTokens = usePlayerStore((s) => s.profile?.postponeTokens ?? 0)
   const profile = usePlayerStore((s) => s.profile)
   const countsForBoss = useBossStore((s) => bossCountsFor(item, activeEncounter(s.encounters), todayKey()))
+  const hitDamage = useBossStore((s) => {
+    const boss = activeEncounter(s.encounters)
+    const objective = boss ? BOSSES[boss.bossId].objective : null
+    return objective?.kind === 'hits' && bossCountsFor(item, boss, todayKey()) ? objective.damage[item.difficulty] : 0
+  })
   const [popup, setPopup] = useState<RewardPopup | null>(null)
   const popupSeq = useRef(0)
   const [busy, setBusy] = useState(false)
@@ -95,6 +103,7 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
     parseISO(effectiveDueDate as string) < startOfDay(logicalNow())
   const canPostpone =
     isObligation(item) && dueToday && !done && postponeTokens > 0 && marginDaysOf(item) === 1
+    && postponeAllowed({ curses: profile?.curses }, todayKey())
   // Solo en tareas con margen: avisa de que hoy es el último día para cumplirla.
   const lastWindowDay =
     marginDaysOf(item) > 1 && !done && isWindowClosingOn(item, logicalNow())
@@ -102,14 +111,15 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
   const frameClass = getFrameClass(done, overdue || missedOn !== null)
   const meta = getItemMeta(item, effectiveDueDate)
 
-  const showReward = (direction: 1 | -1, xp: number) => {
+  const showReward = (direction: 1 | -1, xp: number, coins: number, hit: number) => {
     playWhip()
     const id = popupSeq.current + 1
     popupSeq.current = id
     setPopup({
       id,
       xp: direction * xp,
-      coins: direction * DIFFICULTY_COINS[item.difficulty],
+      coins: direction * coins,
+      hit: direction * hit,
     })
     setTimeout(() => setPopup((p) => (p?.id === id ? null : p)), 1100)
   }
@@ -118,12 +128,15 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
     // Se calcula antes de actuar: una victoria al completar apaga el efecto del boss durante la acción.
     const earned = reward === -1 && completion?.xpEarned
       ? completion.xpEarned
-      : xpAfterBoss(xpWithBonus(DIFFICULTY_XP[item.difficulty], profile))
+      : xpAfterModifiers(xpWithBonus(DIFFICULTY_XP[item.difficulty], profile))
+    const earnedCoins = reward === -1 && completion?.coinsEarned
+      ? completion.coinsEarned
+      : coinsAfterModifiers(DIFFICULTY_COINS[item.difficulty])
     setBusy(true)
     setError(null)
     try {
       await action()
-      if (reward) showReward(reward, earned)
+      if (reward) showReward(reward, earned, earnedCoins, hitDamage)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo guardar la actividad.')
     } finally {
@@ -268,6 +281,14 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
           <span className={popup.coins > 0 ? 'text-silver-100' : 'text-blood-400'}>
             {popup.coins > 0 ? '+' : ''}{popup.coins} ORO
           </span>
+          {popup.hit !== 0 && (
+            <>
+              {' '}
+              <span className={popup.hit > 0 ? 'text-blood-400' : 'text-silver-300'}>
+                ⚔ {popup.hit > 0 ? '−' : '+'}{Math.abs(popup.hit)}
+              </span>
+            </>
+          )}
         </div>
       )}
     </div>

@@ -108,17 +108,17 @@ Estado revisado el 28 de octubre de 2026. Este documento refleja el punto actual
 - [x] Empezar con un formato acotado y basado en eventos reales: completar todas las obligaciones durante 2 días dentro de una ventana de 5 días.
 - [ ] Definir qué ventanas de estadísticas puede consultar cada encuentro: el boss inicial contará desde el inicio de su propio punto de referencia; los futuros podrán usar expedición, últimos siete días, desde el encuentro anterior o historial completo.
 - [x] Diseñar el plantel de bosses, los efectos de entorno, las maldiciones, los premios y el bestiario (ver `openspec/changes/boss-roster/proposal.md`).
-- [ ] **Motor general de bosses**: tipos de objetivo (constancia, golpes, robo de vida, piezas, enjambre, estatuas, cabezas, duelo, reloj, fases), efectos de entorno, maldiciones y tabla de premios por boss.
-  - [ ] Dejar de borrar los encuentros resueltos al jubilarse, para conservar el bestiario y las almas.
-  - [ ] Sustituir el recurso único al azar del Murciélago por el sorteo independiente por objeto.
-  - [ ] Calcular las metas con la carga real del jugador, sin contar tareas nuevas ni triviales.
-- [ ] **Aparición mixta**: sorteo ponderado tras cada enfriamiento, disparadores reactivos (aplazamientos, fallos, rachas, zona abandonada, misiones secundarias olvidadas) y jefes finales por hito.
-- [ ] **Bosses** (uno por cambio): Slogra y Gaibon, Succubus (robo de vida), Death, Frankenstein, Legion, Medusa, Cerbero, Doppelgänger, Hidra/Escila, Sukamon y Drácula.
-- [ ] **Efectos de entorno**: luna de sangre, eclipse, avaricia, silencio, tormenta, mirada, sangre rancia, niebla, zona maldita, bendición lunar y espejo.
-- [ ] **Maldiciones**: leves que caducan y graves que se curan con sacerdotisa, agua bendita, penitencia o revancha; máximo dos a la vez.
+- [x] **Motor general de bosses** (fase 2): objetivos de constancia y golpes, efectos de entorno, maldiciones y tabla de premios por boss. Faltan los objetivos de robo de vida, piezas, enjambre, estatuas, cabezas, duelo, reloj y fases.
+  - [x] Dejar de borrar los encuentros resueltos al jubilarse, para conservar el bestiario y las almas.
+  - [x] Sustituir el recurso único al azar del Murciélago por el sorteo independiente por objeto.
+  - [x] Calcular las metas con la carga real del jugador, sin contar tareas nuevas.
+- [ ] **Aparición mixta** (sorteo ponderado y gancho de disparadores hechos; faltan los disparadores de cada boss): sorteo ponderado tras cada enfriamiento, disparadores reactivos (aplazamientos, fallos, rachas, zona abandonada, misiones secundarias olvidadas) y jefes finales por hito.
+- [ ] **Bosses** (uno por cambio; Slogra y Gaibon ya está hecho): Succubus (robo de vida), Death, Frankenstein, Legion, Medusa, Cerbero, Doppelgänger, Hidra/Escila, Sukamon y Drácula.
+- [ ] **Efectos de entorno** (hechos: pesadez de EXP y pociones a medias): luna de sangre, eclipse, avaricia, silencio, tormenta, mirada, sangre rancia, niebla, zona maldita, bendición lunar y espejo.
+- [ ] **Maldiciones**: leves que caducan (hechas, con sacerdotisa y agua bendita) y graves que se curan con penitencia o revancha; máximo dos a la vez.
 - [ ] **Premios**: agua bendita, látigo y bolsa de oro; almas con probabilidad baja, piedad y rangos; reliquias; títulos, marcos y auras.
 - [ ] **Almas equipables** persistentes entre expediciones, con casillas según el nivel (1, 2 y 3 en los niveles 5, 10 y 20). Las reliquias se reinician al jubilarse.
-- [ ] **Bestiario**: silueta sin victorias; página y recompensas con 1; probabilidades de consumibles con 5; versión élite y lore con 10; probabilidad del alma con 20.
+- [x] **Bestiario**: silueta sin victorias; página y recompensas con 1; probabilidades de consumibles con 5; versión élite y lore con 10; probabilidad del alma con 20.
 - [ ] **Versión élite** de cada boss tras 10 victorias, con 1/10 de probabilidad de aparecer en cada encuentro.
 - [x] Decidir las preguntas abiertas del diseño: las almas y el bestiario persisten y las reliquias no, la apuesta de Death se pierde de verdad, la versión élite es opcional con 1/10 de probabilidad por aparición y el minijefe de aplazamientos es el Sukamon de Digimon.
 

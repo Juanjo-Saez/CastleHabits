@@ -5,6 +5,7 @@ import { effectiveMaxHp, shopPrice } from '../lib/routes'
 import { usePlayerStore } from '../store/usePlayerStore'
 import { useRewardsStore } from '../store/useRewardsStore'
 import PixelArt from './PixelArt'
+import { hasCurse } from '../lib/curses'
 import SectionTitle from './SectionTitle'
 
 function RewardsShop() {
@@ -57,7 +58,9 @@ function RewardsShop() {
 
   const handleUseVitalityPotion = async () => {
     const ok = await consumeVitalityPotion()
-    setMessage(ok ? 'La poción restaura 10 puntos de vitalidad.' : 'No puedes usar una poción ahora.')
+    let failure = 'No puedes usar una poción ahora.'
+    if (hasCurse(profile, 'charm')) failure = 'Una maldición impide que la poción te cure.'
+    setMessage(ok ? 'La poción restaura tu vitalidad.' : failure)
   }
 
   const handleBuyStreakFreeze = async () => {

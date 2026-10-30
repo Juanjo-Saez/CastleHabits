@@ -6,10 +6,11 @@ import { logicalNow, todayKey } from '../lib/date'
 import { isCorrectionDay, saveDayCorrection, type DayCorrection } from '../lib/dayCorrections'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
 import { itemEventId, recordItemEvent } from '../lib/itemEvents'
+import { canPostpone } from '../lib/modifiers'
 import { completionInWindow, isItemDueOn, isObligation, marginDaysOf, scheduledDateFor } from '../lib/recurrence'
 import { xpWithBonus } from '../lib/routes'
 import { useAchievementsStore } from './useAchievementsStore'
-import { useBossStore, xpAfterBoss } from './useBossStore'
+import { coinsAfterModifiers, currentModifiers, useBossStore, xpAfterModifiers } from './useBossStore'
 import { usePlayerStore, mergeLevelUp } from './usePlayerStore'
 import type {
   Completion,
@@ -183,8 +184,8 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       return
     }
 
-    const xp = xpAfterBoss(xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile))
-    const coins = DIFFICULTY_COINS[item.difficulty]
+    const xp = xpAfterModifiers(xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile))
+    const coins = coinsAfterModifiers(DIFFICULTY_COINS[item.difficulty])
     const today = todayKey()
     const scheduledDate = scheduledDateFor(item, logicalNow())
     let effectiveDueDate = today
@@ -256,8 +257,8 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
 
     const wasComplete = prevQty >= goal
     const isComplete = nextQty >= goal
-    const xp = xpAfterBoss(xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile))
-    const coins = DIFFICULTY_COINS[item.difficulty]
+    const xp = xpAfterModifiers(xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile))
+    const coins = coinsAfterModifiers(DIFFICULTY_COINS[item.difficulty])
 
     if (!wasComplete && isComplete) {
       await usePlayerStore.getState().awardCompletion(xp, coins)
@@ -338,7 +339,8 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       get().completionsToday[itemId] ||
       item.postponedUntil === today ||
       marginDaysOf(item) > 1 ||
-      !isItemDueOn(item, logicalNow())
+      !isItemDueOn(item, logicalNow()) ||
+      !canPostpone(currentModifiers(), today)
     ) return false
 
     const spent = await usePlayerStore.getState().spendPostponeToken()

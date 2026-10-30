@@ -231,6 +231,28 @@ body {
     inset 0 1px 0 rgb(243 227 168 / 0.12);
 }
 
+/* Cada golpe sacude la barra de vida del boss. */
+.cv-boss-hit {
+  animation: boss-hit 0.45s ease-out;
+}
+
+@keyframes boss-hit {
+  0%,
+  100% {
+    transform: translateX(0);
+    filter: none;
+  }
+  20% {
+    transform: translateX(-4px);
+    filter: brightness(1.8);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+}
 @keyframes boss-sheen {
   0% {
     background-position: 100% 0;

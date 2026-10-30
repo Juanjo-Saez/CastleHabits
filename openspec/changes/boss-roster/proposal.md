@@ -8,7 +8,40 @@ Diseño de los siguientes encuentros tras el Murciélago gigante. Es un document
 - **Un solo boss activo a la vez.** Entre encuentros hay enfriamiento (hoy 10–15 días) y los reactivos tienen un mínimo de 7.
 - **Hardcore protegido:** solo el daño directo de un boss puede matar. Los efectos de entorno y las maldiciones nunca bajan la vida de 1.
 - **Sin premiar fallar:** ningún boss se vence perdiendo a propósito una responsabilidad. Succubus pasa a ser un boss de **robo de vida** (ver más abajo).
-- **Anti-abuso:** no cuentan las tareas creadas después de activarse el boss ni las triviales para los objetivos de cantidad, y cada tarea cuenta como máximo una vez al día.
+- **Anti-abuso:** cada tarea cuenta como máximo una vez al día (un completado por tarea y día). En los bosses de golpes cuentan todas las tareas, también las creadas durante el combate. En los bosses de golpes las triviales cuentan, pero solo 1 de daño; en los de piezas, estatuas o cabezas no contarán.
+
+## Estado de implementación
+
+**Fase 2 (hecha):** motor general, premios por objeto, persistencia del bestiario, Slogra y Gaibon, efectos de entorno y maldiciones leves.
+
+**Fase 3 (hecha):** pantalla del bestiario en el Perfil con desbloqueos por victorias.
+
+| Pieza | Estado |
+|---|---|
+| Motor con objetivos `days` y `hits`, meta fijada al activarse según la carga real | Hecho |
+| Premios: sorteo independiente por objeto, consuelo y multiplicador por nivel | Hecho |
+| Consumibles nuevos: agua bendita (cura una maldición) y bolsa de oro (en el motor, sin boss que la suelte aún) | Hecho |
+| Persistencia: los encuentros resueltos sobreviven a jubilarse y los pendientes se reprograman | Hecho |
+| Migración de los premios antiguos de un solo recurso | Hecho |
+| Efectos de entorno `xpPercent` y `potionPercent` | Hecho |
+| Siete maldiciones leves con sus modificadores (EXP, oro, pociones, aplazar y daño diario) | Hecho |
+| Curas: agua bendita y sacerdotisa (`30 + 10 × nivel`) en el Perfil | Hecho |
+| Boss Slogra y Gaibon (sprites, barras de vida, golpe visual en la tarjeta y en la tarea) | Hecho |
+| Selección: sorteo ponderado sin repetir el último y gancho para disparadores reactivos | Hecho; ningún boss implementado tiene disparador en el diseño |
+| Bestiario: datos (`bestiaryOf`) | Hecho |
+| Bestiario: pantalla en el Perfil con desbloqueos por victorias | Hecho |
+| Almas, reliquias, élite, látigo y maldiciones graves | Pendiente |
+| Resto de bosses (Succubus, Death, Frankenstein, Legion, Medusa, Cerbero, Doppelgänger, Hidra, Drácula, Sukamon) | Pendiente |
+
+### Modelo de datos
+
+- **`BossDefinition`** (`lib/bosses.ts`): id, partes, nombre gramatical, ventana, objetivo (`days` o `hits`), efectos, daño y maldición de derrota, premio base, tabla de objetos, enfriamiento, peso y disparador opcional.
+- **`BossEncounter`**: una aparición. El id es `enc:<sequence>` (los anteriores conservan `giant-bat:<n>`). `bossId` es provisional mientras está pendiente y un disparador puede cambiarlo al activarse. Guarda `goal` (meta fijada al activarse), `rewards` (EXP, oro y objetos concedidos) y `curse` (maldición aplicada al perder).
+- **Perfil:** `holyWater` y `curses` (máximo 2, con `startedOn`, `expiresOn` y `lastTickOn`). Se reinician al jubilarse.
+- **Golpes:** sin restricción por fecha de creación; el único límite es un completado por tarea y día.
+- **Progreso derivado:** los golpes y los días completos se calculan siempre desde los completados reales, así que corregir ayer o deshacer una tarea los recalcula solos.
+- **Maldiciones:** rigen desde el día en que se aplican hasta el anterior a `expiresOn`; el daño diario se cobra una vez por día, desde el mismo día en que se aplican, y nunca baja la vida de 1.
+- **Disparadores:** `trigger` se evalúa al acabar el enfriamiento y prima sobre el sorteo.
 
 ## Escalado de dificultad
 
@@ -42,12 +75,14 @@ Ventana por defecto: 5 días operativos, salvo que se indique. «Golpe» = una t
 ### 1. Murciélago gigante — *Constancia* (hecho)
 Dos días con todas las obligaciones cumplidas. Entorno: EXP −30 %. Derrota: 20 de daño directo.
 
-### 2. Slogra y Gaibon — *Golpes*
+### 2. Slogra y Gaibon — *Golpes* (hecho)
 - **Combate:** dos barras de vida, Slogra y luego Gaibon. Cada tarea cumplida (de cualquier tipo) le hace un golpe; el daño del golpe depende de la dificultad (trivial 1, fácil 2, media 3, difícil 5). El daño sobrante pasa al siguiente.
 - **Meta:** `vidaTotal = clamp(round(cargaDiaria × 5 × 0,9), 10, 80)`, repartida 55 % / 45 %.
 - **Entorno:** *Lluvia de huesos*: las pociones curan la mitad.
-- **Derrota:** 15 de daño directo y la maldición *Lanza clavada* (−1 HP al día durante 3 días).
-- **Visual:** cada golpe sacude la tarjeta del boss y aparece el daño flotante.
+- **Derrota:** 15 de daño directo y la maldición *Lanza clavada* (−1 HP al día durante 3 días, sin bajar de 1).
+- **Premio:** 120 EXP y 60 monedas (× multiplicador de nivel); sello de aplazamiento 40 %, poción 50 %, agua bendita 8 %. El látigo queda para cuando exista su mecánica de uso.
+- **Visual:** cada golpe sacude la barra de vida de la tarjeta del boss y la tarea muestra el daño flotante (⚔ −N) junto a la EXP y el oro.
+- **Qué cuenta:** cualquier tarea cumplida (obligación, pergamino, hábito o misión secundaria), incluidas las creadas durante el combate. La meta es la carga real: mediana de obligaciones debidas por día en los últimos 14 días, con tareas de más de una semana.
 
 ### 3. Succubus — *Robo de vida*
 - **Combate:** al aparecer te roba sangre: pierdes `min(10, hp − 1)` de vida y esa cantidad queda en su barra como **Sangre robada**. Cada tarea cumplida **recupera** 1 HP de esa barra (2 en una tarea difícil). Se vence vaciando la barra.

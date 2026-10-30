@@ -2,7 +2,8 @@ import { addDays, format, parseISO } from 'date-fns'
 import { v4 as uuid } from 'uuid'
 import { db } from '../db/database'
 import type { BossEncounter, Completion, DaySnapshot, Item, ItemEvent, PenaltyCheckpoint, PlayerProfile } from '../types'
-import { activeEncounter, bossXp } from './bosses'
+import { activeEncounter } from './bosses'
+import { modifyCoins, modifyXp } from './modifiers'
 import { activityDateKey, logicalNow, todayKey } from './date'
 import { addXp, DIFFICULTY_COINS, DIFFICULTY_XP, HP_PER_LEVEL, rewindXp, xpToNextLevel } from './gamification'
 import { buildItemEvent, itemEventId } from './itemEvents'
@@ -341,10 +342,13 @@ export function planDayCorrection(
   const complete = input.quantity >= goal
   const previousQuantity = existing ? (item.trackingType === 'boolean' ? 1 : existing.quantityDone ?? 0) : 0
   if (previousQuantity === input.quantity) return { profile, completions, events, leveledUp: false }
+  const modifiers = { boss, curses: profile.curses }
   const xp = complete
-    ? (existing?.xpEarned || bossXp(xpWithBonus(DIFFICULTY_XP[item.difficulty], profile), boss, input.date))
+    ? (existing?.xpEarned || modifyXp(xpWithBonus(DIFFICULTY_XP[item.difficulty], profile), modifiers, input.date))
     : 0
-  const coins = complete ? (existing?.coinsEarned || DIFFICULTY_COINS[item.difficulty]) : 0
+  const coins = complete
+    ? (existing?.coinsEarned || modifyCoins(DIFFICULTY_COINS[item.difficulty], modifiers, input.date))
+    : 0
   const coinDelta = coins - (existing?.coinsEarned ?? 0)
   if (profile.coins + coinDelta < 0) {
     throw new Error(`No puedes retirar oro ya gastado. Necesitas ${-(profile.coins + coinDelta)} de oro más para guardar esta corrección.`)
