@@ -140,6 +140,7 @@ export async function ensurePlayerProfile(): Promise<PlayerProfile> {
     souls: {},
     soulPity: {},
     relics: [],
+    legionVictories: 0,
     equippedSouls: [],
     hardcore: true,
     dead: false,

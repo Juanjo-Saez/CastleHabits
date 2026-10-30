@@ -55,6 +55,7 @@ import {
 } from '../src/lib/modifiers.ts'
 import { computeMissedPenalties } from '../src/lib/penalties.ts'
 import { defaultRoutes, effectiveMaxHp } from '../src/lib/routes.ts'
+import { relicMaxHpBonus } from '../src/lib/relics.ts'
 import {
   collectSoul,
   equippedSoulPassives,
@@ -654,7 +655,7 @@ test('la pasiva de Frankenstein bonifica una sola primera tarea por zona y escal
   }, date), 10)
 })
 
-test('las reliquias de primera victoria se conceden por expedición y el corazón aumenta la vida máxima', () => {
+test('las reliquias de primera victoria se conceden por expedición y el Corazón de Legion escala con sus victorias', () => {
   const first = sync({
     encounters: [activeBoss()],
     profile: profile({ level: 10 }),
@@ -670,9 +671,19 @@ test('las reliquias de primera victoria se conceden por expedición y el corazó
     completions: [done('a', '2026-10-10'), done('a', '2026-10-12')],
   }, '2026-10-12', () => 0.99)
   assert.equal(repeated.profile.relics.length, 1)
-  assert.equal(effectiveMaxHp({ ...profile(), relics: ['heart'] }), 55)
+  assert.equal(effectiveMaxHp({ ...profile(), relics: ['heart'] }), 51)
 })
 
+test('el Corazón de Legion concede una vida máxima por victoria y se reinicia sin reliquia', () => {
+  assert.deepEqual([
+    relicMaxHpBonus([], 5),
+    relicMaxHpBonus(['heart'], 0),
+    relicMaxHpBonus(['heart'], 1),
+    relicMaxHpBonus(['heart'], 3),
+  ], [0, 0, 1, 3])
+  assert.equal(effectiveMaxHp({ ...profile(), relics: ['heart'], legionVictories: 3 }), 53)
+  assert.equal(effectiveMaxHp({ ...profile(), relics: [], legionVictories: 0 }), 50)
+})
 test('el boss de golpes se vence por daño y se anuncia con la ventana de cinco días', () => {
   const state = { items: [chore('a')], encounters: [sync({}, '2026-10-01', () => 0).encounters[0]] }
   assert.equal(state.encounters[0].bossId, 'giant-bat')
@@ -779,6 +790,8 @@ test('Legion se vence al romper la cáscara y agotar después el núcleo', () =>
   assert.equal(result.profile.coins, 140)
   assert.equal(result.profile.postponeTokens, 1)
   assert.equal(result.profile.vitalityPotions, 1)
+  assert.equal(result.profile.legionVictories, 1)
+  assert.equal(effectiveMaxHp(result.profile), 56)
 })
 
 test('Legion derrota, hiere y aplica Pesadez si no se rompe su cáscara', () => {

@@ -79,6 +79,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       souls: profile.souls ?? {},
       soulPity: profile.soulPity ?? {},
       relics: profile.relics ?? [],
+      legionVictories: Math.max(
+        0,
+        profile.legionVictories ?? (profile.relics?.includes('heart') ? 1 : 0),
+      ),
       equippedSouls: profile.equippedSouls ?? [],
     }
     if (
@@ -94,6 +98,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       || profile.souls === undefined
       || profile.soulPity === undefined
       || profile.relics === undefined
+      || profile.legionVictories === undefined
       || profile.equippedSouls === undefined
       || profile.penanceProgress === undefined
     ) {
@@ -347,6 +352,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       routes: defaultRoutes(),
       equippedRoute: null,
       relics: [],
+      legionVictories: 0,
       equippedSouls: [],
       dailySoulLoadout: undefined,
       shieldReadyOn: undefined,

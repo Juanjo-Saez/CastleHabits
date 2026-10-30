@@ -127,6 +127,8 @@ export interface PlayerProfile {
   soulPity: Partial<Record<SoulId, number>>
   /** Reliquias de la expedición actual; se pierden al renacer. */
   relics: RelicId[]
+  /** Victorias contra Legion de esta expedición; determina el Corazón de Legion. */
+  legionVictories?: number
   /** Almas equipadas en las casillas disponibles por nivel. */
   equippedSouls: SoulId[]
   /** Loadout elegido al entrar en el día operativo; permanece bloqueado hasta las 02:00. */

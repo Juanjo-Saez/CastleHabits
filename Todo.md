@@ -63,7 +63,7 @@ Estado revisado el 30 de octubre de 2026. Este documento refleja el punto actual
   - Actualizar la barra de progreso, los resúmenes diarios, las correcciones,
     los tests y cualquier texto que muestre los requisitos de EXP.
 
-- [ ] **Fix P0: convertir el Corazón en Corazón de Legion.**
+- [x] **Fix P0: convertir el Corazón en Corazón de Legion.**
   - Renombrar la reliquia visible a **Corazón de Legion** y actualizar su
     descripción y el Bestiario.
   - Sustituir el bono fijo de +5 de vida máxima por **+1 de vida máxima por

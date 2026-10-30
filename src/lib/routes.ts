@@ -257,7 +257,7 @@ export function effectiveMaxHp(profile: PlayerProfile, dateKey = todayKey()): nu
   const base = passive?.id === 'castle-within'
     ? Math.round((profile.maxHp * (100 + passive.percent)) / 100)
     : profile.maxHp
-  const relicBonus = relicMaxHpBonus(profile.relics)
+  const relicBonus = relicMaxHpBonus(profile.relics, profile.legionVictories)
   const curses = activeCursesOn(profile.curses, dateKey)
   const curseDelta = curses.reduce((total, curse) => total + (CURSES[curse.id]?.maxHpDelta ?? 0), 0)
   const cursePercent = curses.reduce((total, curse) => total + (CURSES[curse.id]?.maxHpPercent ?? 0), 0)

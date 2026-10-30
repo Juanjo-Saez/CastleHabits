@@ -1162,6 +1162,18 @@ function firstVictoryInRun(
     && (!runStart || (encounter.resolvedOn ?? encounter.createdAt.slice(0, 10)) >= runStart))
 }
 
+function legionVictoriesInRun(
+  encounters: BossEncounter[],
+  runStartedAt: string | undefined,
+): number {
+  const runStart = runStartedAt?.slice(0, 10)
+  return encounters.filter((encounter) =>
+    encounter.bossId === 'legion'
+    && encounter.status === 'victory'
+    && (!runStart || (encounter.resolvedOn ?? encounter.createdAt.slice(0, 10)) >= runStart),
+  ).length
+}
+
 /** Boss que no puede esperar al sorteo porque se cumplió su disparador; null si ninguno. */
 export function reactiveBoss(context: BossTriggerContext): BossId | null {
   return BOSS_IDS.find((id) => BOSSES[id].trigger?.(context)) ?? null
@@ -1259,6 +1271,15 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
     if (migrated !== encounter) changed.set(migrated.id, migrated)
   }
   let profile = input.profile
+  const historicalLegionVictories = legionVictoriesInRun([...records.values()], profile.runStartedAt)
+  const inferredLegionVictories = Math.max(
+    profile.legionVictories ?? 0,
+    historicalLegionVictories,
+    profile.relics?.includes('heart') && profile.legionVictories === undefined ? 1 : 0,
+  )
+  if (profile.legionVictories !== inferredLegionVictories) {
+    profile = { ...profile, legionVictories: inferredLegionVictories }
+  }
   let leveledUp = false
 
   const save = (encounter: BossEncounter) => {
@@ -1322,6 +1343,9 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
       const baseRewards = rollRewards(boss, profile.level, random)
       const soulResult = collectSoul(profile, boss.id, boss.soulChance, random)
       profile = applyBossRevenge(soulResult.profile, boss)
+      if (boss.id === 'legion') {
+        profile = { ...profile, legionVictories: (profile.legionVictories ?? 0) + 1 }
+      }
       const relics = boss.firstVictoryRelic
         && !profile.relics?.includes(boss.firstVictoryRelic)
         && !firstVictoryInRun([...records.values()], boss.id, profile.runStartedAt)
