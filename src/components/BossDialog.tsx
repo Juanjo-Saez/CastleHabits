@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns'
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   describeEffect,
   describeEffectLong,
@@ -18,7 +18,7 @@ import {
   HEART_PALETTE,
 } from '../lib/pixelArt'
 import { usePlayerStore } from '../store/usePlayerStore'
-import type { BossResource } from '../types'
+import type { BossResource, DeathStakePercent } from '../types'
 import BossSprite from './BossSprite'
 import Candle from './Candle'
 import CastleSilhouette from './CastleSilhouette'
@@ -91,8 +91,15 @@ function BossDialog({
   summary,
   mode = 'details',
   onClose,
-}: Readonly<{ summary: BossSummary; mode?: BossDialogMode; onClose: () => void }>) {
+  onDeathStake,
+}: Readonly<{
+  summary: BossSummary
+  mode?: BossDialogMode
+  onClose: () => void
+  onDeathStake?: (percent: DeathStakePercent) => Promise<boolean>
+}>) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const [stakePending, setStakePending] = useState(false)
   const level = usePlayerStore((s) => s.profile?.level ?? 1)
   const { definition, encounter, completedDates, target, today, kind, bars, damage, goal } = summary
   const active = encounter.status === 'active'
@@ -159,7 +166,7 @@ function BossDialog({
                   <Plate label="Hoy" value={today.due === 0 ? '—' : `${today.done}/${today.due}`} />
                 ) : (
                   <Plate
-                    label={kind === 'pieces' ? 'Piezas' : kind === 'lifeSteal' ? 'Sangre' : 'Golpes'}
+                    label={kind === 'pieces' ? 'Piezas' : kind === 'lifeSteal' ? 'Sangre' : kind === 'scythes' ? 'Hoces' : 'Golpes'}
                     value={`${damage}/${goal}`}
                   />
                 )}
@@ -187,7 +194,15 @@ function BossDialog({
                 </section>
               ) : (
                 <section
-                  aria-label={kind === 'pieces' ? 'Piezas del boss' : kind === 'lifeSteal' ? 'Sangre robada' : 'Vida del boss'}
+                  aria-label={
+                    kind === 'pieces'
+                      ? 'Piezas del boss'
+                      : kind === 'lifeSteal'
+                        ? 'Sangre robada'
+                        : kind === 'scythes'
+                          ? 'Hoces acumuladas'
+                          : 'Vida del boss'
+                  }
                   className="flex flex-col gap-2"
                 >
                   {bars.map((bar) => (
@@ -204,6 +219,8 @@ function BossDialog({
                             ? `Estado de la pieza de ${bar.name}`
                             : kind === 'lifeSteal'
                               ? `Sangre robada de ${bar.name}`
+                              : kind === 'scythes'
+                                ? `Hoces acumuladas de ${bar.name}`
                               : `Vida de ${bar.name}`
                         }
                         aria-valuemin={0}
@@ -229,6 +246,31 @@ function BossDialog({
             </>
           )}
 
+          {active && definition.id === 'death' && encounter.stakePercent === undefined && onDeathStake && (
+            <section className="cv-plate flex flex-col gap-2 p-3" aria-label="Apuesta de Death">
+              <p className="cv-label text-center text-gold-400">Elige tu apuesta de oro</p>
+              <p className="text-center font-body text-sm text-silver-300">
+                Se descuenta ahora y se devuelve por 2 si hay hoces, o por 3 si no hay ninguna.
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {[0, 10, 25].map((percent) => (
+                  <button
+                    key={percent}
+                    type="button"
+                    disabled={stakePending}
+                    onClick={() => {
+                      setStakePending(true)
+                      void onDeathStake(percent as DeathStakePercent).finally(() => setStakePending(false))
+                    }}
+                    className="cv-btn cv-btn--gold px-2 py-2"
+                  >
+                    {percent} %
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
           <ul className="flex flex-col gap-3">
             {definition.effects.length > 0 && (
               <Rule icon={<span className="font-pixel text-2xl text-blood-400">☾</span>} title="Entorno">
@@ -249,6 +291,10 @@ function BossDialog({
                 <>
                   {bestiaryMechanic(definition)} Debes recuperar toda la sangre robada antes de que termine la ventana de {definition.windowDays} días.
                 </>
+              ) : objective.kind === 'scythes' ? (
+                <>
+                  {bestiaryMechanic(definition)} La ventana dura {definition.windowDays} días.
+                </>
               ) : (
                 <>
                   {bestiaryMechanic(definition)} Debes agotar su vida ({goal || 'según tu carga'})
@@ -260,7 +306,10 @@ function BossDialog({
               {definition.defeatText ?? `Al acabar el plazo recibes ${definition.defeatDamage} de daño directo: ninguna defensa lo detiene.`}
               {definition.defeatText ? '.' : ''}
               {definition.defeatCurse && (
-                <> Además te alcanza la maldición <strong>{CURSES[definition.defeatCurse.id].name}</strong> durante {definition.defeatCurse.days} días: {CURSES[definition.defeatCurse.id].description.toLowerCase()}</>
+                <> Además te alcanza la maldición <strong>{CURSES[definition.defeatCurse.id].name}</strong>
+                  {definition.defeatCurse.permanent
+                    ? `: ${CURSES[definition.defeatCurse.id].description.toLowerCase()}`
+                    : ` durante ${definition.defeatCurse.days} días: ${CURSES[definition.defeatCurse.id].description.toLowerCase()}`}</>
               )}
             </Rule>
             <Rule icon={<PixelArt rows={COIN} palette={COIN_PALETTE} scale={3} />} title="Recompensa">

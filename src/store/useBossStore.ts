@@ -3,7 +3,7 @@ import { db } from '../db/database'
 import { todayKey } from '../lib/date'
 import { activeEncounter, planBossSync } from '../lib/bosses'
 import { modifyCoins, modifyXp, type ModifierContext } from '../lib/modifiers'
-import type { BossEncounter, Completion, Item } from '../types'
+import type { BossEncounter, Completion, DeathStakePercent, Item } from '../types'
 import { mergeLevelUp, usePlayerStore } from './usePlayerStore'
 
 interface BossState {
@@ -78,6 +78,27 @@ export function xpAfterModifiers(xp: number, dateKey = todayKey(), item?: Pick<I
 
 export function coinsAfterModifiers(coins: number, dateKey = todayKey()): number {
   return modifyCoins(coins, currentModifiers(), dateKey)
+}
+
+/** Fija la apuesta de Death y retira el oro de forma atómica. */
+export async function chooseDeathStake(percent: DeathStakePercent): Promise<boolean> {
+  let selected: BossEncounter | undefined
+  await db.transaction('rw', [db.profile, db.bossEncounters], async () => {
+    const profile = await db.profile.get(1)
+    const encounters = await db.bossEncounters.toArray()
+    const active = activeEncounter(encounters)
+    if (!profile || !active || active.bossId !== 'death' || active.stakePercent !== undefined) return
+    const stakeCoins = Math.floor((profile.coins * percent) / 100)
+    selected = { ...active, stakePercent: percent, stakeCoins }
+    await db.profile.put({ ...profile, coins: profile.coins - stakeCoins })
+    await db.bossEncounters.put(selected)
+  })
+  if (!selected) return false
+  useBossStore.setState((state) => ({
+    encounters: state.encounters.map((encounter) => encounter.id === selected?.id ? selected : encounter),
+  }))
+  await usePlayerStore.getState().load()
+  return true
 }
 
 // Una expedición nueva borra los encuentros pendientes: se vuelve a programar de inmediato.

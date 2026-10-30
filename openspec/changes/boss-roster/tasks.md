@@ -58,4 +58,5 @@ Lo que queda se reparte en changes propios, listados en [proposal.md](./proposal
 - [x] [boss-legion](../boss-legion/tasks.md): cáscara, núcleo, bolsa de oro y daño por fallo ×1,5.
 - [x] [boss-frankenstein](../boss-frankenstein/tasks.md): piezas por zona, remiendos de Igor, Relámpagos y Costuras.
 - [x] [boss-succubus](../boss-succubus/tasks.md): robo inicial de vida, recuperación por tareas, Niebla de rosas y Encanto.
-- [ ] Un change por boss pendiente, en el orden del proposal: Death, Medusa, Cerbero, Hidra/Escila, Doppelgänger, Sukamon y Drácula.
+- [x] [boss-death](../boss-death/tasks.md): hoces por incumplimientos, apuesta, Cielo sin luna y Hoz de Death.
+- [ ] Un change por boss pendiente, en el orden del proposal: Medusa, Cerbero, Hidra/Escila, Doppelgänger, Sukamon y Drácula.

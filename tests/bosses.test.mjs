@@ -29,6 +29,7 @@ import {
   rewardMultiplier,
   rollDelay,
   rollRewards,
+  scytheProgress,
   shiftKey,
   splitBars,
   summarizeBoss,
@@ -45,6 +46,7 @@ const SLOGRA = BOSSES['slogra-gaibon']
 const LEGION = BOSSES.legion
 const FRANKENSTEIN = BOSSES.frankenstein
 const SUCCUBUS = BOSSES.succubus
+const DEATH = BOSSES.death
 
 function chore(id, changes = {}) {
   return {
@@ -101,6 +103,14 @@ function succubusBoss(windowStart = '2026-10-10', changes = {}) {
   return {
     id: 'enc:1', bossId: 'succubus', sequence: 1, status: 'active', scheduledFor: windowStart,
     windowStart, windowEnd: shiftKey(windowStart, 4), goal: 10,
+    rewardGranted: false, damageApplied: false, createdAt: '2026-10-01T00:00:00.000Z', ...changes,
+  }
+}
+
+function deathBoss(windowStart = '2026-10-10', changes = {}) {
+  return {
+    id: 'enc:1', bossId: 'death', sequence: 1, status: 'active', scheduledFor: windowStart,
+    windowStart, windowEnd: shiftKey(windowStart, 4), goal: 5,
     rewardGranted: false, damageApplied: false, createdAt: '2026-10-01T00:00:00.000Z', ...changes,
   }
 }
@@ -257,6 +267,60 @@ test('Succubus derrota sin daño adicional y aplica Encanto durante cinco días'
     startedOn: '2026-10-11',
     expiresOn: '2026-10-16',
   }])
+})
+
+test('Death suma una hoz por obligación incumplida y bloquea congelaciones', () => {
+  const item = chore('death-task', { createdAt: '2026-10-10T12:00:00' })
+  const encounter = deathBoss()
+  assert.equal(scytheProgress(encounter, [item], {}, '2026-10-10').scythes, 1)
+  const protectedMiss = computeMissedPenalties(
+    [item], {}, undefined, 1, { enabled: false }, '2026-10-10', () => 1, false,
+  )
+  assert.equal(protectedMiss.totalDamage, 1)
+  assert.equal(protectedMiss.freezesUsed, 0)
+  assert.equal(describeEffect(DEATH.effects[0]), 'Cielo sin luna · congelaciones bloqueadas')
+})
+
+test('Death derrota con cinco hoces y deja Hoz permanente reduciendo la vida máxima', () => {
+  const result = sync({
+    items: [chore('death-task')],
+    encounters: [deathBoss()],
+    profile: profile({ hp: 50 }),
+  }, '2026-10-14')
+  const defeat = result.encounters.find((entry) => entry.sequence === 1)
+  assert.equal(defeat.status, 'defeat')
+  assert.equal(defeat.resolvedOn, '2026-10-14')
+  assert.deepEqual(result.profile.curses, [{
+    id: 'deathScythe', sourceBoss: 'death', startedOn: '2026-10-14', expiresOn: '9999-12-31', permanent: true,
+  }])
+  assert.equal(result.profile.hp, 45)
+  assert.equal(effectiveMaxHp(result.profile, '2030-01-01'), 45)
+})
+
+test('Death paga la apuesta por tres cuando termina sin hoces', () => {
+  const item = chore('death-task')
+  const completions = Array.from({ length: 5 }, (_, index) => done('death-task', shiftKey('2026-10-10', index)))
+  const result = sync({
+    items: [item],
+    completions,
+    encounters: [deathBoss('2026-10-10', { stakePercent: 10, stakeCoins: 10 })],
+    profile: profile({ coins: 90 }),
+  }, '2026-10-15', () => 0.99)
+  const victory = result.encounters.find((entry) => entry.sequence === 1)
+  assert.equal(victory.status, 'victory')
+  assert.equal(victory.resolvedOn, '2026-10-14')
+  assert.equal(victory.rewards.coins, 150)
+  assert.equal(result.profile.coins, 240)
+})
+
+test('Death conserva los premios definidos en boss-roster', () => {
+  assert.equal(DEATH.soulChance, 0.015)
+  assert.deepEqual(DEATH.drops, [
+    { item: 'streakFreeze', chance: 0.45, min: 1, max: 1 },
+    { item: 'holyWater', chance: 0.3, min: 1, max: 1 },
+    { item: 'vitalityPotion', chance: 0.3, min: 1, max: 1 },
+    { item: 'postponeToken', chance: 0.3, min: 1, max: 1 },
+  ])
 })
 
 test('la victoria llega con dos días completos, concede una sola vez y programa el enfriamiento', () => {
@@ -683,8 +747,8 @@ test('la mecánica describe el objetivo de cada boss con sus unidades', () => {
 
 test('el siguiente boss no repite el último y respeta el sorteo ponderado', () => {
   assert.equal(pickBoss('giant-bat', () => 0), 'slogra-gaibon')
-  assert.equal(pickBoss('slogra-gaibon', () => 0.99), 'succubus')
-  assert.deepEqual(new Set([pickBoss(undefined, () => 0), pickBoss(undefined, () => 0.99)]), new Set(['giant-bat', 'succubus']))
+  assert.equal(pickBoss('slogra-gaibon', () => 0.99), 'death')
+  assert.deepEqual(new Set([pickBoss(undefined, () => 0), pickBoss(undefined, () => 0.99)]), new Set(['giant-bat', 'death']))
 })
 
 test('un disparador reactivo se impone al sorteo al acabar el enfriamiento', () => {

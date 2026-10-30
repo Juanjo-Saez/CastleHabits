@@ -41,7 +41,7 @@ function CursesPanel() {
               <li key={curse.id} className="cv-plate p-2">
                 <p className="cv-shadow font-pixel text-xl leading-none text-blood-400">{definition.name}</p>
                 <p className="mt-1 font-body text-sm text-silver-300">
-                  {definition.description} Caduca en {left} {left === 1 ? 'día' : 'días'}.
+                  {definition.description} {curse.permanent ? 'No caduca por sí sola.' : `Caduca en ${left} ${left === 1 ? 'día' : 'días'}.`}
                 </p>
                 <div className="mt-2 flex gap-1.5">
                   <button

@@ -113,7 +113,7 @@ Estado revisado el 28 de octubre de 2026. Este documento refleja el punto actual
   - [x] Sustituir el recurso único al azar del Murciélago por el sorteo independiente por objeto.
   - [x] Calcular las metas con la carga real del jugador, sin contar tareas nuevas.
 - [ ] **Aparición mixta** (sorteo ponderado y gancho de disparadores hechos; faltan los disparadores de cada boss): sorteo ponderado tras cada enfriamiento, disparadores reactivos (aplazamientos, fallos, rachas, zona abandonada, misiones secundarias olvidadas) y jefes finales por hito.
-- [ ] **Bosses** (uno por cambio; Slogra, Gaibon, Legion, Frankenstein y Succubus ya están hechos): Death, Medusa, Cerbero, Doppelgänger, Hidra/Escila, Sukamon y Drácula.
+- [ ] **Bosses** (uno por cambio; Slogra, Gaibon, Legion, Frankenstein, Succubus y Death ya están hechos): Medusa, Cerbero, Doppelgänger, Hidra/Escila, Sukamon y Drácula.
 - [ ] **Efectos de entorno** (hechos: pesadez de EXP y pociones a medias): luna de sangre, eclipse, avaricia, silencio, tormenta, mirada, sangre rancia, niebla, zona maldita, bendición lunar y espejo.
 - [ ] **Maldiciones**: leves que caducan (hechas, con sacerdotisa y agua bendita) y graves que se curan con penitencia o revancha; máximo dos a la vez.
 - [ ] **Premios**: agua bendita, látigo y bolsa de oro; almas con probabilidad baja, piedad y rangos; reliquias; títulos, marcos y auras.

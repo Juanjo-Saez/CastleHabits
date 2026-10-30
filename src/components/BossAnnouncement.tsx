@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { hasSeenBossNotice, markBossNoticeSeen } from '../lib/bossMarker'
 import { activeEncounter, lastResolved, summarizeBoss } from '../lib/bosses'
 import { todayKey } from '../lib/date'
-import { useBossStore } from '../store/useBossStore'
+import { chooseDeathStake, useBossStore } from '../store/useBossStore'
 import { useDailySummaryStore } from '../store/useDailySummaryStore'
 import { useItemsStore } from '../store/useItemsStore'
 import { usePlayerStore } from '../store/usePlayerStore'
@@ -39,6 +39,7 @@ function BossAnnouncement() {
       key={token}
       summary={summarizeBoss(pending.encounter, items, completionsByItem, todayKey())}
       mode={pending.mode}
+      onDeathStake={chooseDeathStake}
       onClose={() => {
         markBossNoticeSeen(token)
         setDismissed((tokens) => [...tokens, token])

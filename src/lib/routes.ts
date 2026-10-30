@@ -256,9 +256,10 @@ export function effectiveMaxHp(profile: PlayerProfile, dateKey = todayKey()): nu
   const base = passive?.id === 'castle-within'
     ? Math.round((profile.maxHp * (100 + passive.percent)) / 100)
     : profile.maxHp
-  const curseDelta = activeCursesOn(profile.curses, dateKey)
-    .reduce((total, curse) => total + (CURSES[curse.id]?.maxHpDelta ?? 0), 0)
-  return Math.max(1, base + curseDelta)
+  const curses = activeCursesOn(profile.curses, dateKey)
+  const curseDelta = curses.reduce((total, curse) => total + (CURSES[curse.id]?.maxHpDelta ?? 0), 0)
+  const cursePercent = curses.reduce((total, curse) => total + (CURSES[curse.id]?.maxHpPercent ?? 0), 0)
+  return Math.max(1, Math.floor(((base + curseDelta) * (100 + cursePercent)) / 100))
 }
 
 export function hasShield(profile: PlayerProfile | null): boolean {

@@ -32,7 +32,8 @@ Diseño de los siguientes encuentros tras el Murciélago gigante. Es un document
 | Bestiario: pantalla en el Perfil con desbloqueos por victorias | Hecho |
 | Almas, reliquias, élite, látigo y maldiciones graves | Pendiente; se implementa en `boss-almas-reliquias`, `boss-premios-elite` y `boss-maldiciones-graves` |
 | Succubus | Hecho en `boss-succubus` |
-| Resto de bosses (Death, Medusa, Cerbero, Doppelgänger, Hidra, Drácula, Sukamon) | Pendiente; un change por boss |
+| Death | Hecho en `boss-death` |
+| Resto de bosses (Medusa, Cerbero, Doppelgänger, Hidra, Drácula, Sukamon) | Pendiente; un change por boss |
 
 ### Modelo de datos
 

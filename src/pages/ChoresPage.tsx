@@ -3,6 +3,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import BossAnnouncement from '../components/BossAnnouncement'
 import BossBanner from '../components/BossBanner'
 import BossDialog from '../components/BossDialog'
+import { chooseDeathStake } from '../store/useBossStore'
 import BossSky from '../components/BossSky'
 import CurseBadges from '../components/CurseBadges'
 import EmptyState from '../components/EmptyState'
@@ -195,7 +196,9 @@ function ChoresPage() {
         </section>
       </div>
       {selectedItem && <ItemDetails item={selectedItem} onClose={() => setSelectedItemId(null)} />}
-      {bossOpen && bossSummary && <BossDialog summary={bossSummary} onClose={() => setBossOpen(false)} />}
+      {bossOpen && bossSummary && (
+        <BossDialog summary={bossSummary} onClose={() => setBossOpen(false)} onDeathStake={chooseDeathStake} />
+      )}
       <BossAnnouncement />
     </>
   )

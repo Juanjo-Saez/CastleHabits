@@ -169,7 +169,8 @@ export interface Reminder {
   createdAt: string
 }
 
-export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus'
+export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus' | 'death'
+export type DeathStakePercent = 0 | 10 | 25
 
 /** `scheduled` es la espera inicial; `cooldown`, la espera posterior a un encuentro resuelto. */
 export type BossStatus = 'scheduled' | 'active' | 'victory' | 'defeat' | 'cooldown'
@@ -177,7 +178,7 @@ export type BossStatus = 'scheduled' | 'active' | 'victory' | 'defeat' | 'cooldo
 /** Consumibles de inventario que pueden soltar los bosses. */
 export type BossResource = 'postponeToken' | 'vitalityPotion' | 'streakFreeze' | 'holyWater'
 
-export type CurseId = 'impaledSpear' | 'heaviness' | 'avarice' | 'silence' | 'poison' | 'charm' | 'shadow' | 'stitches'
+export type CurseId = 'impaledSpear' | 'heaviness' | 'avarice' | 'silence' | 'poison' | 'charm' | 'shadow' | 'stitches' | 'deathScythe'
 
 /** Maldición en curso: rige desde `startedOn` hasta el día anterior a `expiresOn`. */
 export interface ActiveCurse {
@@ -185,6 +186,7 @@ export interface ActiveCurse {
   sourceBoss: BossId
   startedOn: string
   expiresOn: string
+  permanent?: boolean
   /** Último día (yyyy-MM-dd) cuyo daño diario ya se aplicó. */
   lastTickOn?: string
 }
@@ -209,6 +211,9 @@ export interface BossEncounter {
   windowEnd?: string
   /** Meta fijada al activarse según la carga real (p. ej. vida total del boss de golpes). */
   goal?: number
+  /** Porcentaje de oro apostado por Death y cantidad retirada al comenzar. */
+  stakePercent?: DeathStakePercent
+  stakeCoins?: number
   /** Zonas que forman las piezas de un boss de objetivo `pieces`. */
   zones?: string[]
   resolvedOn?: string

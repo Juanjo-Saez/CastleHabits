@@ -16,6 +16,8 @@ export interface CurseDefinition {
   drainPerDay?: number
   /** Cambio temporal de vida máxima mientras dure la maldición. */
   maxHpDelta?: number
+  /** Cambio porcentual de vida máxima mientras dure la maldición. */
+  maxHpPercent?: number
 }
 
 /** Maldiciones leves: caducan solas. Las graves llegarán con los bosses que las aplican. */
@@ -52,13 +54,17 @@ export const CURSES: Record<CurseId, CurseDefinition> = {
     id: 'stitches', name: 'Costuras', severity: 'leve', maxHpDelta: -5,
     description: 'Tu vida máxima se reduce en 5 puntos.',
   },
+  deathScythe: {
+    id: 'deathScythe', name: 'Hoz de Death', severity: 'grave', maxHpPercent: -10,
+    description: 'Tu vida máxima se reduce un 10 % hasta pagar el responso.',
+  },
 }
 
 export const MAX_CURSES = 2
 
 /** Una maldición rige desde el día en que se aplica hasta el anterior a `expiresOn`. */
 export function isCurseActiveOn(curse: ActiveCurse, dateKey: string): boolean {
-  return dateKey >= curse.startedOn && dateKey < curse.expiresOn
+  return dateKey >= curse.startedOn && (curse.permanent || dateKey < curse.expiresOn)
 }
 
 export function activeCursesOn(curses: ActiveCurse[] | undefined, dateKey: string): ActiveCurse[] {
@@ -75,8 +81,9 @@ export function addCurse(
   sourceBoss: BossId,
   today: string,
   days: number,
+  permanent = false,
 ): ActiveCurse[] {
-  const expiresOn = shiftDateKey(today, days)
+  const expiresOn = permanent ? '9999-12-31' : shiftDateKey(today, days)
   const current = curses ?? []
   const existing = current.find((curse) => curse.id === id)
   if (existing) {
@@ -84,7 +91,7 @@ export function addCurse(
       ? { ...curse, expiresOn: curse.expiresOn > expiresOn ? curse.expiresOn : expiresOn }
       : curse))
   }
-  const fresh: ActiveCurse = { id, sourceBoss, startedOn: today, expiresOn }
+  const fresh: ActiveCurse = { id, sourceBoss, startedOn: today, expiresOn, ...(permanent ? { permanent: true } : {}) }
   if (current.length < MAX_CURSES) return [...current, fresh]
   const soonest = [...current].sort((left, right) => left.expiresOn.localeCompare(right.expiresOn))[0]
   return [...current.filter((curse) => curse !== soonest), fresh]
@@ -120,7 +127,7 @@ export function tickCurses(curses: ActiveCurse[] | undefined, hp: number, today:
         day = shiftDateKey(day, 1)
       }
     }
-    if (today >= curse.expiresOn) {
+    if (!curse.permanent && today >= curse.expiresOn) {
       changed = true
       continue
     }

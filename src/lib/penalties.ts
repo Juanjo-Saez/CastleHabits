@@ -9,6 +9,7 @@ interface Protection {
   freezes: number
   shieldEnabled: boolean
   shieldReadyOn?: string
+  freezesEnabled: boolean
 }
 
 type MissProtection = NonNullable<ItemEvent['protectedBy']>
@@ -23,7 +24,7 @@ function absorbMiss(protection: Protection, dateKey: string): MissProtection | n
     )
     return 'shield'
   }
-  if (protection.freezes > 0) {
+  if (protection.freezesEnabled && protection.freezes > 0) {
     protection.freezes -= 1
     return 'freeze'
   }
@@ -76,6 +77,7 @@ export function computeMissedPenalties(
   shield: { enabled: boolean; readyOn?: string } = { enabled: false },
   throughDate = format(addDays(startOfDay(logicalNow()), -1), 'yyyy-MM-dd'),
   damageMultiplierForDay: (dateKey: string, item: Item) => number = () => 1,
+  freezesEnabled = true,
 ): {
   totalDamage: number
   newLastChecked: string
@@ -90,6 +92,7 @@ export function computeMissedPenalties(
     freezes: availableStreakFreezes,
     shieldEnabled: shield.enabled,
     shieldReadyOn: shield.readyOn,
+    freezesEnabled,
   }
 
   let totalDamage = 0
