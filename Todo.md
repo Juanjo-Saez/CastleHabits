@@ -1,6 +1,6 @@
 # Hoja de ruta de Hábitos
 
-Estado revisado el 28 de octubre de 2026. Este documento refleja el punto actual de la app: lo marcado como implementado describe la base existente; el resto es trabajo pendiente o ideas por decidir.
+Estado revisado el 30 de octubre de 2026. Este documento refleja el punto actual de la app: lo marcado como implementado describe la base existente; el resto es trabajo pendiente o ideas por decidir.
 
 ## Ya implementado
 
@@ -73,6 +73,8 @@ Estado revisado el 28 de octubre de 2026. Este documento refleja el punto actual
 - [x] Cuando hay más de seis apariciones, mostrar por separado velas encendidas con el número de tareas cumplidas y velas apagadas con el número pendiente.
 - [x] Abrir el detalle de una tarea desde su título y permitir editar sus campos o iniciar su eliminación.
 - [x] Confirmar la eliminación archivando la tarea en lugar de borrar su registro; sus eventos, completados e historial se conservan.
+- [x] En el Castillo, añadir una parada intermedia al desplazarse hacia arriba desde las tareas para que la inercia no atraviese directamente la escena hasta el cielo despejado. Desde esa parada se podrá seguir desplazando hacia arriba para contemplar el cielo; conservar también el botón para volver a las tareas.
+- [ ] Validar el gesto con scroll táctil e inercia en los móviles objetivo.
 
 ### 2. Cerrar la base de historial y mostrar fallos recientes
 

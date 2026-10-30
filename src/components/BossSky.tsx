@@ -20,7 +20,7 @@ function BossSky({
   onReturn: () => void
 }>) {
   return (
-    <div ref={ref} className="relative h-dvh min-h-[28rem]">
+    <div ref={ref} className="cv-castle-snap-stop relative h-dvh min-h-[28rem]">
       <div className="absolute inset-x-0 top-[7dvh] flex flex-col items-center px-6 text-center">
         <Ornament className="w-44" />
         <h2 className="cv-sky-title mt-2 text-3xl">

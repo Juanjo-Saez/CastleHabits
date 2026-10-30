@@ -78,6 +78,7 @@ export function computeMissedPenalties(
   throughDate = format(addDays(startOfDay(logicalNow()), -1), 'yyyy-MM-dd'),
   damageMultiplierForDay: (dateKey: string, item: Item) => number = () => 1,
   freezesEnabled = true,
+  shieldEnabledForDay: (dateKey: string) => boolean = () => true,
 ): {
   totalDamage: number
   newLastChecked: string
@@ -115,7 +116,10 @@ export function computeMissedPenalties(
       // El evento se registra en la fecha de apertura de la ventana, no en su cierre.
       const scheduledKey = format(addDays(cursor, -(windowDaysOf(item) - 1)), 'yyyy-MM-dd')
       const eventId = itemEventId(item.id, scheduledKey, 'missed')
+      const shieldEnabled = protection.shieldEnabled
+      protection.shieldEnabled = shieldEnabled && shieldEnabledForDay(key)
       const protectedBy = absorbMiss(protection, key)
+      protection.shieldEnabled = shieldEnabled
       if (protectedBy) {
         missedEvents.push(buildItemEvent(item, 'missed', scheduledKey, { damage: 0, protectedBy, activityDate: key }, eventId))
         continue

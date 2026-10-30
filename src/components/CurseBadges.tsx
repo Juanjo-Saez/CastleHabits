@@ -12,10 +12,11 @@ function CurseBadges() {
   return (
     <ul className="flex flex-wrap justify-center gap-2" aria-label="Maldiciones en curso">
       {active.map((curse) => {
+        const grave = CURSES[curse.id].severity === 'grave'
         const left = Math.max(1, differenceInCalendarDays(parseISO(curse.expiresOn), parseISO(today)))
         return (
           <li key={curse.id} className="cv-tag cv-tag--blood cv-tag--still" title={CURSES[curse.id].description}>
-            ☠ {CURSES[curse.id].name} · {left} {left === 1 ? 'día' : 'días'}
+            ☠ {CURSES[curse.id].name} · {grave ? 'hasta curar' : `${left} ${left === 1 ? 'día' : 'días'}`}
           </li>
         )
       })}

@@ -71,6 +71,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       streakFreezes: profile.streakFreezes ?? 0,
       holyWater: profile.holyWater ?? 0,
       curses: profile.curses ?? [],
+      penanceProgress: profile.penanceProgress ?? {},
       routes: { ...defaultRoutes(), ...profile.routes },
       equippedRoute: profile.equippedRoute ?? null,
       souls: profile.souls ?? {},
@@ -92,6 +93,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       || profile.soulPity === undefined
       || profile.relics === undefined
       || profile.equippedSouls === undefined
+      || profile.penanceProgress === undefined
     ) {
       await db.profile.put(normalized)
     }
@@ -230,6 +232,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const updated: PlayerProfile = {
       ...current,
       curses: removeCurse(current.curses, id),
+      penanceProgress: { ...(current.penanceProgress ?? {}), [id]: 0 },
       holyWater: method === 'holyWater' ? (current.holyWater ?? 0) - 1 : current.holyWater,
       coins: method === 'priest' ? current.coins - cost : current.coins,
     }
@@ -335,6 +338,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       streakFreezes: 0,
       holyWater: 0,
       curses: [],
+      penanceProgress: {},
       routes: defaultRoutes(),
       equippedRoute: null,
       relics: [],

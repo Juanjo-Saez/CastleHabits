@@ -16,7 +16,7 @@ import {
   missedCarryOf,
 } from '../lib/recurrence'
 import { xpWithBonus } from '../lib/routes'
-import { canPostpone as postponeAllowed } from '../lib/modifiers'
+import { canPostpone as postponeAllowed, streaksEnabled } from '../lib/modifiers'
 import { playWhip } from '../lib/sound'
 import { computeMissStreak, computeStreak } from '../lib/streak'
 import { coinsAfterModifiers, useBossStore, xpAfterModifiers } from '../store/useBossStore'
@@ -95,7 +95,9 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
   // Con margen, la tarea cuenta como hecha si se cumplió en cualquier día de su ventana.
   const done = isWindowCompleted(item, history, todayKey())
   const step = item.quantityStep ?? Math.max(1, Math.round(goal / 10))
-  const streak = computeStreak(item, history)
+  const streak = profile && !streaksEnabled({ curses: profile.curses }, todayKey())
+    ? 0
+    : computeStreak(item, history)
   // Solo una se muestra a la vez: una racha positiva anula los fallos previos.
   const missStreak = streak === 0 ? computeMissStreak(item, history) : 0
   const dueToday = isDueTodayBadge(item)

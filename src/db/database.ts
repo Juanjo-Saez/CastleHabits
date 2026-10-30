@@ -110,6 +110,7 @@ export class AppDatabase extends Dexie {
           profile.soulPity ??= {}
           profile.relics ??= []
           profile.equippedSouls ??= []
+          profile.penanceProgress ??= {}
         })
       })
   }
@@ -133,6 +134,7 @@ export async function ensurePlayerProfile(): Promise<PlayerProfile> {
     streakFreezes: 0,
     holyWater: 0,
     curses: [],
+    penanceProgress: {},
     routes: defaultRoutes(),
     equippedRoute: null,
     souls: {},

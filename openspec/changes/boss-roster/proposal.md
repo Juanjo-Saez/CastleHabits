@@ -112,10 +112,11 @@ Dos días con todas las obligaciones cumplidas. Entorno: EXP −30 %. Derrota: 2
 - **Entorno:** *Cuerpos sin descanso*: el daño por fallo se multiplica ×1,5.
 - **Derrota:** la maldición *Pesadez* (EXP −20 % durante 7 días).
 
-### 7. Medusa — *Estatuas*
+### 7. Medusa — *Estatuas y olvido*
 - **Combate:** cada mañana petrifica 1–3 de tus obligaciones, visibles como estatuas. Cumplir una **rompe** la estatua y le hace un golpe. Una estatua sin romper al cierre del día cura a Medusa y duplica el daño del fallo de esa tarea. Se vence rompiendo `clamp(round(cargaDiaria × 2), 4, 14)` estatuas.
 - **Entorno:** *Mirada*: las congelaciones y el escudo no funcionan.
-- **Derrota:** la maldición *Petrificación* (las rachas no suben durante 5 días).
+- **Derrota:** la maldición grave *Amnesia* (oculta las estadísticas históricas hasta curarla).
+- **Revancha:** vencer a Medusa elimina Amnesia, sin destruir el Espejo de plata.
 
 ### 8. Cerbero — *Tres cabezas*
 - **Combate:** una cabeza por categoría: obligaciones recurrentes, pergaminos y misiones secundarias. Cada cabeza cae tras `N` cumplidas de su categoría. Una cabeza **se regenera** un punto por cada día sin completar nada de esa categoría. Se vence con las tres caídas.
@@ -295,7 +296,7 @@ Este documento es el diseño compartido. El trabajo pendiente se implementa en c
    - **[boss-frankenstein](../boss-frankenstein/proposal.md)**: hecho; piezas por zona, Relámpagos y Costuras.
    - Succubus: robo de vida.
    - Death: apuesta y segunda oportunidad; necesita almas y su Hoz.
-   - Medusa: necesita almas y petrificación.
+   - Medusa: necesita almas y Amnesia.
    - Cerbero.
    - Hidra/Escila.
    - Doppelgänger: necesita almas.

@@ -11,12 +11,13 @@ import type {
   PlayerProfile,
   RelicId,
 } from '../types'
-import { addCurse, tickCurses } from './curses'
+import { addCurse, removeCurse, tickCurses } from './curses'
 import { activityDateKey, shiftDateKey } from './date'
 import { HP_PER_LEVEL, xpToNextLevel } from './gamification'
 import { collectSoul } from './souls'
 import { isItemDueOn, isMetCompletion, isObligation, isWindowCompleted } from './recurrence'
 import { effectiveMaxHp } from './routes'
+import { streakEndingOn } from './streak'
 
 type Random = () => number
 
@@ -38,6 +39,12 @@ export type BossObjective =
     guard?: { hits: number; difficulties: Difficulty[] }
   }
   | { kind: 'scythes'; target: number }
+  | {
+    kind: 'statues'
+    load: { days: number; factor: number; min: number; max: number }
+    dailyMin: number
+    dailyMax: number
+  }
 
 /** Efectos de entorno: rigen mientras el boss está activo. */
 export type EnvEffect =
@@ -81,6 +88,8 @@ export interface BossDefinition {
   defeatText?: string
   /** Reliquia que se garantiza en la primera victoria de este boss en una expedición. */
   firstVictoryRelic?: RelicId
+  /** Maldición que este boss elimina al ser vencido en una revancha. */
+  revengeCurse?: CurseId
   /** Rango inclusivo, en días, del enfriamiento antes de la siguiente aparición. */
   minDelay: number
   maxDelay: number
@@ -262,6 +271,36 @@ export const BOSSES: Record<BossId, BossDefinition> = {
     maxDelay: 15,
     weight: 1,
   },
+  medusa: {
+    id: 'medusa',
+    name: 'Medusa',
+    parts: ['Estatuas'],
+    grammar: { subject: 'Medusa', object: 'a Medusa', plural: false },
+    mechanic: 'Estatuas y olvido',
+    description: 'La mirada de Medusa convierte tus obligaciones en estatuas y borra el rastro de tus victorias.',
+    lore: 'Medusa no necesita perseguir a quien ya ha aprendido a ser constante. Espera a que una racha alcance los catorce días, petrifica las obligaciones de la ventana y guarda en sus serpientes cada deuda que no rompas.',
+    soulChance: 0.025,
+    windowDays: 5,
+    objective: { kind: 'statues', load: { days: 2, factor: 1, min: 4, max: 14 }, dailyMin: 1, dailyMax: 3 },
+    effects: [{ kind: 'disableFreeze' }],
+    defeatDamage: 20,
+    defeatCurse: { id: 'amnesia', permanent: true },
+    revengeCurse: 'amnesia',
+    reward: { xp: 140, coins: 80 },
+    drops: [
+      { item: 'streakFreeze', chance: 0.55, min: 1, max: 1 },
+      { item: 'holyWater', chance: 0.25, min: 1, max: 1 },
+      { item: 'postponeToken', chance: 0.25, min: 1, max: 1 },
+      { item: 'vitalityPotion', chance: 0.2, min: 1, max: 1 },
+    ],
+    trigger: ({ today, items, completionsByItem }) => items.some((item) =>
+      !item.archived
+      && item.type !== 'todo'
+      && streakEndingOn(item, completionsByItem[item.id] ?? [], today) >= 14),
+    minDelay: 10,
+    maxDelay: 15,
+    weight: 1,
+  },
 }
 
 export const BOSS_IDS = Object.keys(BOSSES) as BossId[]
@@ -322,6 +361,13 @@ export function isEffectActiveOn(encounter: BossEncounter | null | undefined, da
     && Boolean(encounter.windowStart && encounter.windowEnd)
     && dateKey >= (encounter.windowStart as string)
     && dateKey <= (encounter.windowEnd as string)
+}
+
+export function protectionsDisabledOn(encounter: BossEncounter | null | undefined, dateKey: string): boolean {
+  if (!encounter?.windowStart || !encounter.windowEnd) return false
+  return dateKey >= encounter.windowStart
+    && dateKey <= encounter.windowEnd
+    && BOSSES[encounter.bossId].effects.some((effect) => effect.kind === 'disableFreeze')
 }
 
 /** Porcentaje de un efecto de entorno que rige ese día, o 100 si no hay. */
@@ -476,6 +522,10 @@ export function bossGoal(boss: BossDefinition, items: Item[], today: string): nu
   if (boss.objective.kind === 'pieces') return bossZones(boss, items).length
   if (boss.objective.kind === 'lifeSteal') return 0
   if (boss.objective.kind === 'scythes') return boss.objective.target
+  if (boss.objective.kind === 'statues') {
+    const { days, factor, min, max } = boss.objective.load
+    return clamp(Math.round(dailyLoad(items, today) * days * factor), min, max)
+  }
   const { days, factor, min, max } = boss.objective.load
   return clamp(Math.round(dailyLoad(items, today) * days * factor), min, max)
 }
@@ -568,6 +618,71 @@ export function scytheProgress(
     }
   }
   return { scythes, reachedOn }
+}
+
+export interface StatueProgress {
+  broken: number
+  missed: number
+  net: number
+  reachedOn?: string
+}
+
+function stableHash(value: string): number {
+  return [...value].reduce((hash, character) => (hash * 31 + character.charCodeAt(0)) >>> 0, 7)
+}
+
+/** Obligaciones convertidas en estatuas en un día concreto de una aparición. */
+export function statueItemsOn(
+  encounter: BossEncounter,
+  items: Item[],
+  dateKey: string,
+): Item[] {
+  if (encounter.bossId !== 'medusa' || !encounter.windowStart || !encounter.windowEnd
+    || dateKey < encounter.windowStart || dateKey > encounter.windowEnd) return []
+  const boss = BOSSES.medusa
+  if (boss.objective.kind !== 'statues') return []
+  const candidates = items
+    .filter((item) => isBossDueOn(item, dateKey))
+    .sort((left, right) => stableHash(`${encounter.id}:${dateKey}:${left.id}`)
+      - stableHash(`${encounter.id}:${dateKey}:${right.id}`) || left.id.localeCompare(right.id))
+  const count = Math.min(candidates.length, randomInt(boss.objective.dailyMin, boss.objective.dailyMax, () =>
+    stableHash(`${encounter.id}:${dateKey}:count`) / 0x100000000))
+  return candidates.slice(0, count)
+}
+
+export function isMedusaStatueOn(
+  encounter: BossEncounter | null | undefined,
+  item: Item,
+  dateKey: string,
+  allItems: Item[] = [item],
+): boolean {
+  return Boolean(encounter && statueItemsOn(encounter, allItems, dateKey).some((candidate) => candidate.id === item.id))
+}
+
+/** Progreso de Medusa, derivado de estatuas seleccionadas y completados reales. */
+export function statueProgress(
+  encounter: BossEncounter,
+  items: Item[],
+  completionsByItem: Record<string, Completion[]>,
+  today: string,
+): StatueProgress {
+  if (!encounter.windowStart || !encounter.windowEnd) return { broken: 0, missed: 0, net: 0 }
+  const last = encounter.windowEnd < today ? encounter.windowEnd : today
+  let broken = 0
+  let missed = 0
+  let reachedOn: string | undefined
+  for (let day = encounter.windowStart; day <= last; day = shiftKey(day, 1)) {
+    const statues = statueItemsOn(encounter, items, day)
+    broken += statues.filter((item) =>
+      isWindowCompleted(item, completionsByItem[item.id] ?? [], day)).length
+    if (day < today || encounter.windowEnd < today) {
+      missed += statues.filter((item) =>
+        !isWindowCompleted(item, completionsByItem[item.id] ?? [], day)).length
+    }
+    const net = Math.max(0, broken - missed)
+    if (!reachedOn && encounter.goal && net >= encounter.goal) reachedOn = day
+  }
+  return { broken, missed, net: Math.max(0, broken - missed), reachedOn }
 }
 
 export interface PieceProgress {
@@ -728,6 +843,8 @@ export interface BossSummary {
   bars: BossBar[]
   guardHits: number
   scythes: number
+  statuesBroken: number
+  statuesMissed: number
   /** Días que quedan de la ventana, contando hoy; 0 si no está activo. */
   daysLeft: number
   today: BossDayStatus
@@ -745,12 +862,14 @@ export function summarizeBoss(
   const goal = encounter.goal ?? (
     definition.objective.kind === 'days' || definition.objective.kind === 'scythes'
       ? definition.objective.kind === 'days' ? definition.objective.targetDays : definition.objective.target
+      : definition.objective.kind === 'statues' ? 0
       : 0
   )
   const completedDates = active && kind === 'days' ? completeDatesOf(encounter, items, completionsByItem, today) : []
   const progress = kind === 'hits' && active ? hitProgress(encounter, items, completionsByItem, today) : null
   const life = kind === 'lifeSteal' && active ? lifeProgress(encounter, items, completionsByItem, today) : null
   const scythes = kind === 'scythes' && active ? scytheProgress(encounter, items, completionsByItem, today) : null
+  const statues = kind === 'statues' && active ? statueProgress(encounter, items, completionsByItem, today) : null
   const pieces = kind === 'pieces' && active
     ? pieceProgress(encounter, items, completionsByItem, today)
     : { disabledZones: encounter.status === 'victory' ? encounter.zones ?? [] : [] }
@@ -759,6 +878,7 @@ export function summarizeBoss(
     : kind === 'pieces' ? pieces.disabledZones.length
       : kind === 'lifeSteal' ? (active ? life?.recovered ?? 0 : (encounter.status === 'victory' ? goal : 0))
         : kind === 'scythes' ? (active ? scythes?.scythes ?? 0 : (encounter.status === 'defeat' ? 5 : 0))
+          : kind === 'statues' ? (active ? statues?.net ?? 0 : (encounter.status === 'victory' ? goal : 0))
           : 0
   const guardHits = kind === 'hits' && definition.objective.kind === 'hits' && definition.objective.guard
     ? (active ? (progress?.guardHits ?? 0)
@@ -781,9 +901,12 @@ export function summarizeBoss(
           hp: pieces.disabledZones.includes(zone) ? 0 : 1,
         }))
         : kind === 'lifeSteal' ? lifeBars(definition, goal, damage)
-          : kind === 'scythes' ? [{ name: 'Hozes', max: 5, hp: damage }] : [],
+          : kind === 'scythes' ? [{ name: 'Hozes', max: 5, hp: damage }]
+            : kind === 'statues' ? [{ name: 'Estatuas', max: goal, hp: Math.max(0, goal - damage) }] : [],
     guardHits,
     scythes: damage,
+    statuesBroken: statues?.broken ?? (encounter.status === 'victory' && kind === 'statues' ? goal : 0),
+    statuesMissed: statues?.missed ?? 0,
     daysLeft: active && encounter.windowEnd
       ? Math.max(0, differenceInCalendarDays(parseISO(encounter.windowEnd), parseISO(today)) + 1)
       : 0,
@@ -802,7 +925,9 @@ export function bossCountsFor(item: Item, encounter: BossEncounter | null, dateK
         ? !item.archived
         : BOSSES[encounter.bossId].objective.kind === 'scythes'
           ? isBossDueOn(item, dateKey)
-        : isBossDueOn(item, dateKey)
+          : BOSSES[encounter.bossId].objective.kind === 'statues'
+            ? isBossDueOn(item, dateKey)
+            : isBossDueOn(item, dateKey)
 }
 
 /** Etiqueta corta de un efecto de entorno, para chips y placas. */
@@ -813,7 +938,7 @@ export function describeEffect(effect: EnvEffect): string {
     return `Daño por fallo ×${(effect.percent / 100).toLocaleString('es-ES', { maximumFractionDigits: 2 })}`
   }
   if (effect.kind === 'hideTomorrow') return 'Niebla de rosas · Mañana oculta'
-  if (effect.kind === 'disableFreeze') return 'Cielo sin luna · congelaciones bloqueadas'
+  if (effect.kind === 'disableFreeze') return 'Mirada · protecciones bloqueadas'
   return 'Relámpagos · EXP y daño ×2 en una zona'
 }
 
@@ -825,7 +950,7 @@ export function describeEffectLong(effect: EnvEffect): string {
     return `Mientras esté activo, el daño por fallo se multiplica por ${(effect.percent / 100).toLocaleString('es-ES', { maximumFractionDigits: 2 })}.`
   }
   if (effect.kind === 'hideTomorrow') return 'Una niebla de rosas oculta el panel de «Mañana» mientras el boss esté activo.'
-  if (effect.kind === 'disableFreeze') return 'El cielo sin luna impide usar congelaciones de racha mientras Death esté activo.'
+  if (effect.kind === 'disableFreeze') return 'Las congelaciones de racha y el escudo no protegen los fallos mientras este efecto esté activo.'
   return 'Cada día una zona queda cargada: sus tareas dan el doble de EXP y causan el doble de daño por fallo.'
 }
 
@@ -839,6 +964,7 @@ export function encounterSummaryLine(summary: BossSummary): string {
   if (summary.kind === 'pieces') return `${summary.damage}/${summary.goal} piezas`
   if (summary.kind === 'lifeSteal') return `${summary.damage}/${summary.goal} de sangre recuperada`
   if (summary.kind === 'scythes') return `${summary.damage}/${summary.goal} hoces`
+  if (summary.kind === 'statues') return `${summary.damage}/${summary.goal} estatuas`
   return `${summary.completedDates.length}/${summary.target} días`
 }
 
@@ -897,7 +1023,10 @@ export function bestiaryMechanic(boss: BossDefinition): string {
   if (boss.objective.kind === 'scythes') {
     return 'Cada obligación incumplida suma una hoz; con cinco hoces pierdes, y con menos de cinco al acabar los 5 días vences.'
   }
-  if (boss.objective.guard) {
+  if (boss.objective.kind === 'statues') {
+    return 'Cada mañana convierte 1–3 obligaciones en estatuas: rómpelas con completados y alcanza la meta antes de que las deudas curen a Medusa.'
+  }
+  if (boss.objective.kind === 'hits' && boss.objective.guard) {
     const labels: Record<Difficulty, string> = {
       trivial: 'triviales',
       easy: 'fáciles',
@@ -973,6 +1102,15 @@ function newEncounter(
 export function applyBossDamage(profile: PlayerProfile, damage: number): PlayerProfile {
   const hp = Math.max(0, profile.hp - damage)
   return { ...profile, hp, dead: hp === 0 }
+}
+
+export function applyBossRevenge(profile: PlayerProfile, boss: BossDefinition): PlayerProfile {
+  if (!boss.revengeCurse) return profile
+  return {
+    ...profile,
+    curses: removeCurse(profile.curses, boss.revengeCurse),
+    penanceProgress: { ...(profile.penanceProgress ?? {}), [boss.revengeCurse]: 0 },
+  }
 }
 
 /** Misma progresión que una completación normal: sube niveles y restaura la vida al subir. */
@@ -1090,6 +1228,10 @@ function verdictOf(
       resolvedOn: today > (encounter.windowEnd ?? today) ? encounter.windowEnd : undefined,
     }
   }
+  if (boss.objective.kind === 'statues') {
+    const progress = statueProgress(encounter, items, completionsByItem, today)
+    return { won: Boolean(progress.reachedOn), resolvedOn: progress.reachedOn }
+  }
   const progress = hitProgress(encounter, items, completionsByItem, today)
   if (boss.objective.guard && (progress.guardHits ?? 0) < boss.objective.guard.hits) {
     return { won: false }
@@ -1174,7 +1316,7 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
     if (verdict.won) {
       const baseRewards = rollRewards(boss, profile.level, random)
       const soulResult = collectSoul(profile, boss.id, boss.soulChance, random)
-      profile = soulResult.profile
+      profile = applyBossRevenge(soulResult.profile, boss)
       const relics = boss.firstVictoryRelic
         && !profile.relics?.includes(boss.firstVictoryRelic)
         && !firstVictoryInRun([...records.values()], boss.id, profile.runStartedAt)

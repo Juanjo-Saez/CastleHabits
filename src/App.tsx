@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import Backdrop from './components/Backdrop'
 import DailySummaryModal from './components/DailySummaryModal'
 import HardcoreDeath from './components/HardcoreDeath'
@@ -38,6 +38,7 @@ const tabs = [
 ]
 
 function App() {
+  const location = useLocation()
   const [ready, setReady] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const contemplating = useSkyViewStore((s) => s.contemplating)
@@ -123,7 +124,7 @@ function App() {
       <LevelUpCelebration />
       <DailySummaryModal />
       <HardcoreDeath />
-      <main className="relative z-10 flex-1 overflow-y-auto pb-20">
+      <main className={`relative z-10 flex-1 overflow-y-auto pb-20 ${location.pathname === '/tareas' ? 'cv-castle-scroll' : ''}`}>
         {loadError && <p role="alert" className="p-3 font-body text-blood-400">No se pudo actualizar el día: {loadError}. Recarga para volver a intentarlo.</p>}
         {!ready && !loadError && <p role="status" className="p-3 font-body text-silver-400">Cargando grimorio…</p>}
         {ready && (

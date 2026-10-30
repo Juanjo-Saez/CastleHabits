@@ -113,7 +113,7 @@ function BossDialog({
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [stakePending, setStakePending] = useState(false)
   const level = usePlayerStore((s) => s.profile?.level ?? 1)
-  const { definition, encounter, completedDates, target, today, kind, bars, damage, goal } = summary
+  const { definition, encounter, completedDates, target, today, kind, bars, damage, goal, statuesBroken, statuesMissed } = summary
   const active = encounter.status === 'active'
   const notice = headline(summary, mode)
   const multiplier = rewardMultiplier(level)
@@ -178,7 +178,15 @@ function BossDialog({
                   <Plate label="Hoy" value={today.due === 0 ? '—' : `${today.done}/${today.due}`} />
                 ) : (
                   <Plate
-                    label={kind === 'pieces' ? 'Piezas' : kind === 'lifeSteal' ? 'Sangre' : kind === 'scythes' ? 'Hoces' : 'Golpes'}
+                    label={kind === 'pieces'
+                      ? 'Piezas'
+                      : kind === 'lifeSteal'
+                        ? 'Sangre'
+                        : kind === 'scythes'
+                          ? 'Hoces'
+                          : kind === 'statues'
+                            ? 'Estatuas'
+                            : 'Golpes'}
                     value={`${damage}/${goal}`}
                   />
                 )}
@@ -213,7 +221,9 @@ function BossDialog({
                         ? 'Sangre robada'
                         : kind === 'scythes'
                           ? 'Hoces acumuladas'
-                          : 'Vida del boss'
+                            : kind === 'statues'
+                              ? 'Estatuas de Medusa'
+                              : 'Vida del boss'
                   }
                   className="flex flex-col gap-2"
                 >
@@ -233,7 +243,9 @@ function BossDialog({
                               ? `Sangre robada de ${bar.name}`
                               : kind === 'scythes'
                                 ? `Hoces acumuladas de ${bar.name}`
-                              : `Vida de ${bar.name}`
+                                : kind === 'statues'
+                                  ? `Estatuas rotas de ${bar.name}`
+                                  : `Vida de ${bar.name}`
                         }
                         aria-valuemin={0}
                         aria-valuemax={bar.max}
@@ -251,6 +263,11 @@ function BossDialog({
                   {objective.kind === 'lifeSteal' && (
                     <p className="mt-1 text-center font-pixel text-base leading-none text-silver-500">
                       Recuperación: trivial {objective.recovery.trivial} · fácil {objective.recovery.easy} · media {objective.recovery.medium} · difícil {objective.recovery.hard}
+                    </p>
+                  )}
+                  {objective.kind === 'statues' && (
+                    <p className="mt-1 text-center font-pixel text-base leading-none text-silver-500">
+                      Rotas: {statuesBroken} · sin romper: {statuesMissed} · cada deuda cura a Medusa
                     </p>
                   )}
                 </section>

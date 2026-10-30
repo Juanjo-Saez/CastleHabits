@@ -28,7 +28,7 @@ function CursesPanel() {
     <div className="cv-panel cv-panel--blood p-3">
       <SectionTitle>Maldiciones</SectionTitle>
       <p className="mt-1 font-body text-sm text-silver-500 italic">
-        Agua bendita: {holyWater}. Las maldiciones leves caducan solas.
+        Agua bendita: {holyWater}. Las maldiciones leves caducan solas; las graves requieren cura o penitencia.
       </p>
       {curses.length === 0 ? (
         <p className="mt-2 font-body text-silver-300">Ninguna maldición te aflige.</p>
@@ -36,12 +36,16 @@ function CursesPanel() {
         <ul className="mt-2 flex flex-col gap-2">
           {curses.map((curse) => {
             const definition = CURSES[curse.id]
+            const grave = definition.severity === 'grave'
             const left = Math.max(1, differenceInCalendarDays(parseISO(curse.expiresOn), parseISO(today)))
+            const penance = profile.penanceProgress?.[curse.id] ?? 0
             return (
               <li key={curse.id} className="cv-plate p-2">
                 <p className="cv-shadow font-pixel text-xl leading-none text-blood-400">{definition.name}</p>
                 <p className="mt-1 font-body text-sm text-silver-300">
-                  {definition.description} {curse.permanent ? 'No caduca por sí sola.' : `Caduca en ${left} ${left === 1 ? 'día' : 'días'}.`}
+                  {definition.description} {grave || curse.permanent
+                    ? `Penitencia: ${penance}/3 días.`
+                    : `Caduca en ${left} ${left === 1 ? 'día' : 'días'}.`}
                 </p>
                 <div className="mt-2 flex gap-1.5">
                   <button

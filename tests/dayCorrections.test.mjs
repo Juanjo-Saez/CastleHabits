@@ -7,6 +7,7 @@ import {
   groupCorrectionCandidates,
   isCorrectionDay,
 } from '../src/lib/dayCorrections.ts'
+import { BOSSES } from '../src/lib/bosses.ts'
 import { computeMissedPenalties } from '../src/lib/penalties.ts'
 import { defaultRoutes } from '../src/lib/routes.ts'
 import { buildItemStats } from '../src/lib/itemStats.ts'
@@ -46,6 +47,7 @@ function correct(state, quantity, options = {}) {
   const result = planDayCorrection(
     { itemId: options.itemId ?? 'clean', date: options.date ?? yesterday, quantity },
     state.profile, state.items, state.completions, state.events, options.confirmedDamage,
+    undefined, options.boss,
   )
   return { ...result, items: state.items }
 }
@@ -122,6 +124,27 @@ test('guardar dos veces es idempotente y desmarcar revierte recompensas y daño'
   assert.equal(undone.profile.xp, 0)
   assert.equal(undone.profile.coins, 0)
   assert.equal(undone.completions.length, 0)
+})
+
+test('corregir ayer recalcula el daño de una estatua sin duplicar el evento', () => {
+  const item = activity({ createdAt: `${yesterday}T12:00:00` })
+  const state = fixture({ items: [item] })
+  const boss = {
+    id: 'enc:medusa', bossId: 'medusa', sequence: 1, status: 'active',
+    scheduledFor: yesterday, windowStart: yesterday, windowEnd: '2026-10-31',
+    goal: 4, rewardGranted: false, damageApplied: false,
+  }
+  assert.equal(BOSSES.medusa.id, 'medusa')
+  assert.equal(state.events.filter((event) => event.kind === 'missed').length, 1)
+  assert.equal(state.events[0].damage, 1)
+  const restored = correct(state, 1, { boss })
+  assert.equal(restored.profile.hp, 50)
+  assert.equal(restored.events.filter((event) => event.kind === 'missed').length, 0)
+  const undone = correct(restored, 0, { boss })
+  const missed = undone.events.filter((event) => event.kind === 'missed')
+  assert.equal(missed.length, 1)
+  assert.equal(missed[0].damage, 2)
+  assert.equal(undone.profile.hp, 48)
 })
 
 test('no permite retirar oro gastado ni modifica las entradas al fallar', () => {

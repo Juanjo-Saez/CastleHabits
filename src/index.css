@@ -49,6 +49,15 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+.cv-castle-scroll {
+  scroll-snap-type: y mandatory;
+}
+
+.cv-castle-snap-stop {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-silver-700) var(--color-night-950);

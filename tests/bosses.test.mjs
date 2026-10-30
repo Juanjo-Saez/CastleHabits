@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { beforeEach, test } from 'node:test'
 import {
   BOSSES,
+  applyBossRevenge,
   bestiaryMechanic,
   bestiaryOf,
   bestiaryUnlocks,
@@ -19,28 +20,47 @@ import {
   evaluateBossDay,
   hitProgress,
   initialLifeStolen,
+  isMedusaStatueOn,
   isBossDueOn,
   lifeProgress,
   migrateEncounter,
   pickBoss,
   pieceProgress,
   planBossSync,
+  protectionsDisabledOn,
   randomInt,
+  reactiveBoss,
   rewardMultiplier,
   rollDelay,
   rollRewards,
   scytheProgress,
+  statueItemsOn,
+  statueProgress,
   shiftKey,
   splitBars,
   summarizeBoss,
   hidesTomorrow,
 } from '../src/lib/bosses.ts'
 import { addCurse, CURSES, cureCost, tickCurses } from '../src/lib/curses.ts'
-import { planDayCorrection } from '../src/lib/dayCorrections.ts'
-import { canPostpone, modifyCoins, modifyXp, potionRecovery } from '../src/lib/modifiers.ts'
+import { applyPenance, planDayCorrection } from '../src/lib/dayCorrections.ts'
+import {
+  canPostpone,
+  freezesEnabled,
+  historicalStatsVisible,
+  modifyCoins,
+  modifyDamage,
+  modifyXp,
+  potionRecovery,
+} from '../src/lib/modifiers.ts'
 import { computeMissedPenalties } from '../src/lib/penalties.ts'
 import { defaultRoutes, effectiveMaxHp } from '../src/lib/routes.ts'
-import { collectSoul, soulChanceWithPity, soulSlotsForLevel } from '../src/lib/souls.ts'
+import {
+  collectSoul,
+  equippedSoulPassives,
+  equippedSoulRank,
+  soulChanceWithPity,
+  soulSlotsForLevel,
+} from '../src/lib/souls.ts'
 
 const BAT = BOSSES['giant-bat']
 const SLOGRA = BOSSES['slogra-gaibon']
@@ -48,6 +68,7 @@ const LEGION = BOSSES.legion
 const FRANKENSTEIN = BOSSES.frankenstein
 const SUCCUBUS = BOSSES.succubus
 const DEATH = BOSSES.death
+const MEDUSA = BOSSES.medusa
 
 function chore(id, changes = {}) {
   return {
@@ -113,6 +134,14 @@ function deathBoss(windowStart = '2026-10-10', changes = {}) {
   return {
     id: 'enc:1', bossId: 'death', sequence: 1, status: 'active', scheduledFor: windowStart,
     windowStart, windowEnd: shiftKey(windowStart, 4), goal: 5,
+    rewardGranted: false, damageApplied: false, createdAt: '2026-10-01T00:00:00.000Z', ...changes,
+  }
+}
+
+function medusaBoss(windowStart = '2026-10-10', changes = {}) {
+  return {
+    id: 'enc:1', bossId: 'medusa', sequence: 1, status: 'active', scheduledFor: windowStart,
+    windowStart, windowEnd: shiftKey(windowStart, 4), goal: 4,
     rewardGranted: false, damageApplied: false, createdAt: '2026-10-01T00:00:00.000Z', ...changes,
   }
 }
@@ -281,7 +310,92 @@ test('Death suma una hoz por obligación incumplida y bloquea congelaciones', ()
   )
   assert.equal(protectedMiss.totalDamage, 1)
   assert.equal(protectedMiss.freezesUsed, 0)
-  assert.equal(describeEffect(DEATH.effects[0]), 'Cielo sin luna · congelaciones bloqueadas')
+  assert.equal(describeEffect(DEATH.effects[0]), 'Mirada · protecciones bloqueadas')
+})
+
+test('Medusa selecciona estatuas de forma determinista y deriva su progreso', () => {
+  const encounter = medusaBoss()
+  const items = [chore('a'), chore('b'), chore('c'), chore('d')]
+  const first = statueItemsOn(encounter, items, '2026-10-10')
+  assert.deepEqual(statueItemsOn(encounter, items, '2026-10-10').map((item) => item.id), first.map((item) => item.id))
+  assert.ok(first.length >= 1 && first.length <= 3)
+  const completions = first.map((item) => done(item.id, '2026-10-10'))
+  const progress = statueProgress(encounter, items, byItem(completions), '2026-10-10')
+  assert.equal(progress.broken, first.length)
+  assert.equal(progress.missed, 0)
+  assert.equal(progress.net, first.length)
+})
+
+test('Medusa duplica el daño solo para una estatua que llega sin romper', () => {
+  const encounter = medusaBoss()
+  const items = [chore('a'), chore('b'), chore('c'), chore('d')]
+    .map((item) => ({ ...item, createdAt: '2026-10-10T12:00:00' }))
+  const statues = statueItemsOn(encounter, items, '2026-10-10')
+  const regular = items.find((item) => !statues.some((statue) => statue.id === item.id))
+  assert.ok(statues.length > 0)
+  assert.ok(regular)
+  const result = computeMissedPenalties(
+    items, {}, undefined, 0, { enabled: false }, '2026-10-10',
+    (dateKey, item) => isMedusaStatueOn(encounter, item, dateKey, items) ? 2 : 1,
+  )
+  assert.equal(result.missedEvents.find((event) => event.itemId === statues[0].id).damage, 2)
+  assert.equal(result.missedEvents.find((event) => event.itemId === regular.id).damage, 1)
+})
+
+test('Mirada bloquea simultáneamente escudo y congelación durante Medusa', () => {
+  const encounter = medusaBoss()
+  const item = chore('protected', { createdAt: '2026-10-10T12:00:00' })
+  assert.equal(protectionsDisabledOn(encounter, '2026-10-10'), true)
+  const result = computeMissedPenalties(
+    [item], {}, undefined, 1, { enabled: true }, '2026-10-10',
+    () => 1, false, () => false,
+  )
+  assert.equal(result.totalDamage, 1)
+  assert.equal(result.freezesUsed, 0)
+  assert.equal(result.missedEvents[0].protectedBy, undefined)
+})
+
+test('Medusa se activa con una racha de catorce días y aplica Amnesia al perder', () => {
+  const item = chore('streak')
+  const completions = Array.from({ length: 14 }, (_, index) => done('streak', shiftKey('2026-10-01', index)))
+  assert.equal(reactiveBoss({
+    today: '2026-10-14',
+    profile: profile(),
+    items: [item],
+    completionsByItem: byItem(completions),
+    encounters: [],
+  }), 'medusa')
+  const result = sync({
+    items: [chore('missed')],
+    encounters: [medusaBoss()],
+    profile: profile({ hp: 50, relics: ['silverMirror'] }),
+  }, '2026-10-15')
+  const defeat = result.encounters.find((entry) => entry.sequence === 1)
+  assert.equal(defeat.status, 'defeat')
+  assert.deepEqual(result.profile.curses, [{
+    id: 'amnesia', sourceBoss: 'medusa', startedOn: '2026-10-15', expiresOn: '9999-12-31', permanent: true,
+  }])
+  assert.deepEqual(result.profile.relics, ['silverMirror'])
+  assert.equal(historicalStatsVisible(result.profile.curses, result.profile.relics), false)
+  const repeated = sync({
+    items: [chore('missed')],
+    encounters: result.encounters,
+    profile: result.profile,
+  }, '2026-10-15')
+  assert.deepEqual(repeated.changed, [])
+  assert.deepEqual(repeated.encounters, result.encounters)
+  assert.deepEqual(repeated.profile, result.profile)
+})
+
+test('la revancha de Medusa elimina Amnesia y conserva el Espejo', () => {
+  const cursed = profile({
+    curses: [{ id: 'amnesia', sourceBoss: 'medusa', startedOn: '2026-10-14', expiresOn: '9999-12-31', permanent: true }],
+    relics: ['silverMirror'],
+  })
+  const recovered = applyBossRevenge(cursed, MEDUSA)
+  assert.deepEqual(recovered.curses, [])
+  assert.deepEqual(recovered.relics, ['silverMirror'])
+  assert.equal(historicalStatsVisible(recovered.curses, recovered.relics), true)
 })
 
 test('Death derrota con cinco hoces y deja Hoz permanente reduciendo la vida máxima', () => {
@@ -381,6 +495,52 @@ test('la piedad de alma sube hasta 20 puntos y se reinicia al conseguirla', () =
   assert.equal(hit.award.repeated, false)
 })
 
+test('las maldiciones graves tienen efectos persistentes y respetan el límite de dos', () => {
+  const petrification = addCurse([], 'petrification', 'giant-bat', '2026-10-10', 0)
+  const amnesia = addCurse(petrification, 'amnesia', 'giant-bat', '2026-10-10', 0)
+  const limited = addCurse(amnesia, 'chains', 'giant-bat', '2026-10-10', 0)
+  assert.equal(petrification[0].permanent, true)
+  assert.equal(petrification[0].expiresOn, '9999-12-31')
+  assert.equal(limited.length, 2)
+  assert.equal(freezesEnabled({ curses: petrification }, '2026-10-10'), false)
+  assert.equal(canPostpone({ curses: limited }, '2026-10-10'), false)
+  assert.equal(modifyDamage(2, { curses: limited }, '2026-10-10'), 4)
+  assert.equal(historicalStatsVisible(amnesia), false)
+  assert.equal(historicalStatsVisible(undefined), false)
+  assert.equal(historicalStatsVisible(undefined, ['silverMirror']), true)
+  assert.equal(historicalStatsVisible(amnesia, ['silverMirror']), false)
+})
+
+test('la revancha de un boss elimina la maldición grave que declara', () => {
+  const profileWithCurse = profile({
+    curses: addCurse([], 'petrification', 'giant-bat', '2026-10-10', 0),
+    penanceProgress: { petrification: 2 },
+  })
+  const boss = { ...BAT, revengeCurse: 'petrification' }
+  const result = applyBossRevenge(profileWithCurse, boss)
+  assert.deepEqual(result.curses, [])
+  assert.equal(result.penanceProgress.petrification, 0)
+})
+
+test('la penitencia cura una maldición grave tras tres días completos y se reinicia al fallar', () => {
+  const item = chore('penance')
+  const curse = addCurse([], 'petrification', 'giant-bat', '2026-10-10', 0)
+  let current = profile({ curses: curse })
+  const history = byItem([done('penance', '2026-10-10')])
+  for (let day = 0; day < 3; day += 1) {
+    current = applyPenance(current, [item], history, '2026-10-10')
+  }
+  assert.equal(current.curses.length, 0)
+  const reset = applyPenance(
+    profile({ curses: curse, penanceProgress: { petrification: 2 } }),
+    [item],
+    {},
+    '2026-10-10',
+  )
+  assert.equal(reset.penanceProgress.petrification, 0)
+  assert.equal(reset.curses.length, 1)
+})
+
 test('las almas repetidas acumulan tres fragmentos y ascienden hasta rango 3', () => {
   let current = profile({ souls: { legion: { rank: 1, fragments: 0 } } })
   const awards = []
@@ -394,6 +554,23 @@ test('las almas repetidas acumulan tres fragmentos y ascienden hasta rango 3', (
   const maxed = collectSoul(current, 'legion', 1, () => 0)
   assert.deepEqual(maxed.profile.souls.legion, { rank: 2, fragments: 1 })
   assert.deepEqual([soulSlotsForLevel(1), soulSlotsForLevel(5), soulSlotsForLevel(10), soulSlotsForLevel(20)], [0, 1, 2, 3])
+})
+
+test('las pasivas solo se activan para almas equipadas y obtenidas, sin duplicados obsoletos', () => {
+  const base = profile({
+    souls: {
+      legion: { rank: 2, fragments: 0 },
+      medusa: { rank: 1, fragments: 0 },
+    },
+    equippedSouls: ['legion', 'legion', 'giant-bat', 'medusa'],
+  })
+  assert.equal(equippedSoulRank(base, 'legion'), 2)
+  assert.equal(equippedSoulRank(base, 'giant-bat'), 0)
+  assert.deepEqual(equippedSoulPassives(base), [
+    { id: 'legion', passiveId: 'trivialCoins', rank: 2 },
+    { id: 'medusa', passiveId: 'weeklyFreeze', rank: 1 },
+  ])
+  assert.deepEqual(base.equippedSouls, ['legion', 'legion', 'giant-bat', 'medusa'])
 })
 
 test('las reliquias de primera victoria se conceden por expedición y el corazón aumenta la vida máxima', () => {
@@ -797,8 +974,8 @@ test('la mecánica describe el objetivo de cada boss con sus unidades', () => {
 
 test('el siguiente boss no repite el último y respeta el sorteo ponderado', () => {
   assert.equal(pickBoss('giant-bat', () => 0), 'slogra-gaibon')
-  assert.equal(pickBoss('slogra-gaibon', () => 0.99), 'death')
-  assert.deepEqual(new Set([pickBoss(undefined, () => 0), pickBoss(undefined, () => 0.99)]), new Set(['giant-bat', 'death']))
+  assert.equal(pickBoss('slogra-gaibon', () => 0.99), 'medusa')
+  assert.deepEqual(new Set([pickBoss(undefined, () => 0), pickBoss(undefined, () => 0.99)]), new Set(['giant-bat', 'medusa']))
 })
 
 test('un disparador reactivo se impone al sorteo al acabar el enfriamiento', () => {

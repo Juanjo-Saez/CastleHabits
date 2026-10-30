@@ -1,5 +1,6 @@
-import type { ActiveCurse, BossEncounter } from '../types'
+import type { ActiveCurse, BossEncounter, CurseId, RelicId } from '../types'
 import { activeCursesOn, CURSES } from './curses'
+import { hasRelic } from './relics'
 import { effectPercent, effectPercentForItem } from './bosses'
 
 /** Lo que altera las reglas normales en un día: el boss activo y las maldiciones en curso. */
@@ -7,6 +8,7 @@ export interface ModifierContext {
   boss?: BossEncounter | null
   curses?: ActiveCurse[]
   zone?: string
+  relics?: RelicId[]
 }
 
 function cursePercent(
@@ -41,9 +43,31 @@ export function potionRecovery(base: number, ctx: ModifierContext, dateKey: stri
 /** Daño de una penalización, incluyendo efectos globales y de zona del boss. */
 export function modifyDamage(damage: number, ctx: ModifierContext, dateKey: string): number {
   const percent = effectPercentForItem(ctx.boss, 'damagePercent', dateKey, ctx.zone)
-  return percent === 100 ? damage : Math.ceil((damage * percent) / 100)
+  const cursePercentValue = cursePercent(ctx, dateKey, (c) => c.damagePercent)
+  const totalPercent = (percent * cursePercentValue) / 100
+  return totalPercent === 100 ? damage : Math.ceil((damage * totalPercent) / 100)
 }
 
 export function canPostpone(ctx: ModifierContext, dateKey: string): boolean {
   return !activeCursesOn(ctx.curses, dateKey).some((curse) => CURSES[curse.id].blocksPostpone)
+}
+
+export function freezesEnabled(ctx: ModifierContext, dateKey: string): boolean {
+  return !activeCursesOn(ctx.curses, dateKey).some((curse) => curse.id === 'petrification')
+}
+
+export function streaksEnabled(ctx: ModifierContext, dateKey: string): boolean {
+  return freezesEnabled(ctx, dateKey)
+}
+
+export function historicalStatsVisible(curses: ActiveCurse[] | undefined, relics?: RelicId[]): boolean {
+  return hasRelic(relics, 'silverMirror') && !curses?.some((curse) => curse.id === 'amnesia')
+}
+
+export function curseDamageMultiplier(ctx: ModifierContext, dateKey: string): number {
+  return cursePercent(ctx, dateKey, (c) => c.damagePercent) / 100
+}
+
+export function isGraveCurse(id: CurseId): boolean {
+  return CURSES[id].severity === 'grave'
 }

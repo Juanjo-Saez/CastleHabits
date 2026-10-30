@@ -16,7 +16,7 @@ export const RELICS: Record<RelicId, RelicDefinition> = {
   silverMirror: {
     id: 'silverMirror',
     name: 'Espejo de plata',
-    description: 'Revela las estadísticas históricas de la expedición.',
+    description: 'Desbloquea las estadísticas históricas de la expedición.',
   },
   heart: {
     id: 'heart',

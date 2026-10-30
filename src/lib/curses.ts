@@ -15,6 +15,8 @@ export interface CurseDefinition {
   blocksPostpone?: boolean
   /** Vida que quita cada día, sin bajar nunca de 1. */
   drainPerDay?: number
+  /** Multiplicador porcentual del daño de un fallo. */
+  damagePercent?: number
   /** Cambio temporal de vida máxima mientras dure la maldición. */
   maxHpDelta?: number
   /** Cambio porcentual de vida máxima mientras dure la maldición. */
@@ -59,6 +61,18 @@ export const CURSES: Record<CurseId, CurseDefinition> = {
     id: 'deathScythe', name: 'Hoz de Death', severity: 'grave', maxHpPercent: -10,
     description: 'Tu vida máxima se reduce un 10 % hasta pagar el responso.',
   },
+  petrification: {
+    id: 'petrification', name: 'Petrificación', severity: 'grave',
+    description: 'Las rachas no aumentan y las congelaciones no protegen tus fallos.',
+  },
+  amnesia: {
+    id: 'amnesia', name: 'Amnesia', severity: 'grave',
+    description: 'Las estadísticas históricas quedan ocultas hasta curarla.',
+  },
+  chains: {
+    id: 'chains', name: 'Cadenas', severity: 'grave', blocksPostpone: true, damagePercent: 200,
+    description: 'No puedes aplazar obligaciones y sus fallos infligen el doble de daño.',
+  },
 }
 
 export const MAX_CURSES = 2
@@ -96,7 +110,14 @@ export function addCurse(
       ? { ...curse, expiresOn: curse.expiresOn > expiresOn ? curse.expiresOn : expiresOn }
       : curse))
   }
-  const fresh: ActiveCurse = { id, sourceBoss, startedOn: today, expiresOn, ...(permanent ? { permanent: true } : {}) }
+  const grave = CURSES[id].severity === 'grave'
+  const fresh: ActiveCurse = {
+    id,
+    sourceBoss,
+    startedOn: today,
+    expiresOn: grave || permanent ? '9999-12-31' : expiresOn,
+    ...(grave || permanent ? { permanent: true } : {}),
+  }
   if (current.length < MAX_CURSES) return [...current, fresh]
   const soonest = [...current].sort((left, right) => left.expiresOn.localeCompare(right.expiresOn))[0]
   return [...current.filter((curse) => curse !== soonest), fresh]

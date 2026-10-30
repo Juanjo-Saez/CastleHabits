@@ -52,12 +52,102 @@ function ChoresPage() {
     const scroller = sky?.closest('main')
     if (!sky || !scroller) return
     scroller.scrollTop = sky.offsetHeight
+    let lockedWheelDirection = 0
+    let wheelUnlockTimer = 0
+    let lastTouchY: number | null = null
+    let touchLocked = false
+
     const onScroll = () => {
       useSkyViewStore.getState().setContemplating(scroller.scrollTop < sky.offsetHeight * 0.5)
     }
+    const isNestedScroller = (target: EventTarget | null) => {
+      let element = target instanceof Element ? target : null
+      while (element && element !== scroller) {
+        const style = window.getComputedStyle(element)
+        if (/(auto|scroll)/.test(style.overflowY) && element.scrollHeight > element.clientHeight) return true
+        element = element.parentElement
+      }
+      return false
+    }
+    const resetWheelLock = () => {
+      window.clearTimeout(wheelUnlockTimer)
+      wheelUnlockTimer = window.setTimeout(() => { lockedWheelDirection = 0 }, 220)
+    }
+    const stopWheel = (event: WheelEvent, target: number) => {
+      event.preventDefault()
+      scroller.scrollTop = target
+      lockedWheelDirection = -1
+      resetWheelLock()
+    }
+    const onWheel = (event: WheelEvent) => {
+      if (event.deltaY >= 0 || isNestedScroller(event.target)) {
+        if (event.deltaY > 0 && lockedWheelDirection) {
+          window.clearTimeout(wheelUnlockTimer)
+          lockedWheelDirection = 0
+        }
+        return
+      }
+      if (lockedWheelDirection) {
+        event.preventDefault()
+        resetWheelLock()
+        return
+      }
+
+      const delta = event.deltaY * (event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16
+        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? scroller.clientHeight : 1)
+      const taskStop = sky.offsetHeight
+      if (scroller.scrollTop > taskStop && scroller.scrollTop + delta <= taskStop) {
+        stopWheel(event, taskStop)
+      } else if (scroller.scrollTop > 0 && scroller.scrollTop + delta <= 0) {
+        stopWheel(event, 0)
+      }
+    }
+    const onTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) return
+      lastTouchY = event.touches[0].clientY
+      touchLocked = false
+    }
+    const onTouchMove = (event: TouchEvent) => {
+      if (event.touches.length !== 1 || isNestedScroller(event.target)) return
+      if (touchLocked) {
+        event.preventDefault()
+        return
+      }
+      const currentY = event.touches[0].clientY
+      const delta = (lastTouchY ?? currentY) - currentY
+      lastTouchY = currentY
+      if (delta >= 0) return
+
+      const taskStop = sky.offsetHeight
+      if (scroller.scrollTop > taskStop && scroller.scrollTop + delta <= taskStop) {
+        event.preventDefault()
+        scroller.scrollTop = taskStop
+        touchLocked = true
+      } else if (scroller.scrollTop > 0 && scroller.scrollTop + delta <= 0) {
+        event.preventDefault()
+        scroller.scrollTop = 0
+        touchLocked = true
+      }
+    }
+    const onTouchEnd = () => {
+      lastTouchY = null
+      touchLocked = false
+    }
+
     scroller.addEventListener('scroll', onScroll, { passive: true })
+    scroller.addEventListener('wheel', onWheel, { passive: false })
+    scroller.addEventListener('touchstart', onTouchStart, { passive: true })
+    scroller.addEventListener('touchmove', onTouchMove, { passive: false })
+    scroller.addEventListener('touchend', onTouchEnd, { passive: true })
+    scroller.addEventListener('touchcancel', onTouchEnd, { passive: true })
     return () => {
       scroller.removeEventListener('scroll', onScroll)
+      scroller.removeEventListener('wheel', onWheel)
+      scroller.removeEventListener('touchstart', onTouchStart)
+      scroller.removeEventListener('touchmove', onTouchMove)
+      scroller.removeEventListener('touchend', onTouchEnd)
+      scroller.removeEventListener('touchcancel', onTouchEnd)
+      window.clearTimeout(wheelUnlockTimer)
       useSkyViewStore.getState().setContemplating(false)
       scroller.scrollTop = 0
     }
@@ -126,7 +216,7 @@ function ChoresPage() {
         onOpenBoss={() => setBossOpen(true)}
         onReturn={() => scrollSky('tasks')}
       />
-      <div className="min-h-[calc(100dvh-5rem)]">
+      <div className="cv-castle-snap-stop min-h-[calc(100dvh-5rem)]">
         <PageHeader title="El Castillo" subtitle="Cada estancia guarda una tarea pendiente." />
         <section className="relative z-10 flex flex-col gap-3 px-3">
           <button

@@ -359,6 +359,32 @@ export const SUCCUBUS_PALETTE: Palette = {
   M: '#2a1638',
 }
 
+/** Medusa: una mirada dorada bajo una corona de serpientes. */
+export const MEDUSA = [
+  '....OOO.OOO....',
+  '...OgggOgggO...',
+  '..OgggOOOgggO..',
+  '..OggLLLLgggO..',
+  '..OggLPLPgggO..',
+  '...OggLLgggO...',
+  '....OOmMmOO....',
+  '...OmmMMMmmO...',
+  '..OmmMMMMMmmO..',
+  '..OmmMMMMMmmO..',
+  '...OmmMMMmmO...',
+  '....OO...OO....',
+  '...OO.....OO...',
+]
+
+export const MEDUSA_PALETTE: Palette = {
+  O: '#0a0412',
+  g: '#4d8c78',
+  L: '#f3e3a8',
+  P: '#8f1d3c',
+  m: '#5d2b63',
+  M: '#2a1638',
+}
+
 export const DIAMOND = ['..G..', '.GLG.', 'GLRLG', '.GLG.', '..G..']
 
 export const ORNAMENT = [

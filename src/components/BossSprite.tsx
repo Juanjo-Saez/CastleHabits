@@ -8,6 +8,8 @@ import {
   GIANT_BAT_PALETTE,
   LEGION,
   LEGION_PALETTE,
+  MEDUSA,
+  MEDUSA_PALETTE,
   SLOGRA,
   SLOGRA_PALETTE,
   SUCCUBUS,
@@ -37,6 +39,9 @@ function BossSprite({ bossId, scale = 3, className = '' }: Readonly<{ bossId: Bo
   }
   if (bossId === 'succubus') {
     return <PixelArt rows={SUCCUBUS} palette={SUCCUBUS_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
+  }
+  if (bossId === 'medusa') {
+    return <PixelArt rows={MEDUSA} palette={MEDUSA_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
   }
   return <PixelArt rows={GIANT_BAT} palette={GIANT_BAT_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
 }

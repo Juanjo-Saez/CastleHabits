@@ -1,4 +1,6 @@
 import { computeStreak } from './streak'
+import { streaksEnabled } from './modifiers'
+import { todayKey } from './date'
 import type { Completion, Item, PlayerProfile } from '../types'
 
 export interface AchievementContext {
@@ -26,6 +28,7 @@ function totalCompletions(ctx: AchievementContext): number {
 }
 
 function maxStreak(ctx: AchievementContext): number {
+  if (!streaksEnabled({ curses: ctx.profile.curses }, todayKey())) return 0
   let max = 0
   for (const item of ctx.items) {
     if (item.type === 'todo') continue

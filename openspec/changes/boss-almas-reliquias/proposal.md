@@ -17,7 +17,8 @@ Parte transversal de [boss-roster](../boss-roster/proposal.md). Las almas las co
 - **No persisten.** Se pierden al jubilarse o renacer.
 - **Garantizada por primera victoria** de un boss, en los bosses que lo indiquen.
 - **Asignación inicial:** Murciélago gigante → Rosario, Slogra y Gaibon → Espejo de plata y Legion → Corazón.
-- **Catálogo inicial:** Rosario (reduce a la mitad la duración de las maldiciones leves), Espejo de plata (revela las estadísticas) y Corazón (+5 de vida máxima). Cada reliquia nueva se añade en su boss.
+- **Catálogo inicial:** Rosario (reduce a la mitad la duración de las maldiciones leves), Espejo de plata (desbloquea las estadísticas históricas durante la expedición) y Corazón (+5 de vida máxima). Cada reliquia nueva se añade en su boss.
+- Sin el Espejo de plata las estadísticas históricas permanecen bloqueadas. Amnesia puede ocultarlas temporalmente aunque el Espejo esté activo; al curar Amnesia vuelven a estar disponibles.
 
 ## Fuera de alcance
 - Efectos concretos de cada alma (van en el change de su boss).

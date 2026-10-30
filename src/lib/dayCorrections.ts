@@ -2,15 +2,19 @@ import { addDays, format, parseISO } from 'date-fns'
 import { v4 as uuid } from 'uuid'
 import { db } from '../db/database'
 import type { BossEncounter, Completion, DaySnapshot, Item, ItemEvent, PenaltyCheckpoint, PlayerProfile } from '../types'
-import { activeEncounter, effectPercentForItemOn, isEffectActiveOn } from './bosses'
-import { modifyCoins, modifyXp } from './modifiers'
+import { activeEncounter, effectPercentForItemOn, isMedusaStatueOn, protectionsDisabledOn } from './bosses'
+import { activeCursesOn, CURSES, removeCurse } from './curses'
+import { curseDamageMultiplier, freezesEnabled, modifyCoins, modifyXp } from './modifiers'
 import { activityDateKey, logicalNow, todayKey } from './date'
 import { addXp, DIFFICULTY_COINS, DIFFICULTY_XP, HP_PER_LEVEL, rewindXp, xpToNextLevel } from './gamification'
 import { buildItemEvent, itemEventId } from './itemEvents'
 import { computeMissedPenalties } from './penalties'
 import {
   completionInWindow,
+  isObligation,
   isItemDueOn,
+  isWindowClosingOn,
+  isWindowCompleted,
   missedCarryOf,
   scheduledDateFor,
   windowDaysOf,
@@ -150,6 +154,7 @@ function replayPenalties(
   history: Record<string, Completion[]>,
   damageMultiplierForDay: (dateKey: string, item: Item) => number = () => 1,
   freezesEnabledForDay: (dateKey: string) => boolean = () => true,
+  shieldEnabledForDay: (dateKey: string) => boolean = () => true,
 ) {
   const result = computeMissedPenalties(
     checkpoint.items,
@@ -160,6 +165,7 @@ function replayPenalties(
     checkpoint.date,
     damageMultiplierForDay,
     freezesEnabledForDay(checkpoint.date),
+    shieldEnabledForDay,
   )
   result.missedEvents = result.missedEvents.map((event) => ({
     ...event,
@@ -199,6 +205,36 @@ async function ensureSnapshot(profile: PlayerProfile, history: Record<string, Co
   await db.daySnapshots.put(legacySnapshot(profile, history, date))
 }
 
+function allObligationsCompletedOn(
+  items: Item[],
+  history: Record<string, Completion[]>,
+  date: string,
+): boolean {
+  const obligations = items.filter((item) => !item.archived && isObligation(item) && isWindowClosingOn(item, parseISO(date)))
+  return obligations.length > 0
+    && obligations.every((item) => isWindowCompleted(item, history[item.id] ?? [], date))
+}
+
+export function applyPenance(
+  profile: PlayerProfile,
+  items: Item[],
+  history: Record<string, Completion[]>,
+  date: string,
+): PlayerProfile {
+  const progress = { ...(profile.penanceProgress ?? {}) }
+  let curses = profile.curses
+  const completed = allObligationsCompletedOn(items, history, date)
+  for (const curse of activeCursesOn(profile.curses, date).filter((entry) => CURSES[entry.id].severity === 'grave')) {
+    const next = completed ? Math.min(3, (progress[curse.id] ?? 0) + 1) : 0
+    progress[curse.id] = next
+    if (next >= 3) {
+      curses = removeCurse(curses, curse.id)
+      progress[curse.id] = 0
+    }
+  }
+  return { ...profile, curses, penanceProgress: progress }
+}
+
 /** Guarda las entradas de la evaluación de ayer, no solo el daño, para poder repetirla. */
 export async function settleDayPenalties(): Promise<void> {
   await db.transaction('rw', [db.profile, db.items, db.completions, db.itemEvents, db.daySnapshots, db.bossEncounters], async () => {
@@ -207,11 +243,20 @@ export async function settleDayPenalties(): Promise<void> {
     const items = await db.items.toArray()
     const history = historyByItem(await db.completions.toArray())
     const encounters = await db.bossEncounters.toArray()
-    const freezesEnabledForDay = (dateKey: string) => !encounters.some((encounter) =>
-      encounter.bossId === 'death' && isEffectActiveOn(encounter, dateKey))
+    const currentCurses = profile.curses
+    const protectionsEnabledForDay = (dateKey: string) => !encounters.some((encounter) =>
+      protectionsDisabledOn(encounter, dateKey))
+    const freezesEnabledForDay = (dateKey: string) => freezesEnabled({ curses: currentCurses }, dateKey)
+      && protectionsEnabledForDay(dateKey)
+    const shieldEnabledForDay = (dateKey: string) => protectionsEnabledForDay(dateKey)
     const damageMultiplierForDay = (dateKey: string, item: Item) => {
       const encounter = encounters.find((candidate) => effectPercentForItemOn(candidate, 'damagePercent', dateKey, item.zone) !== 100)
-      return effectPercentForItemOn(encounter, 'damagePercent', dateKey, item.zone) / 100
+      const bossMultiplier = effectPercentForItemOn(encounter, 'damagePercent', dateKey, item.zone) / 100
+      const statueMultiplier = encounters.some((candidate) =>
+        candidate.bossId === 'medusa'
+        && isMedusaStatueOn(candidate, item, dateKey, items)
+        && !isWindowCompleted(item, history[item.id] ?? [], dateKey)) ? 2 : 1
+      return bossMultiplier * statueMultiplier * curseDamageMultiplier({ curses: currentCurses }, dateKey)
     }
     const yesterday = yesterdayKey()
     if (profile.lastPenaltyCheck && profile.lastPenaltyCheck >= yesterday) {
@@ -251,6 +296,7 @@ export async function settleDayPenalties(): Promise<void> {
         items, history, profile.lastPenaltyCheck, profile.streakFreezes,
         { enabled: hasShield(profile), readyOn: profile.shieldReadyOn }, dayBefore, damageMultiplierForDay,
         freezesEnabledForDay(dayBefore),
+        shieldEnabledForDay,
       )
       await db.itemEvents.bulkPut(earlier.missedEvents)
       const hp = Math.max(0, profile.hp - earlier.totalDamage)
@@ -267,7 +313,7 @@ export async function settleDayPenalties(): Promise<void> {
         shieldEnabled: hasShield(profile), shieldReadyOn: profile.shieldReadyOn,
         runStartedAt: profile.runStartedAt,
       }
-      const result = replayPenalties(checkpoint, history, damageMultiplierForDay, freezesEnabledForDay)
+      const result = replayPenalties(checkpoint, history, damageMultiplierForDay, freezesEnabledForDay, shieldEnabledForDay)
       await db.itemEvents.bulkPut(result.missedEvents)
       const hp = Math.max(0, profile.hp - result.totalDamage)
       profile = {
@@ -275,6 +321,7 @@ export async function settleDayPenalties(): Promise<void> {
         streakFreezes: profile.streakFreezes - result.freezesUsed,
         shieldReadyOn: result.shieldReadyOn, penaltyCheckpoint: checkpoint,
       }
+      profile = applyPenance(profile, items, history, yesterday)
     }
     if (!profile.dead) await db.daySnapshots.put(snapshotOf(profile, yesterday))
     await db.profile.put(profile)
@@ -417,7 +464,16 @@ export function planDayCorrection(
   const checkpoint = profile.penaltyCheckpoint
   if (checkpoint?.date === yesterdayKey()) {
     const oldMisses = yesterdayMisses(events, checkpoint, profile.runStartedAt)
-    const result = replayPenalties(checkpoint, nextHistory)
+    const protectionEnabledForDay = (dateKey: string) => !protectionsDisabledOn(boss, dateKey)
+    const result = replayPenalties(
+      checkpoint,
+      nextHistory,
+      boss?.bossId === 'medusa'
+        ? (dateKey, candidate) => isMedusaStatueOn(boss, candidate, dateKey, items) ? 2 : 1
+        : undefined,
+      protectionEnabledForDay,
+      protectionEnabledForDay,
+    )
     damageDelta = result.totalDamage - oldMisses.reduce((sum, event) => sum + (event.damage ?? 0), 0)
     const restoredFreezes = oldMisses.filter((event) => event.protectedBy === 'freeze').length
     const freezes = profile.streakFreezes + restoredFreezes - result.freezesUsed

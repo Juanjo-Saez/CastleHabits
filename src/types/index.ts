@@ -111,6 +111,8 @@ export interface PlayerProfile {
   holyWater: number
   /** Maldiciones activas (máximo 2). Se reinician al empezar otra expedición. */
   curses: ActiveCurse[]
+  /** Días consecutivos de penitencia cumplidos por cada maldición grave. */
+  penanceProgress?: Partial<Record<CurseId, number>>
   routes: Record<RouteId, RouteProgress>
   /** Oficio equipado: su pasiva es la única activa. */
   equippedRoute: RouteId | null
@@ -177,7 +179,7 @@ export interface Reminder {
   createdAt: string
 }
 
-export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus' | 'death'
+export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus' | 'death' | 'medusa'
 export type DeathStakePercent = 0 | 10 | 25
 export type SoulId = BossId
 export type SoulRank = 1 | 2 | 3
@@ -201,7 +203,19 @@ export type BossStatus = 'scheduled' | 'active' | 'victory' | 'defeat' | 'cooldo
 /** Consumibles de inventario que pueden soltar los bosses. */
 export type BossResource = 'postponeToken' | 'vitalityPotion' | 'streakFreeze' | 'holyWater'
 
-export type CurseId = 'impaledSpear' | 'heaviness' | 'avarice' | 'silence' | 'poison' | 'charm' | 'shadow' | 'stitches' | 'deathScythe'
+export type CurseId =
+  | 'impaledSpear'
+  | 'heaviness'
+  | 'avarice'
+  | 'silence'
+  | 'poison'
+  | 'charm'
+  | 'shadow'
+  | 'stitches'
+  | 'deathScythe'
+  | 'petrification'
+  | 'amnesia'
+  | 'chains'
 
 /** Maldición en curso: rige desde `startedOn` hasta el día anterior a `expiresOn`. */
 export interface ActiveCurse {
