@@ -95,7 +95,8 @@ Estado revisado el 30 de octubre de 2026. Este documento refleja el punto actual
     navegar o abrir el modal no reproduzca efectos de juego ni duplique la
     cinemática de forma inesperada.
 
-- [ ] **Rediseño visual del Castillo.**
+- [x] **Rediseño visual del Castillo.**
+  - OpenSpec: `openspec/changes/castle-visual-redesign/`
   - Redefinir la composición de la escena, capas de profundidad, iluminación,
     luna, cielo y silueta del castillo para que la aparición de bosses y otros
     eventos tenga un espacio visual propio.
@@ -107,6 +108,19 @@ Estado revisado el 30 de octubre de 2026. Este documento refleja el punto actual
     relámpagos, niebla, eclipses, bosses y eventos sin duplicar la estructura.
   - Validar visualmente la escena en las resoluciones móviles objetivo y en
     escritorio antes de dar el rediseño por terminado.
+
+- [x] **Sustituir el Castillo SVG por el asset pixel-art autorizado.**
+  - OpenSpec: `openspec/changes/castle-pixel-art-asset/`
+  - Referencia guardada en `art/references/castle-reference.png`; el castillo
+    recortado vive en `src/assets/castle.png` y se regenera con
+    `scripts/extract-castle.py`.
+  - Separar la fortaleza de la luna incrustada para mantener la luna como
+    elemento móvil, reutilizable y compatible con bosses y eclipses.
+
+- [ ] **Pantalla de carga animada al entrar en la app.**
+  - Referencia guardada en `art/references/loading-reference.png`.
+  - Usarla como pantalla de inicio/loading con una animación ligera y
+    compatible con `prefers-reduced-motion`.
 
 - [ ] **Encuentro raro del Murciélago dorado.**
   - Hacer que aparezca ocasionalmente en el Castillo con una probabilidad

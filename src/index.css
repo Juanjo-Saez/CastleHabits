@@ -645,6 +645,109 @@ select.cv-input {
     linear-gradient(180deg, #0a0b24 0%, #05061a 45%, #03040c 100%);
 }
 
+.cv-weather {
+  isolation: isolate;
+}
+
+.cv-weather--clouded,
+.cv-weather--fog {
+  background:
+    radial-gradient(ellipse 90% 55% at 60% 2%, rgb(91 102 157 / 0.28) 0%, transparent 70%),
+    linear-gradient(180deg, #11142e 0%, #080a20 48%, #03040c 100%);
+}
+
+.cv-weather--rain,
+.cv-weather--storm {
+  background:
+    radial-gradient(ellipse 80% 50% at 60% 0%, rgb(57 67 114 / 0.34) 0%, transparent 72%),
+    linear-gradient(180deg, #0c1029 0%, #050719 52%, #03040c 100%);
+}
+
+.cv-weather--eclipse {
+  background:
+    radial-gradient(ellipse 75% 58% at 70% 4%, rgb(65 31 88 / 0.35) 0%, transparent 72%),
+    linear-gradient(180deg, #100c27 0%, #07081c 50%, #03040c 100%);
+}
+
+.cv-weather--boss {
+  background:
+    radial-gradient(ellipse 80% 60% at 70% 0%, rgb(93 12 35 / 0.38) 0%, transparent 72%),
+    linear-gradient(180deg, #16091c 0%, #080719 50%, #03040c 100%);
+}
+
+.cv-cloud-layer {
+  z-index: 2;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse 34% 12% at 20% 22%, rgb(127 139 190 / 0.2), transparent 70%),
+    radial-gradient(ellipse 42% 14% at 72% 28%, rgb(127 139 190 / 0.17), transparent 70%),
+    radial-gradient(ellipse 36% 12% at 48% 42%, rgb(127 139 190 / 0.12), transparent 70%);
+  animation: weather-cloud-drift 42s linear infinite alternate;
+}
+
+.cv-weather--clouded .cv-cloud-layer,
+.cv-weather--fog .cv-cloud-layer,
+.cv-weather--rain .cv-cloud-layer,
+.cv-weather--storm .cv-cloud-layer,
+.cv-weather--eclipse .cv-cloud-layer {
+  opacity: 1;
+}
+
+.cv-weather--fog .cv-cloud-layer {
+  opacity: 0.72;
+  filter: blur(8px);
+}
+
+.cv-weather--storm .cv-cloud-layer,
+.cv-weather--eclipse .cv-cloud-layer {
+  opacity: 1;
+  filter: saturate(0.7);
+}
+
+.cv-weather-haze {
+  z-index: 3;
+  background: linear-gradient(180deg, transparent 40%, rgb(151 163 195 / 0.08) 72%, rgb(151 163 195 / 0.2) 100%);
+  opacity: 0.65;
+}
+
+.cv-weather--fog .cv-weather-haze {
+  opacity: 1;
+}
+
+.cv-weather--eclipse .cv-weather-haze {
+  background: linear-gradient(180deg, transparent 35%, rgb(67 48 94 / 0.08) 72%, rgb(31 22 47 / 0.28) 100%);
+}
+
+.cv-rain-layer {
+  z-index: 4;
+  opacity: 0.28;
+  background: repeating-linear-gradient(110deg, transparent 0 18px, rgb(183 201 238 / 0.26) 19px 20px, transparent 21px 42px);
+  background-size: 84px 84px;
+  animation: weather-rain 1.6s linear infinite;
+}
+
+.cv-weather--storm .cv-rain-layer {
+  opacity: 0.42;
+}
+
+@keyframes weather-cloud-drift {
+  from {
+    transform: translateX(-3%);
+  }
+  to {
+    transform: translateX(3%);
+  }
+}
+
+@keyframes weather-rain {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: -42px 84px;
+  }
+}
+
 .cv-stars {
   background-image:
     radial-gradient(1px 1px at 8% 12%, #fff 50%, transparent 51%),
@@ -696,6 +799,16 @@ select.cv-input {
     0 0 120px 40px rgb(216 40 63 / 0.12);
 }
 
+.cv-moon--eclipse {
+  background:
+    radial-gradient(circle at 62% 38%, rgb(255 235 220 / 0.08) 0 9%, transparent 10%),
+    radial-gradient(circle at 38% 64%, rgb(255 235 220 / 0.07) 0 12%, transparent 13%),
+    radial-gradient(circle at 35% 32%, #766782 0%, #2d243e 58%, #110d1d 100%);
+  box-shadow:
+    0 0 26px 8px rgb(120 91 147 / 0.22),
+    0 0 100px 34px rgb(77 53 101 / 0.12);
+}
+
 .cv-fog {
   background:
     radial-gradient(ellipse 30% 60% at 15% 70%, rgb(154 163 191 / 0.1), transparent 70%),
@@ -704,8 +817,51 @@ select.cv-input {
   animation: fog-drift 40s linear infinite alternate;
 }
 
-.cv-window {
-  animation: window-flicker 3s steps(4) infinite;
+/* Castillo pixel-art: altura fija, anchura por proporción y recorte centrado en la torre. */
+.cv-castle-scene {
+  --castle-glow: rgb(88 98 160 / 0.32);
+  overflow: hidden;
+  pointer-events: none;
+  /* Contraluz tenue para recortar la silueta oscura contra el cielo nocturno. */
+  background: radial-gradient(ellipse 34% 52% at 50% 62%, var(--castle-glow), transparent 72%);
+}
+
+.cv-weather--boss .cv-castle-scene {
+  --castle-glow: rgb(150 26 48 / 0.34);
+}
+
+.cv-weather--eclipse .cv-castle-scene {
+  --castle-glow: rgb(104 70 140 / 0.3);
+}
+
+.cv-weather--fog .cv-castle-scene,
+.cv-weather--rain .cv-castle-scene,
+.cv-weather--storm .cv-castle-scene {
+  --castle-glow: rgb(110 120 160 / 0.26);
+}
+
+/* Prolonga el suelo del asset cuando la pantalla es más ancha que la imagen. */
+.cv-castle-scene::before {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: var(--castle-ground);
+  content: "";
+  background: linear-gradient(180deg, #282233 0%, #1b1218 14%, #160c11 45%, #0b0203 100%);
+}
+
+.cv-castle-scene__art {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: auto;
+  max-width: none;
+  height: 100%;
+  transform: translateX(calc(-1 * var(--castle-focus)));
+  image-rendering: pixelated;
+  user-select: none;
+  /* Los bordes del asset se funden con el suelo prolongado en pantallas anchas. */
+  mask-image: linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%);
 }
 
 .cv-bat {
@@ -789,19 +945,6 @@ select.cv-input {
   }
   to {
     transform: translateX(0);
-  }
-}
-
-@keyframes window-flicker {
-  0%,
-  100% {
-    opacity: 0.9;
-  }
-  40% {
-    opacity: 0.55;
-  }
-  60% {
-    opacity: 1;
   }
 }
 

@@ -1,5 +1,7 @@
 import type { Ref } from 'react'
 import { BOSSES } from '../lib/bosses'
+import { todayKey } from '../lib/date'
+import { weatherForDay, weatherProfile } from '../lib/weather'
 import type { BossId } from '../types'
 import BossSprite from './BossSprite'
 import Ornament from './Ornament'
@@ -25,6 +27,7 @@ function BossSky({
 }>) {
   const revealing = entrancePhase === 'revealing'
   const storming = Boolean(bossId)
+  const weather = weatherProfile(weatherForDay(todayKey()))
 
   return (
     <div
@@ -47,23 +50,25 @@ function BossSky({
             ? `Una presencia irrumpe en el Castillo: ${bossId ? BOSSES[bossId].name : 'algo desconocido'}.`
             : bossId
             ? 'Toca a la criatura para conocer su amenaza.'
-            : 'Ninguna criatura acecha el castillo esta noche.'}
+            : `${weather.description} Ninguna criatura acecha el castillo esta noche.`}
         </p>
       </div>
 
-      {bossId && (
-        <div className="cv-moon-spot pointer-events-none absolute flex h-28 w-28 items-center justify-center">
-          <button
-            type="button"
-            onClick={onOpenBoss}
-            disabled={revealing}
-            aria-label={`${BOSSES[bossId].name}: ver detalles del encuentro`}
-            className="cv-boss-sprite pointer-events-auto shrink-0 rounded-3xl p-2"
-          >
-            <BossSprite bossId={bossId} scale={3} />
-          </button>
-        </div>
-      )}
+      <div className="pointer-events-none absolute inset-0 mx-auto max-w-md">
+        {bossId && (
+          <div className="cv-moon-spot pointer-events-none absolute flex h-28 w-28 items-center justify-center">
+            <button
+              type="button"
+              onClick={onOpenBoss}
+              disabled={revealing}
+              aria-label={`${BOSSES[bossId].name}: ver detalles del encuentro`}
+              className="cv-boss-sprite pointer-events-auto shrink-0 rounded-3xl p-2"
+            >
+              <BossSprite bossId={bossId} scale={3} />
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="absolute inset-x-0 bottom-6 flex flex-col items-center gap-3">
         {revealing && onSkipEntrance && (

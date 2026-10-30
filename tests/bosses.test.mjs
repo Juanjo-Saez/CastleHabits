@@ -70,6 +70,14 @@ import {
   soulChanceWithPity,
   soulSlotsForLevel,
 } from '../src/lib/souls.ts'
+import {
+  WEATHER_PROFILES,
+  resetWeatherSeedForTests,
+  selectWeather,
+  weatherForDay,
+  weatherProfile,
+  weatherSeed,
+} from '../src/lib/weather.ts'
 
 const BAT = BOSSES['giant-bat']
 const SLOGRA = BOSSES['slogra-gaibon']
@@ -1179,4 +1187,49 @@ test('una corrección guarda la EXP y el oro con los efectos y maldiciones de es
   const both = planDayCorrection(input, cursed, items, [], penalties.missedEvents, undefined, undefined, boss)
   assert.equal(both.completions[0].xpEarned, 6)
   assert.equal(both.completions[0].coinsEarned, 1)
+})
+
+test('el clima diario es determinista y sus pesos forman un catálogo válido', () => {
+  const first = weatherForDay('2026-10-30', 'castle-seed')
+  assert.equal(first, selectWeather('2026-10-30', 'castle-seed'))
+  assert.equal(weatherForDay('2026-10-30', 'castle-seed'), first)
+  assert.equal(WEATHER_PROFILES.reduce((total, profile) => total + profile.weight, 0), 100)
+  assert.deepEqual(WEATHER_PROFILES.map((profile) => profile.kind), [
+    'clear',
+    'clouded',
+    'fog',
+    'rain',
+    'storm',
+    'eclipse',
+  ])
+  for (const profile of WEATHER_PROFILES) {
+    assert.equal(weatherProfile(profile.kind), profile)
+    assert.ok(profile.weight > 0)
+    assert.ok(profile.label)
+    assert.ok(profile.description)
+  }
+})
+
+test('la semilla del clima persiste y usa una semilla de sesión si el almacenamiento falla', () => {
+  resetWeatherSeedForTests()
+  let value = null
+  const storage = {
+    getItem: () => value,
+    setItem: (_key, next) => { value = next },
+  }
+  const persisted = weatherSeed(storage)
+  assert.equal(weatherSeed(storage), persisted)
+
+  resetWeatherSeedForTests()
+  const restored = weatherSeed(storage)
+  assert.equal(restored, persisted)
+
+  resetWeatherSeedForTests()
+  const brokenStorage = {
+    getItem: () => { throw new Error('storage unavailable') },
+    setItem: () => { throw new Error('storage unavailable') },
+  }
+  const session = weatherSeed(brokenStorage)
+  assert.equal(weatherSeed(brokenStorage), session)
+  assert.ok(session.length > 0)
 })

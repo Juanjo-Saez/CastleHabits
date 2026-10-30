@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { build } from 'vite'
 
-const suites = ['dayCorrections', 'dailySummary', 'bosses']
+const suites = ['dayCorrections', 'dailySummary', 'bosses', 'castleAsset']
 
 // Usa el mismo bundler que la app para TypeScript y los paquetes CommonJS.
 const output = mkdtempSync(join(tmpdir(), 'castlehabits-tests-'))
