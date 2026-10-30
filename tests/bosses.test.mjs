@@ -566,11 +566,29 @@ test('las pasivas solo se activan para almas equipadas y obtenidas, sin duplicad
   })
   assert.equal(equippedSoulRank(base, 'legion'), 2)
   assert.equal(equippedSoulRank(base, 'giant-bat'), 0)
+  const locked = { ...base, dailySoulLoadout: { date: '2026-10-30', souls: ['legion'] } }
+  assert.equal(equippedSoulRank(locked, 'legion', '2026-10-30'), 2)
+  assert.equal(equippedSoulRank(locked, 'legion', '2026-10-31'), 0)
   assert.deepEqual(equippedSoulPassives(base), [
     { id: 'legion', passiveId: 'trivialCoins', rank: 2 },
     { id: 'medusa', passiveId: 'weeklyFreeze', rank: 1 },
   ])
   assert.deepEqual(base.equippedSouls, ['legion', 'legion', 'giant-bat', 'medusa'])
+})
+
+test('la pasiva de Legion añade monedas solo a tareas triviales y escala por rango', () => {
+  const rankOne = profile({
+    souls: { legion: { rank: 1, fragments: 0 } },
+    equippedSouls: ['legion'],
+  })
+  const rankThree = profile({
+    souls: { legion: { rank: 3, fragments: 0 } },
+    equippedSouls: ['legion'],
+  })
+  assert.equal(modifyCoins(2, { soulProfile: rankOne, itemDifficulty: 'trivial' }, '2026-10-30'), 3)
+  assert.equal(modifyCoins(2, { soulProfile: rankThree, itemDifficulty: 'trivial' }, '2026-10-30'), 5)
+  assert.equal(modifyCoins(2, { soulProfile: rankThree, itemDifficulty: 'easy' }, '2026-10-30'), 2)
+  assert.equal(modifyCoins(2, { itemDifficulty: 'trivial' }, '2026-10-30'), 2)
 })
 
 test('las reliquias de primera victoria se conceden por expedición y el corazón aumenta la vida máxima', () => {

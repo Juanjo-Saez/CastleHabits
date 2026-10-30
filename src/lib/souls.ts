@@ -1,4 +1,4 @@
-import type { PlayerProfile, SoulAward, SoulId, SoulProgress, SoulRank } from '../types'
+import type { DailySoulLoadout, PlayerProfile, SoulAward, SoulId, SoulProgress, SoulRank } from '../types'
 
 export const MAX_SOUL_PITY = 20
 
@@ -76,14 +76,23 @@ export interface EquippedSoulPassive {
 }
 
 /** Devuelve el rango runtime de un Alma: solo existe mientras está equipada y obtenida. */
-export function equippedSoulRank(profile: Pick<PlayerProfile, 'souls' | 'equippedSouls'>, id: SoulId): SoulRank | 0 {
+type SoulProfile = Pick<PlayerProfile, 'souls' | 'equippedSouls'> & {
+  dailySoulLoadout?: DailySoulLoadout
+}
+
+export function equippedSoulRank(
+  profile: SoulProfile,
+  id: SoulId,
+  dateKey?: string,
+): SoulRank | 0 {
+  if (dateKey && profile.dailySoulLoadout?.date !== dateKey) return 0
   if (!profile.equippedSouls?.includes(id)) return 0
   return profile.souls?.[id]?.rank ?? 0
 }
 
 /** Lista pasivas activas, deduplicada y sin entradas obsoletas del perfil. */
 export function equippedSoulPassives(
-  profile: Pick<PlayerProfile, 'souls' | 'equippedSouls'>,
+  profile: SoulProfile,
 ): EquippedSoulPassive[] {
   const seen = new Set<SoulId>()
   return (profile.equippedSouls ?? []).flatMap((id) => {

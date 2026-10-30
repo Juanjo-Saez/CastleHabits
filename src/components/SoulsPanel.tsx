@@ -1,4 +1,5 @@
 import { soulDefinition, soulSlotsForLevel } from '../lib/souls'
+import { todayKey } from '../lib/date'
 import { usePlayerStore } from '../store/usePlayerStore'
 import type { SoulId } from '../types'
 import SectionTitle from './SectionTitle'
@@ -10,6 +11,7 @@ function SoulsPanel() {
 
   const souls = Object.entries(profile.souls ?? {}) as [SoulId, { rank: number; fragments: number }][]
   const slots = soulSlotsForLevel(profile.level)
+  const loadoutLocked = profile.dailySoulLoadout?.date === todayKey()
 
   return (
     <div className="cv-panel p-3">
@@ -35,10 +37,11 @@ function SoulsPanel() {
                 <button
                   type="button"
                   onClick={() => void equipSoul(id)}
+                  disabled={!loadoutLocked}
                   aria-pressed={equipped}
                   className={equipped ? 'cv-btn cv-btn--gold px-2 py-1 text-xs' : 'cv-btn cv-btn--ghost px-2 py-1 text-xs'}
                 >
-                  {equipped ? 'Desequipar' : 'Equipar'}
+                  {loadoutLocked ? (equipped ? 'Fijada hoy' : 'No equipada') : 'Elegir al entrar'}
                 </button>
               </div>
             )

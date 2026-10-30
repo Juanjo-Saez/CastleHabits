@@ -129,6 +129,8 @@ export interface PlayerProfile {
   relics: RelicId[]
   /** Almas equipadas en las casillas disponibles por nivel. */
   equippedSouls: SoulId[]
+  /** Loadout elegido al entrar en el día operativo; permanece bloqueado hasta las 02:00. */
+  dailySoulLoadout?: DailySoulLoadout
   /** Último día (yyyy-MM-dd) hasta el que ya se aplicó el daño por tareas vencidas. */
   lastPenaltyCheck?: string
   /** Instante inicial de la expedición; ausente en perfiles antiguos pendientes de confirmar. */
@@ -151,6 +153,8 @@ export interface DaySnapshot {
   hp: number
   /** Vida máxima efectiva (con el bono del oficio equipado). */
   maxHp: number
+  /** Almas fijadas para ese día, usadas al corregirlo sin aplicar el loadout actual. */
+  soulLoadout?: SoulId[]
 }
 
 /** Subida de nivel pendiente de celebrar: del nivel anterior al actual, con sus mejoras. */
@@ -188,6 +192,11 @@ export type RelicId = 'rosary' | 'silverMirror' | 'heart'
 export interface SoulProgress {
   rank: SoulRank
   fragments: number
+}
+
+export interface DailySoulLoadout {
+  date: string
+  souls: SoulId[]
 }
 
 export interface SoulAward {

@@ -67,17 +67,33 @@ export function currentActiveBoss(): BossEncounter | null {
 }
 
 /** Boss y maldiciones que alteran las reglas ahora mismo. */
-export function currentModifiers(item?: Pick<Item, 'zone'>): ModifierContext {
-  return { boss: currentActiveBoss(), curses: usePlayerStore.getState().profile?.curses, zone: item?.zone }
+export function currentModifiers(item?: Pick<Item, 'zone' | 'difficulty'>): ModifierContext {
+  const profile = usePlayerStore.getState().profile
+  return {
+    boss: currentActiveBoss(),
+    curses: profile?.curses,
+    zone: item?.zone,
+    soulProfile: profile ?? undefined,
+    soulDate: todayKey(),
+    itemDifficulty: item?.difficulty,
+  }
 }
 
 /** Aplica los efectos del boss y las maldiciones a una cantidad de EXP ya calculada con los bonos normales. */
-export function xpAfterModifiers(xp: number, dateKey = todayKey(), item?: Pick<Item, 'zone'>): number {
+export function xpAfterModifiers(
+  xp: number,
+  dateKey = todayKey(),
+  item?: Pick<Item, 'zone' | 'difficulty'>,
+): number {
   return modifyXp(xp, currentModifiers(item), dateKey)
 }
 
-export function coinsAfterModifiers(coins: number, dateKey = todayKey()): number {
-  return modifyCoins(coins, currentModifiers(), dateKey)
+export function coinsAfterModifiers(
+  coins: number,
+  dateKey = todayKey(),
+  item?: Pick<Item, 'zone' | 'difficulty'>,
+): number {
+  return modifyCoins(coins, currentModifiers(item), dateKey)
 }
 
 /** Fija la apuesta de Death y retira el oro de forma atómica. */

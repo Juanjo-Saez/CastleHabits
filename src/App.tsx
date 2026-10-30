@@ -4,6 +4,7 @@ import Backdrop from './components/Backdrop'
 import DailySummaryModal from './components/DailySummaryModal'
 import HardcoreDeath from './components/HardcoreDeath'
 import LevelUpCelebration from './components/LevelUpCelebration'
+import SoulLoadoutModal from './components/SoulLoadoutModal'
 import { settleDayPenalties } from './lib/dayCorrections'
 import { todayKey } from './lib/date'
 import {
@@ -69,6 +70,7 @@ function App() {
 
         const profile = usePlayerStore.getState().profile
         if (profile) await useAchievementsStore.getState().checkAndUnlock({ items, completionsByItem, profile })
+        await usePlayerStore.getState().ensureDailySoulLoadout()
         checkedDay = todayKey()
         if (active) {
           setLoadError(null)
@@ -123,6 +125,7 @@ function App() {
       <Backdrop />
       <LevelUpCelebration />
       <DailySummaryModal />
+      <SoulLoadoutModal />
       <HardcoreDeath />
       <main className={`relative z-10 flex-1 overflow-y-auto pb-20 ${location.pathname === '/tareas' ? 'cv-castle-scroll' : ''}`}>
         {loadError && <p role="alert" className="p-3 font-body text-blood-400">No se pudo actualizar el día: {loadError}. Recarga para volver a intentarlo.</p>}

@@ -190,7 +190,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       today,
       item,
     )
-    const coins = coinsAfterModifiers(DIFFICULTY_COINS[item.difficulty])
+    const coins = coinsAfterModifiers(DIFFICULTY_COINS[item.difficulty], today, item)
     const scheduledDate = scheduledDateFor(item, logicalNow())
     let effectiveDueDate = today
     if (item.type === 'todo' && item.dueDate && item.postponedUntil !== today) {

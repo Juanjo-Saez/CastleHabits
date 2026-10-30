@@ -1,7 +1,8 @@
-import type { ActiveCurse, BossEncounter, CurseId, RelicId } from '../types'
+import type { ActiveCurse, BossEncounter, CurseId, Difficulty, PlayerProfile, RelicId } from '../types'
 import { activeCursesOn, CURSES } from './curses'
 import { hasRelic } from './relics'
 import { effectPercent, effectPercentForItem } from './bosses'
+import { equippedSoulRank } from './souls'
 
 /** Lo que altera las reglas normales en un día: el boss activo y las maldiciones en curso. */
 export interface ModifierContext {
@@ -9,6 +10,10 @@ export interface ModifierContext {
   curses?: ActiveCurse[]
   zone?: string
   relics?: RelicId[]
+  /** Perfil actual para pasivas de Almas; no se pasa al recalcular días cerrados. */
+  soulProfile?: Pick<PlayerProfile, 'souls' | 'equippedSouls' | 'dailySoulLoadout'>
+  soulDate?: string
+  itemDifficulty?: Difficulty
 }
 
 function cursePercent(
@@ -31,7 +36,11 @@ export function modifyXp(xp: number, ctx: ModifierContext, dateKey: string): num
 
 export function modifyCoins(coins: number, ctx: ModifierContext, dateKey: string): number {
   const percent = cursePercent(ctx, dateKey, (c) => c.coinPercent)
-  return percent === 100 ? coins : Math.max(coins > 0 ? 1 : 0, Math.ceil((coins * percent) / 100))
+  const modified = percent === 100 ? coins : Math.max(coins > 0 ? 1 : 0, Math.ceil((coins * percent) / 100))
+  const legionRank = ctx.itemDifficulty === 'trivial' && ctx.soulProfile
+    ? equippedSoulRank(ctx.soulProfile, 'legion', ctx.soulDate)
+    : 0
+  return modified + legionRank
 }
 
 /** Vida que cura una poción con los efectos del día; 0 si una maldición lo impide. */

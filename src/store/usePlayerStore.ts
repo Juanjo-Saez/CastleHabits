@@ -33,6 +33,8 @@ interface PlayerState {
   equipRoute: (routeId: RouteId | null) => Promise<boolean>
   setShieldReadyOn: (date: string | undefined) => Promise<void>
   restartRun: () => Promise<void>
+  ensureDailySoulLoadout: () => Promise<void>
+  setDailySoulLoadout: (ids: SoulId[]) => Promise<boolean>
   equipSoul: (id: SoulId) => Promise<boolean>
   setLastPenaltyCheck: (date: string) => Promise<void>
   spendCoins: (amount: number) => Promise<boolean>
@@ -343,6 +345,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       equippedRoute: null,
       relics: [],
       equippedSouls: [],
+      dailySoulLoadout: undefined,
       shieldReadyOn: undefined,
       dead: false,
       lastPenaltyCheck: todayKey(),
@@ -364,16 +367,41 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ profile: updated, justLeveledUp: null })
   },
 
-  equipSoul: async (id) => {
+  equipSoul: async () => {
+    // El loadout se elige una vez al entrar en el día; no se puede mutar desde
+    // las acciones individuales del panel de perfil.
+    return false
+  },
+
+  ensureDailySoulLoadout: async () => {
     const current = get().profile
-    if (!current || !current.souls?.[id]) return false
-    const equipped = current.equippedSouls ?? []
-    const alreadyEquipped = equipped.includes(id)
-    if (!alreadyEquipped && equipped.length >= soulSlotsForLevel(current.level)) return false
-    const nextEquipped = alreadyEquipped
-      ? equipped.filter((soulId) => soulId !== id)
-      : [...equipped, id]
-    const updated = { ...current, equippedSouls: nextEquipped }
+    const date = todayKey()
+    if (!current || current.dailySoulLoadout?.date === date) return
+    if (Object.keys(current.souls ?? {}).length > 0 && soulSlotsForLevel(current.level) > 0) return
+
+    const updated: PlayerProfile = {
+      ...current,
+      equippedSouls: [],
+      dailySoulLoadout: { date, souls: [] },
+    }
+    await db.profile.put(updated)
+    set({ profile: updated })
+  },
+
+  setDailySoulLoadout: async (ids) => {
+    const current = get().profile
+    const date = todayKey()
+    if (!current || current.dailySoulLoadout?.date === date) return false
+
+    const unique = [...new Set(ids)]
+    const valid = unique.every((id) => Boolean(current.souls?.[id]))
+    if (!valid || unique.length > soulSlotsForLevel(current.level)) return false
+
+    const updated: PlayerProfile = {
+      ...current,
+      equippedSouls: unique,
+      dailySoulLoadout: { date, souls: unique },
+    }
     await db.profile.put(updated)
     set({ profile: updated })
     return true

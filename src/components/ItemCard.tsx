@@ -145,7 +145,7 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
       : xpAfterModifiers(xpWithBonus(DIFFICULTY_XP[item.difficulty], profile), todayKey(), item)
     const earnedCoins = reward === -1 && completion?.coinsEarned
       ? completion.coinsEarned
-      : coinsAfterModifiers(DIFFICULTY_COINS[item.difficulty])
+      : coinsAfterModifiers(DIFFICULTY_COINS[item.difficulty], todayKey(), item)
     setBusy(true)
     setError(null)
     try {

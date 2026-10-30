@@ -179,6 +179,9 @@ export function snapshotOf(profile: PlayerProfile, date: string): DaySnapshot {
   return {
     date, runStartedAt: profile.runStartedAt, level: profile.level, xp: profile.xp,
     hp: profile.hp, maxHp: effectiveMaxHp(profile, date),
+    soulLoadout: profile.dailySoulLoadout?.date === date
+      ? [...profile.dailySoulLoadout.souls]
+      : undefined,
   }
 }
 
@@ -404,7 +407,19 @@ export function planDayCorrection(
   const complete = input.quantity >= goal
   const previousQuantity = existing ? (item.trackingType === 'boolean' ? 1 : existing.quantityDone ?? 0) : 0
   if (previousQuantity === input.quantity) return { profile, completions, events, leveledUp: false }
-  const modifiers = { boss, curses: profile.curses }
+  const correctionSoulLoadout = snapshot?.date === input.date ? snapshot.soulLoadout : undefined
+  const modifiers = {
+    boss,
+    curses: profile.curses,
+    soulProfile: correctionSoulLoadout
+      ? {
+          souls: profile.souls,
+          equippedSouls: correctionSoulLoadout,
+          dailySoulLoadout: { date: input.date, souls: correctionSoulLoadout },
+        }
+      : undefined,
+    soulDate: correctionSoulLoadout ? input.date : undefined,
+  }
   const xp = complete
     ? (existing?.xpEarned || modifyXp(xpWithBonus(DIFFICULTY_XP[item.difficulty], profile), modifiers, input.date))
     : 0

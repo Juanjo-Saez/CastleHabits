@@ -6,13 +6,15 @@
 - [x] Asociar las Almas implementadas a su pasiva y descripción.
 - [x] Exponer resolución pura de Almas equipadas y rango activo.
 - [x] Rechazar silenciosamente entradas no obtenidas u obsoletas sin mutar el perfil.
+- [x] Pedir el loadout al entrar en un nuevo día y bloquearlo hasta las 02:00.
+- [x] Persistir el loadout fijado en el snapshot diario para correcciones.
 
 ## Integraciones por pasiva
 
 - [ ] Murciélago: bono de EXP al cerrar todas las obligaciones del día.
 - [ ] Slogra: bono de monedas al quinto cumplimiento diario.
 - [ ] Gaibon: aplazamiento gratuito semanal con registro idempotente.
-- [ ] Legion: moneda adicional para tareas triviales.
+- [x] Legion: moneda adicional para tareas triviales.
 - [ ] Frankenstein: bono de EXP para la primera tarea de cada zona.
 - [ ] Succubus: primera poción diaria con curación reforzada.
 - [ ] Death: segunda oportunidad única por expedición.
@@ -22,8 +24,8 @@
 
 - [ ] Definir el registro mínimo necesario para efectos consumibles sin
       contadores manuales duplicados.
-- [ ] Garantizar que equipar o desequipar no reescribe días cerrados.
-- [ ] Hacer que las correcciones de ayer recalculen efectos derivados sin
+- [x] Garantizar que equipar o desequipar no reescribe días cerrados.
+- [x] Hacer que las correcciones de ayer recalculen efectos derivados sin
       duplicar recompensas ni consumos.
 
 ## Verificación

@@ -15,10 +15,15 @@ pruebas de idempotencia y corrección de ayer.
 ## Reglas confirmadas
 
 - Solo las Almas incluidas en `profile.equippedSouls` están activas.
+- Al entrar por primera vez en un día operativo se elige el loadout del día,
+  después de mostrar el resumen del día anterior si corresponde.
+- El loadout elegido queda bloqueado hasta el siguiente corte de las 02:00.
 - El rango activo es el rango persistido en `profile.souls`.
 - Un Alma no obtenida o una entrada equipable obsoleta no activa ningún efecto.
 - La resolución de Almas equipadas es pura y no muta el perfil.
 - Los efectos no se aplican retroactivamente a días ya cerrados.
+- El loadout fijado se copia al `DaySnapshot` para que una corrección de ayer
+  use las Almas de ese día y no las equipadas actualmente.
 - El número de casillas sigue dependiendo del nivel de la expedición actual.
 
 ## Catálogo inicial
@@ -44,9 +49,22 @@ infraestructura.
 - Asociar cada Alma existente a su pasiva y descripción de rango 1.
 - Exponer helpers puros para obtener el rango de un Alma equipada y listar las
   pasivas activas sin duplicados.
+- Persistir y seleccionar el loadout diario antes de activar efectos.
 - Cubrir la selección con tests.
 - Mantener los efectos de juego existentes sin cambios hasta que cada pasiva
   tenga un punto de integración y un registro idempotente.
+
+## Primera integración: Legion
+
+La pasiva de Legion es la primera integración runtime porque solo depende de la
+tarea que se está completando:
+
+- Rango 1: +1 moneda en tareas triviales.
+- Rango 2: +2 monedas en tareas triviales.
+- Rango 3: +3 monedas en tareas triviales.
+- No afecta tareas fáciles, medias o difíciles.
+- Solo se calcula para una recompensa nueva del día actual.
+- Las correcciones de días cerrados usan el loadout guardado en su snapshot.
 
 ## Fuera de alcance
 
