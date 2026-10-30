@@ -136,9 +136,8 @@ function BossDialog({
     >
       <section className={`cv-panel ${active ? 'cv-panel--blood' : 'cv-panel--gold'} max-h-[92dvh] overflow-y-auto p-0`}>
         <div className="cv-sky relative h-52 overflow-hidden border-b-2 border-gold-600/60">
-          <div className="cv-stars absolute inset-0" />
+          <CastleSilhouette className="absolute inset-0 opacity-95" />
           <div className="cv-moon absolute top-5 left-1/2 h-24 w-24 -translate-x-1/2" />
-          <CastleSilhouette className="absolute inset-x-0 bottom-0 h-32 w-full opacity-95" />
           <div className="absolute inset-0 flex items-center justify-center pb-4">
             <BossSprite bossId={definition.id} scale={definition.id === 'giant-bat' ? 4 : 3} className="cv-boss-float" />
           </div>

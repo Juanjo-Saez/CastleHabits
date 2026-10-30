@@ -111,11 +111,10 @@ Estado revisado el 30 de octubre de 2026. Este documento refleja el punto actual
 
 - [x] **Sustituir el Castillo SVG por el asset pixel-art autorizado.**
   - OpenSpec: `openspec/changes/castle-pixel-art-asset/`
-  - Referencia guardada en `art/references/castle-reference.png`; el castillo
-    recortado vive en `src/assets/castle.png` y se regenera con
-    `scripts/extract-castle.py`.
-  - Separar la fortaleza de la luna incrustada para mantener la luna como
-    elemento móvil, reutilizable y compatible con bosses y eclipses.
+  - La composición completa está en `src/assets/castle-scene.webp`; se conserva
+    su original en `art/references/castle-scene-reference.png`.
+  - La luna sigue siendo independiente y se superpone al fondo; los climas y
+    efectos de bosses continúan como capas dinámicas.
 
 - [ ] **Pantalla de carga animada al entrar en la app.**
   - Referencia guardada en `art/references/loading-reference.png`.

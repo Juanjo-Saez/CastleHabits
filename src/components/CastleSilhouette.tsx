@@ -1,23 +1,18 @@
 import type { CSSProperties } from 'react'
-import castleArt from '../assets/castle.png'
-import { CASTLE_ART, castleArtGeometry } from '../lib/castleArt'
+import castleScene from '../assets/castle-scene.webp'
 
-/**
- * Castillo pixel-art sin cielo ni luna: se apoya en el borde inferior, conserva su
- * proporción y recorta los laterales alrededor de la torre central cuando falta anchura.
- */
 function CastleSilhouette({ className, style }: Readonly<{ className?: string; style?: CSSProperties }>) {
   return (
     <div
       className={`cv-castle-scene ${className ?? ''}`}
-      style={{ ...(castleArtGeometry() as CSSProperties), ...style }}
+      style={style}
       aria-hidden
     >
       <img
-        src={castleArt}
+        src={castleScene}
         alt=""
-        width={CASTLE_ART.width}
-        height={CASTLE_ART.height}
+        width={1367}
+        height={768}
         draggable={false}
         decoding="async"
         className="cv-castle-scene__art"

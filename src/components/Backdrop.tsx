@@ -30,13 +30,8 @@ function Backdrop() {
       data-weather={weather}
       aria-hidden
     >
-      <div className="cv-stars absolute inset-0" />
+      <CastleSilhouette className="absolute inset-0 z-0" />
       <div className="cv-cloud-layer absolute inset-0" />
-      {/* El castillo ocupa todo el ancho y recorta sus laterales alrededor de la torre central. */}
-      <CastleSilhouette
-        className="absolute inset-x-0 bottom-0 z-0"
-        style={{ height: 'var(--castle-h)' }}
-      />
       {/* La luna se ancla a la columna de la app para que el boss del Castillo coincida con ella. */}
       <div className="absolute inset-0 mx-auto max-w-md">
         <div
@@ -79,7 +74,6 @@ function Backdrop() {
       {(dailyWeather === 'fog' || dailyWeather === 'storm' || bossActive) && (
         <div className="cv-fog absolute -left-1/4 bottom-0 h-48 w-[150%]" />
       )}
-      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-night-950 to-transparent" />
     </div>
   )
 }

@@ -1,57 +1,43 @@
 # Runtime Validation Report
 
-**Generated**: 2026-10-30  
-**Target**: CastleHabits — castillo pixel-art (`openspec/changes/castle-pixel-art-asset/`)
+**Target**: CastleHabits — sustitución por la composición completa del Castillo
 
 ## Summary
 
 | Step | Status | Exit Code | Details |
 |---|---|---:|---|
-| Startup | PASS | 0 | Vite dev server at `http://127.0.0.1:5173`, Castillo page served |
-| Unit/integration tests | PASS | 0 | `npm test`: 113 passed, 0 failed (5 new asset tests) |
-| TypeScript | PASS | 0 | `npx tsc -b` |
-| Production build | PASS | 0 | `npm run build`; only the existing >500 kB chunk warning |
-| Focused lint | PASS | 0 | ESLint on changed source, test and script files |
+| Unit tests | PASS | 0 | `npm test`: 116 passed, 0 failed |
+| TypeScript and production build | PASS | 0 | `npm run build` (`tsc -b` + Vite) |
+| Focused lint | PASS | 0 | ESLint on changed components and test |
+| Full lint | FAIL | 1 | Existing `react-hooks/set-state-in-effect` in `src/components/NumberField.tsx:27`, untouched by this change |
+| Browser visual review | PASS | 0 | Local Vite app reviewed at four responsive viewports |
 | Diff validation | PASS | 0 | `git diff --check` |
-| Browser validation | PASS | 0 | Headless Edge (Playwright for Python), clean profile per capture |
-
-**Overall**: PASS
 
 ## Asset
 
-- `src/assets/castle.png`: indexed PNG, `738×414`, 50.6 KB, binary transparency.
-- Generated from `art/references/castle-reference.png` by `scripts/extract-castle.py`.
-- Bundled as a hashed asset and precached by the PWA; neither reference image
-  is published in `public/` nor present in `dist/` or `sw.js`.
+- Runtime asset: `src/assets/castle-scene.webp`, lossless WebP, `1367×768`,
+  approximately 825 KB.
+- The original is retained at `art/references/castle-scene-reference.png`;
+  it is outside `public/`.
+- The prior transparent castle crop, geometry helper, and extraction script
+  have been removed.
+- Production build includes the WebP in the app bundle and PWA precache.
 
 ## Browser Evidence
 
-- Viewports: `390×844`, `768×1024`, `1024×768`, `1440×900`.
-- The central tower stays on the horizontal centre in every viewport; on mobile
-  the asset renders at `1053×591` and crops its sides symmetrically.
-- The moon stays `112×112 px` and above the spires in every viewport.
-- `clear`, `clouded`, `fog`, `rain`, `storm` and `eclipse` render over the
-  castle without hiding it; the backlight tints cold, violet (eclipse) or red (boss).
-- Active boss: `data-weather="boss"`, blood moon, storm, and the boss sprite
-  centred on the moon (mobile `301.5` vs `303`; desktop `851.5` vs `852`).
-- The boss dialog banner renders the castle behind the boss.
-- Keyboard: the first Tab reaches the boss, Enter opens its dialog, Escape closes it.
-- The castle layer has `pointer-events: none` and `image-rendering: pixelated`;
-  hit-testing over it returns the interactive scene, not the image.
-- `prefers-reduced-motion: reduce` reduces storm, clouds, stars, bats and boss
-  float animations to `0.001ms` while keeping the composition.
-
-## Environment
-
-- Node.js `v22.23.2`; Python `3.14.7` with Pillow, NumPy and Playwright
-  (installed for the asset pipeline and validation only, not app dependencies).
-- npm registry unreachable from this network, so browser automation used
-  Playwright for Python driving the installed Microsoft Edge.
-- Docker not required: client-side visual change with no infrastructure.
+- Viewports checked: `390×844`, `768×1024`, `1024×768`, `1440×900`.
+- The scene image fills each viewport; the page has no horizontal or vertical
+  overflow at those sizes.
+- The application moon remains a separate `112×112 px` overlay.
+- Desktop and mobile screenshots show the new full-scene composition, with the
+  central tower prioritized by `object-position: 55% center`.
+- The boss dialog was not triggered in the browser; its full-scene background
+  and moon stacking order are covered by the focused asset test.
+- Dynamic weather and boss layers remain separate from the static image.
 
 ## Known Issues
 
-- Vite still warns that the main JavaScript chunk exceeds 500 kB after
-  minification; unrelated to this change.
-- On some viewports the moon overlaps the right end of the sky subtitle; this
-  layout predates the change and was not modified.
+- Full-project ESLint remains blocked by the unrelated existing error in
+  `src/components/NumberField.tsx:27`.
+- Vite reports the existing main JavaScript chunk exceeds 500 kB after
+  minification; the new scene asset is 825 KB and lossless.
