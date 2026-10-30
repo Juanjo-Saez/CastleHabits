@@ -53,7 +53,7 @@ Estado revisado el 30 de octubre de 2026. Este documento refleja el punto actual
   - Aplicar la misma regla tanto a la EXP de tareas como a las recompensas de
     bosses y a las correcciones históricas.
 
-- [ ] **Fix P0: hacer la curva de EXP más lenta y progresiva.**
+- [x] **Fix P0: hacer la curva de EXP más lenta y progresiva.**
   - Mantener los primeros saltos en **75 EXP** (nivel 1 → 2) y **100 EXP**
     (nivel 2 → 3).
   - Fijar **175 EXP** para nivel 3 → 4 y **225 EXP** para nivel 4 → 5.

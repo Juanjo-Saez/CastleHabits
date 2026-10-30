@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { beforeEach, test } from 'node:test'
 import { buildDailySummary, summaryDateKey } from '../src/lib/dailySummary.ts'
 import { planDayCorrection, reconcileSnapshot } from '../src/lib/dayCorrections.ts'
-import { addXp, levelUpRecovery, rewindXp } from '../src/lib/gamification.ts'
+import { addXp, levelUpRecovery, rewindXp, xpToNextLevel } from '../src/lib/gamification.ts'
 import { computeMissedPenalties } from '../src/lib/penalties.ts'
 import { defaultRoutes } from '../src/lib/routes.ts'
 import { clearSummaryMarker, hasShownSummary, markSummaryShown } from '../src/lib/summaryMarker.ts'
@@ -227,6 +227,15 @@ test('la corrección ajusta el snapshot igual que el perfil, también con subida
 
 test('la recuperación al subir redondea hacia arriba la mitad de la vida máxima', () => {
   assert.deepEqual([levelUpRecovery(20), levelUpRecovery(25), levelUpRecovery(55)], [10, 13, 28])
+})
+
+test('la EXP necesaria conserva los primeros tramos y crece por múltiplos de cinco', () => {
+  assert.deepEqual(
+    Array.from({ length: 10 }, (_, index) => xpToNextLevel(index + 1)),
+    [75, 100, 175, 225, 270, 325, 390, 470, 565, 680],
+  )
+  assert.deepEqual(addXp(4, 224, 1), { level: 5, xp: 0 })
+  assert.deepEqual(addXp(5, 269, 1), { level: 6, xp: 0 })
 })
 
 test('la marca de presentación automática es idempotente y no depende del perfil', () => {

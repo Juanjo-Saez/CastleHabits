@@ -38,7 +38,16 @@ export const DIFFICULTY_DAMAGE: Record<Difficulty, number> = {
 
 /** XP necesaria para pasar del nivel dado al siguiente. */
 export function xpToNextLevel(level: number): number {
-  return 50 + level * 25
+  if (level <= 1) return 75
+  if (level === 2) return 100
+  if (level === 3) return 175
+  if (level === 4) return 225
+
+  let required = 225
+  for (let currentLevel = 5; currentLevel <= level; currentLevel += 1) {
+    required = Math.round((required * 1.2) / 5) * 5
+  }
+  return required
 }
 
 /** Vida máxima que concede cada nivel ganado. */
