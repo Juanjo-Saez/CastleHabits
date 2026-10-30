@@ -119,6 +119,14 @@ export interface PlayerProfile {
   /** Modo Hardcore: al llegar a 0 HP la partida termina. */
   hardcore: boolean
   dead: boolean
+  /** Almas obtenidas: progresan entre expediciones. */
+  souls: Partial<Record<SoulId, SoulProgress>>
+  /** Piedad acumulada por boss, expresada en puntos porcentuales. */
+  soulPity: Partial<Record<SoulId, number>>
+  /** Reliquias de la expedición actual; se pierden al renacer. */
+  relics: RelicId[]
+  /** Almas equipadas en las casillas disponibles por nivel. */
+  equippedSouls: SoulId[]
   /** Último día (yyyy-MM-dd) hasta el que ya se aplicó el daño por tareas vencidas. */
   lastPenaltyCheck?: string
   /** Instante inicial de la expedición; ausente en perfiles antiguos pendientes de confirmar. */
@@ -171,6 +179,21 @@ export interface Reminder {
 
 export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus' | 'death'
 export type DeathStakePercent = 0 | 10 | 25
+export type SoulId = BossId
+export type SoulRank = 1 | 2 | 3
+export type RelicId = 'rosary' | 'silverMirror' | 'heart'
+
+export interface SoulProgress {
+  rank: SoulRank
+  fragments: number
+}
+
+export interface SoulAward {
+  id: SoulId
+  rank: SoulRank
+  repeated: boolean
+  upgraded: boolean
+}
 
 /** `scheduled` es la espera inicial; `cooldown`, la espera posterior a un encuentro resuelto. */
 export type BossStatus = 'scheduled' | 'active' | 'victory' | 'defeat' | 'cooldown'
@@ -195,6 +218,8 @@ export interface BossRewards {
   xp: number
   coins: number
   items: Partial<Record<BossResource, number>>
+  souls?: Partial<Record<SoulId, SoulAward>>
+  relics?: RelicId[]
 }
 
 /** Una aparición de un boss. Solo existe una sin resolver a la vez; el progreso se deriva de los completados. */

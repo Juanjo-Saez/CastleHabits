@@ -16,6 +16,7 @@ import {
 import { CURSES } from '../lib/curses'
 import { useBossStore } from '../store/useBossStore'
 import { usePlayerStore } from '../store/usePlayerStore'
+import { soulChanceWithPity } from '../lib/souls'
 import BossSprite from './BossSprite'
 import SectionTitle from './SectionTitle'
 
@@ -38,7 +39,12 @@ function LockedNote({ title, unlock, victories }: Readonly<{ title: string; unlo
   )
 }
 
-function BestiaryCard({ boss, entry, level }: Readonly<{ boss: BossDefinition; entry: BestiaryEntry; level: number }>) {
+function BestiaryCard({
+  boss,
+  entry,
+  level,
+  soulPity,
+}: Readonly<{ boss: BossDefinition; entry: BestiaryEntry; level: number; soulPity: number }>) {
   const unlocks = bestiaryUnlocks(entry.victories)
   const multiplier = rewardMultiplier(level)
   const tally = `Victorias: ${entry.victories} · Derrotas: ${entry.defeats}`
@@ -132,7 +138,10 @@ function BestiaryCard({ boss, entry, level }: Readonly<{ boss: BossDefinition; e
       <div>
         <p className="cv-label">Alma</p>
         {unlocks.soul ? (
-          <p className="font-body text-sm text-silver-100">Probabilidad base del alma: {percent(boss.soulChance)} por victoria.</p>
+          <p className="font-body text-sm text-silver-100">
+            Probabilidad del alma: {percent(soulChanceWithPity(boss.soulChance, soulPity))} por victoria
+            (base {percent(boss.soulChance)}, piedad {soulPity} %).
+          </p>
         ) : (
           <LockedNote title="Probabilidad del alma" unlock={BESTIARY_UNLOCKS.soul} victories={entry.victories} />
         )}
@@ -156,7 +165,13 @@ function BestiaryPanel() {
       </p>
       <ul className="flex flex-col gap-3">
         {BOSS_IDS.map((id) => (
-          <BestiaryCard key={id} boss={BOSSES[id]} entry={entries[id]} level={profile.level} />
+          <BestiaryCard
+            key={id}
+            boss={BOSSES[id]}
+            entry={entries[id]}
+            level={profile.level}
+            soulPity={profile.soulPity?.[id] ?? 0}
+          />
         ))}
       </ul>
     </div>

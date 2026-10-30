@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import DayDetail from '../components/DayDetail'
 import PageHeader from '../components/PageHeader'
 import RelicsGrid from '../components/RelicsGrid'
+import AchievementsGrid from '../components/AchievementsGrid'
 import SectionTitle from '../components/SectionTitle'
 import { db } from '../db/database'
 import { buildDailyStats, type DayStatus } from '../lib/stats'
@@ -139,6 +140,10 @@ function StatsPage() {
         <div className="cv-panel p-3">
           <SectionTitle>Reliquias</SectionTitle>
           <div className="mt-3"><RelicsGrid /></div>
+        </div>
+        <div className="cv-panel p-3">
+          <SectionTitle>Logros</SectionTitle>
+          <div className="mt-3"><AchievementsGrid /></div>
         </div>
       </section>
     </>

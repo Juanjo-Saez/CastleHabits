@@ -9,6 +9,8 @@ import {
   type BossSummary,
 } from '../lib/bosses'
 import { CURSES } from '../lib/curses'
+import { RELICS } from '../lib/relics'
+import { soulDefinition } from '../lib/souls'
 import {
   COIN,
   COIN_PALETTE,
@@ -44,7 +46,17 @@ function headline(summary: BossSummary, mode: BossDialogMode): string | null {
     const rewards = encounter.rewards
     if (!rewards) return `¡Has vencido ${definition.grammar.object}!`
     const items = itemsText(rewards.items)
-    return `¡Has vencido ${definition.grammar.object}! Recibes ${rewards.xp} EXP, ${rewards.coins} monedas${items ? ` y ${items}` : ''}.`
+    const souls = Object.values(rewards.souls ?? {})
+      .map((award) => {
+        const label = award.repeated
+          ? award.upgraded ? `rango ${award.rank}` : `fragmento (${award.rank}/3)`
+          : 'rango 1'
+        return `${soulDefinition(award.id).name} (${label})`
+      })
+      .join(', ')
+    const relics = (rewards.relics ?? []).map((id) => RELICS[id].name).join(', ')
+    const extras = [items, souls, relics].filter(Boolean).join(', ')
+    return `¡Has vencido ${definition.grammar.object}! Recibes ${rewards.xp} EXP, ${rewards.coins} monedas${extras ? ` y ${extras}` : ''}.`
   }
   if (encounter.status === 'defeat' && mode === 'result') {
     const curse = encounter.curse ? ` Te alcanza la maldición ${CURSES[encounter.curse].name}.` : ''

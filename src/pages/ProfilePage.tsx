@@ -8,6 +8,7 @@ import PageHeader from '../components/PageHeader'
 import RewardsShop from '../components/RewardsShop'
 import RoutesPanel from '../components/RoutesPanel'
 import SectionTitle from '../components/SectionTitle'
+import SoulsPanel from '../components/SoulsPanel'
 import { getAvatarStage, xpToNextLevel } from '../lib/gamification'
 import { clearReminderDate } from '../lib/notifications'
 import { clearSummaryMarker } from '../lib/summaryMarker'
@@ -84,6 +85,8 @@ function ProfilePage() {
         <RoutesPanel />
 
         <CursesPanel />
+
+        <SoulsPanel />
 
         <BestiaryPanel />
 

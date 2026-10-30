@@ -1,5 +1,6 @@
 import type { ActiveCurse, BossId, CurseId, PlayerProfile } from '../types'
 import { shiftDateKey } from './date'
+import { hasRelic } from './relics'
 
 export interface CurseDefinition {
   id: CurseId
@@ -82,8 +83,12 @@ export function addCurse(
   today: string,
   days: number,
   permanent = false,
+  relics?: PlayerProfile['relics'],
 ): ActiveCurse[] {
-  const expiresOn = permanent ? '9999-12-31' : shiftDateKey(today, days)
+  const adjustedDays = !permanent && CURSES[id].severity === 'leve' && hasRelic(relics, 'rosary')
+    ? Math.max(1, Math.ceil(days / 2))
+    : days
+  const expiresOn = permanent ? '9999-12-31' : shiftDateKey(today, adjustedDays)
   const current = curses ?? []
   const existing = current.find((curse) => curse.id === id)
   if (existing) {

@@ -16,11 +16,14 @@ Parte transversal de [boss-roster](../boss-roster/proposal.md). Las almas las co
 ### Reliquias
 - **No persisten.** Se pierden al jubilarse o renacer.
 - **Garantizada por primera victoria** de un boss, en los bosses que lo indiquen.
-- **Catálogo inicial:** Rosario (reduce a la mitad la duración de las maldiciones leves), Espejo de plata (revela las estadísticas) y Corazón (+vida máxima). Cada reliquia nueva se añade en su boss.
+- **Asignación inicial:** Murciélago gigante → Rosario, Slogra y Gaibon → Espejo de plata y Legion → Corazón.
+- **Catálogo inicial:** Rosario (reduce a la mitad la duración de las maldiciones leves), Espejo de plata (revela las estadísticas) y Corazón (+5 de vida máxima). Cada reliquia nueva se añade en su boss.
 
 ## Fuera de alcance
 - Efectos concretos de cada alma (van en el change de su boss).
-- Marcos y auras del Cazador (cosmético; se decidirá al implementar este change).
+- Marcos y auras del Cazador (cosmético).
+
+Los efectos concretos de cada alma quedan como ganchos descriptivos hasta el change específico de su boss; este change solo define su persistencia, piedad, fragmentos, rangos y equipamiento.
 
 ## Modelo de datos (propuesta)
 - Perfil: `souls` (tipo de alma → rango y fragmentos) y `soulPity` (contador por boss).

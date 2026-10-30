@@ -40,6 +40,7 @@ import { planDayCorrection } from '../src/lib/dayCorrections.ts'
 import { canPostpone, modifyCoins, modifyXp, potionRecovery } from '../src/lib/modifiers.ts'
 import { computeMissedPenalties } from '../src/lib/penalties.ts'
 import { defaultRoutes, effectiveMaxHp } from '../src/lib/routes.ts'
+import { collectSoul, soulChanceWithPity, soulSlotsForLevel } from '../src/lib/souls.ts'
 
 const BAT = BOSSES['giant-bat']
 const SLOGRA = BOSSES['slogra-gaibon']
@@ -71,6 +72,7 @@ function profile(changes = {}) {
   return {
     id: 1, level: 1, xp: 0, coins: 0, postponeTokens: 0, vitalityPotions: 0, hp: 50, maxHp: 50,
     streakFreezes: 0, holyWater: 0, curses: [], routes: defaultRoutes(), equippedRoute: null,
+    souls: {}, soulPity: {}, relics: [], equippedSouls: [],
     hardcore: true, dead: false, runStartedAt: '2026-10-01T02:00:00', ...changes,
   }
 }
@@ -246,6 +248,7 @@ test('Succubus se vence recuperando toda la sangre sin volver a descontar vida',
   assert.equal(result.profile.curses.length, 0)
   assert.deepEqual(victory.rewards, {
     xp: 120, coins: 60, items: { postponeToken: 1, vitalityPotion: 1, streakFreeze: 1, holyWater: 1 },
+    souls: { succubus: { id: 'succubus', rank: 1, repeated: false, upgraded: false } },
   })
   const summary = summarizeBoss(victory, items, byItem(completions), '2026-10-10')
   assert.equal(summary.damage, 10)
@@ -336,6 +339,8 @@ test('la victoria llega con dos días completos, concede una sola vez y programa
   // Nivel 10: premio base ×1,2; con el azar a 0 sale cada objeto, una unidad.
   assert.deepEqual(victory.rewards, {
     xp: 120, coins: 60, items: { postponeToken: 1, vitalityPotion: 1, streakFreeze: 1, holyWater: 1 },
+    souls: { 'giant-bat': { id: 'giant-bat', rank: 1, repeated: false, upgraded: false } },
+    relics: ['rosary'],
   })
   assert.equal(result.profile.xp, 120)
   assert.equal(result.profile.coins, 60)
@@ -363,6 +368,51 @@ test('cada objeto del premio se sortea por separado y hay un consuelo si no sale
   const level = (value) => rollRewards(BAT, value, () => 0.99).xp
   assert.deepEqual([level(1), level(5), level(10), level(20)], [100, 110, 120, 140])
   assert.equal(rewardMultiplier(4), 1)
+})
+
+test('la piedad de alma sube hasta 20 puntos y se reinicia al conseguirla', () => {
+  const base = profile({ soulPity: { 'giant-bat': 19 } })
+  const miss = collectSoul(base, 'giant-bat', 0, () => 1)
+  assert.equal(miss.profile.soulPity['giant-bat'], 20)
+  assert.equal(soulChanceWithPity(0.03, miss.profile.soulPity['giant-bat']), 0.23)
+  const hit = collectSoul(miss.profile, 'giant-bat', 0.23, () => 0)
+  assert.equal(hit.profile.soulPity['giant-bat'], 0)
+  assert.deepEqual(hit.profile.souls['giant-bat'], { rank: 1, fragments: 0 })
+  assert.equal(hit.award.repeated, false)
+})
+
+test('las almas repetidas acumulan tres fragmentos y ascienden hasta rango 3', () => {
+  let current = profile({ souls: { legion: { rank: 1, fragments: 0 } } })
+  const awards = []
+  for (let index = 0; index < 3; index += 1) {
+    const result = collectSoul(current, 'legion', 1, () => 0)
+    current = result.profile
+    awards.push(result.award)
+  }
+  assert.deepEqual(current.souls.legion, { rank: 2, fragments: 0 })
+  assert.equal(awards[2].upgraded, true)
+  const maxed = collectSoul(current, 'legion', 1, () => 0)
+  assert.deepEqual(maxed.profile.souls.legion, { rank: 2, fragments: 1 })
+  assert.deepEqual([soulSlotsForLevel(1), soulSlotsForLevel(5), soulSlotsForLevel(10), soulSlotsForLevel(20)], [0, 1, 2, 3])
+})
+
+test('las reliquias de primera victoria se conceden por expedición y el corazón aumenta la vida máxima', () => {
+  const first = sync({
+    encounters: [activeBoss()],
+    profile: profile({ level: 10 }),
+    items: [chore('a')],
+    completions: [done('a', '2026-10-10'), done('a', '2026-10-12')],
+  }, '2026-10-12', () => 0.99)
+  assert.deepEqual(first.profile.relics, ['rosary'])
+  const previous = first.encounters.find((entry) => entry.sequence === 1)
+  const repeated = sync({
+    encounters: [activeBoss('2026-10-10', { resolvedOn: undefined }), previous],
+    profile: first.profile,
+    items: [chore('a')],
+    completions: [done('a', '2026-10-10'), done('a', '2026-10-12')],
+  }, '2026-10-12', () => 0.99)
+  assert.equal(repeated.profile.relics.length, 1)
+  assert.equal(effectiveMaxHp({ ...profile(), relics: ['heart'] }), 55)
 })
 
 test('el boss de golpes se vence por daño y se anuncia con la ventana de cinco días', () => {

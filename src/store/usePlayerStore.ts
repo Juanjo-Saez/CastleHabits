@@ -6,8 +6,9 @@ import { todayKey } from '../lib/date'
 import { potionRecovery } from '../lib/modifiers'
 import { HP_PER_LEVEL, xpToNextLevel } from '../lib/gamification'
 import { defaultRoutes, effectiveMaxHp, evaluateRoute, ROUTE_IDS, ROUTES } from '../lib/routes'
+import { soulSlotsForLevel } from '../lib/souls'
 import { SYSTEM_RESOURCES } from '../lib/resources'
-import type { Completion, CurseId, Item, LevelUpInfo, PlayerProfile, RouteId } from '../types'
+import type { Completion, CurseId, Item, LevelUpInfo, PlayerProfile, RouteId, SoulId } from '../types'
 
 interface PlayerState {
   profile: PlayerProfile | null
@@ -32,6 +33,7 @@ interface PlayerState {
   equipRoute: (routeId: RouteId | null) => Promise<boolean>
   setShieldReadyOn: (date: string | undefined) => Promise<void>
   restartRun: () => Promise<void>
+  equipSoul: (id: SoulId) => Promise<boolean>
   setLastPenaltyCheck: (date: string) => Promise<void>
   spendCoins: (amount: number) => Promise<boolean>
 }
@@ -71,6 +73,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       curses: profile.curses ?? [],
       routes: { ...defaultRoutes(), ...profile.routes },
       equippedRoute: profile.equippedRoute ?? null,
+      souls: profile.souls ?? {},
+      soulPity: profile.soulPity ?? {},
+      relics: profile.relics ?? [],
+      equippedSouls: profile.equippedSouls ?? [],
     }
     if (
       normalized.hardcore !== profile.hardcore ||
@@ -82,6 +88,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       || profile.curses === undefined
       || profile.routes === undefined
       || profile.equippedRoute === undefined
+      || profile.souls === undefined
+      || profile.soulPity === undefined
+      || profile.relics === undefined
+      || profile.equippedSouls === undefined
     ) {
       await db.profile.put(normalized)
     }
@@ -327,6 +337,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       curses: [],
       routes: defaultRoutes(),
       equippedRoute: null,
+      relics: [],
+      equippedSouls: [],
       shieldReadyOn: undefined,
       dead: false,
       lastPenaltyCheck: todayKey(),
@@ -346,6 +358,21 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       await db.profile.put(updated)
     })
     set({ profile: updated, justLeveledUp: null })
+  },
+
+  equipSoul: async (id) => {
+    const current = get().profile
+    if (!current || !current.souls?.[id]) return false
+    const equipped = current.equippedSouls ?? []
+    const alreadyEquipped = equipped.includes(id)
+    if (!alreadyEquipped && equipped.length >= soulSlotsForLevel(current.level)) return false
+    const nextEquipped = alreadyEquipped
+      ? equipped.filter((soulId) => soulId !== id)
+      : [...equipped, id]
+    const updated = { ...current, equippedSouls: nextEquipped }
+    await db.profile.put(updated)
+    set({ profile: updated })
+    return true
   },
 
   setLastPenaltyCheck: async (date) => {

@@ -92,6 +92,26 @@ export class AppDatabase extends Dexie {
       daySnapshots: 'date',
       bossEncounters: 'id, bossId, status, scheduledFor',
     })
+    this.version(7)
+      .stores({
+        items: 'id, type',
+        completions: 'id, itemId, date, [itemId+date]',
+        itemEvents: 'id, itemId, kind, scheduledDate, [itemId+scheduledDate+kind]',
+        profile: 'id',
+        achievements: 'id',
+        rewards: 'id',
+        reminders: 'id',
+        daySnapshots: 'date',
+        bossEncounters: 'id, bossId, status, scheduledFor',
+      })
+      .upgrade(async (transaction) => {
+        await transaction.table('profile').toCollection().modify((profile: Record<string, unknown>) => {
+          profile.souls ??= {}
+          profile.soulPity ??= {}
+          profile.relics ??= []
+          profile.equippedSouls ??= []
+        })
+      })
   }
 }
 
@@ -115,6 +135,10 @@ export async function ensurePlayerProfile(): Promise<PlayerProfile> {
     curses: [],
     routes: defaultRoutes(),
     equippedRoute: null,
+    souls: {},
+    soulPity: {},
+    relics: [],
+    equippedSouls: [],
     hardcore: true,
     dead: false,
     runStartedAt: new Date().toISOString(),

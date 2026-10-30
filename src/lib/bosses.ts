@@ -9,10 +9,12 @@ import type {
   Difficulty,
   Item,
   PlayerProfile,
+  RelicId,
 } from '../types'
 import { addCurse, tickCurses } from './curses'
 import { activityDateKey, shiftDateKey } from './date'
 import { HP_PER_LEVEL, xpToNextLevel } from './gamification'
+import { collectSoul } from './souls'
 import { isItemDueOn, isMetCompletion, isObligation, isWindowCompleted } from './recurrence'
 import { effectiveMaxHp } from './routes'
 
@@ -77,6 +79,8 @@ export interface BossDefinition {
   drops: DropEntry[]
   /** Texto específico para explicar una derrota cuando no hay daño directo adicional. */
   defeatText?: string
+  /** Reliquia que se garantiza en la primera victoria de este boss en una expedición. */
+  firstVictoryRelic?: RelicId
   /** Rango inclusivo, en días, del enfriamiento antes de la siguiente aparición. */
   minDelay: number
   maxDelay: number
@@ -108,6 +112,7 @@ export const BOSSES: Record<BossId, BossDefinition> = {
     objective: { kind: 'days', targetDays: 2 },
     effects: [{ kind: 'xpPercent', percent: 70 }],
     defeatDamage: 20,
+    firstVictoryRelic: 'rosary',
     reward: { xp: 100, coins: 50 },
     drops: [
       { item: 'postponeToken', chance: 0.45, min: 1, max: 1 },
@@ -138,6 +143,7 @@ export const BOSSES: Record<BossId, BossDefinition> = {
     effects: [{ kind: 'potionPercent', percent: 50 }],
     defeatDamage: 15,
     defeatCurse: { id: 'impaledSpear', days: 3 },
+    firstVictoryRelic: 'silverMirror',
     reward: { xp: 120, coins: 60 },
     drops: [
       { item: 'postponeToken', chance: 0.4, min: 1, max: 1 },
@@ -168,6 +174,7 @@ export const BOSSES: Record<BossId, BossDefinition> = {
     effects: [{ kind: 'damagePercent', percent: 150 }],
     defeatDamage: 15,
     defeatCurse: { id: 'heaviness', days: 7 },
+    firstVictoryRelic: 'heart',
     reward: { xp: 110, coins: 90 },
     drops: [
       { item: 'postponeToken', chance: 0.5, min: 1, max: 1 },
@@ -1000,6 +1007,18 @@ export function applyBossReward(
   }
 }
 
+function firstVictoryInRun(
+  encounters: BossEncounter[],
+  bossId: BossId,
+  runStartedAt: string | undefined,
+): boolean {
+  const runStart = runStartedAt?.slice(0, 10)
+  return encounters.some((encounter) =>
+    encounter.bossId === bossId
+    && encounter.status === 'victory'
+    && (!runStart || (encounter.resolvedOn ?? encounter.createdAt.slice(0, 10)) >= runStart))
+}
+
 /** Boss que no puede esperar al sorteo porque se cumplió su disparador; null si ninguno. */
 export function reactiveBoss(context: BossTriggerContext): BossId | null {
   return BOSS_IDS.find((id) => BOSSES[id].trigger?.(context)) ?? null
@@ -1154,6 +1173,14 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
     let resolved: BossEncounter | null = null
     if (verdict.won) {
       const baseRewards = rollRewards(boss, profile.level, random)
+      const soulResult = collectSoul(profile, boss.id, boss.soulChance, random)
+      profile = soulResult.profile
+      const relics = boss.firstVictoryRelic
+        && !profile.relics?.includes(boss.firstVictoryRelic)
+        && !firstVictoryInRun([...records.values()], boss.id, profile.runStartedAt)
+        ? [boss.firstVictoryRelic]
+        : []
+      if (relics.length > 0) profile = { ...profile, relics: [...(profile.relics ?? []), ...relics] }
       const rewards = boss.objective.kind === 'scythes'
         ? {
           ...baseRewards,
@@ -1161,11 +1188,16 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
             * (scytheProgress(current, items, completionsByItem, today).scythes === 0 ? 3 : 2),
         }
         : baseRewards
-      const applied = applyBossReward(profile, rewards)
+      const awardedRewards = {
+        ...rewards,
+        ...(soulResult.award ? { souls: { [boss.id]: soulResult.award } } : {}),
+        ...(relics.length > 0 ? { relics } : {}),
+      }
+      const applied = applyBossReward(profile, awardedRewards)
       profile = applied.profile
       leveledUp = leveledUp || applied.leveledUp
       resolved = {
-        ...current, status: 'victory', resolvedOn: verdict.resolvedOn, rewardGranted: true, rewards,
+        ...current, status: 'victory', resolvedOn: verdict.resolvedOn, rewardGranted: true, rewards: awardedRewards,
       }
     } else if (verdict.lost || today > (current.windowEnd as string)) {
       profile = applyBossDamage(profile, boss.defeatDamage)
@@ -1177,6 +1209,7 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
           today,
           boss.defeatCurse.days ?? 0,
           boss.defeatCurse.permanent,
+          profile.relics,
         )
         const cursed = { ...profile, curses }
         profile = { ...cursed, hp: Math.min(cursed.hp, effectiveMaxHp(cursed, today)) }

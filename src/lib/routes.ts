@@ -2,6 +2,7 @@ import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { activityDateKey, todayKey } from './date'
 import { activeCursesOn, CURSES } from './curses'
 import { isCompletedOn } from './recurrence'
+import { relicMaxHpBonus } from './relics'
 import type {
   Completion,
   Difficulty,
@@ -256,10 +257,11 @@ export function effectiveMaxHp(profile: PlayerProfile, dateKey = todayKey()): nu
   const base = passive?.id === 'castle-within'
     ? Math.round((profile.maxHp * (100 + passive.percent)) / 100)
     : profile.maxHp
+  const relicBonus = relicMaxHpBonus(profile.relics)
   const curses = activeCursesOn(profile.curses, dateKey)
   const curseDelta = curses.reduce((total, curse) => total + (CURSES[curse.id]?.maxHpDelta ?? 0), 0)
   const cursePercent = curses.reduce((total, curse) => total + (CURSES[curse.id]?.maxHpPercent ?? 0), 0)
-  return Math.max(1, Math.floor(((base + curseDelta) * (100 + cursePercent)) / 100))
+  return Math.max(1, Math.floor(((base + relicBonus + curseDelta) * (100 + cursePercent)) / 100))
 }
 
 export function hasShield(profile: PlayerProfile | null): boolean {
