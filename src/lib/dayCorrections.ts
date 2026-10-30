@@ -29,6 +29,7 @@ import {
 } from './recurrence'
 import { effectiveMaxHp, hasShield, recomputeRoute, ROUTE_IDS, xpWithBonus } from './routes'
 import { isFirstZoneCompletionOn } from './souls'
+import { eclipseMultiplierForDay } from './weather'
 
 export interface DayCorrection {
   itemId: string
@@ -268,7 +269,9 @@ export async function settleDayPenalties(): Promise<void> {
         candidate.bossId === 'medusa'
         && isMedusaStatueOn(candidate, item, dateKey, items)
         && !isWindowCompleted(item, history[item.id] ?? [], dateKey)) ? 2 : 1
-      return bossMultiplier * statueMultiplier * curseDamageMultiplier({ curses: currentCurses }, dateKey)
+      return bossMultiplier * statueMultiplier
+        * curseDamageMultiplier({ curses: currentCurses }, dateKey)
+        * eclipseMultiplierForDay(dateKey)
     }
     const yesterday = yesterdayKey()
     if (profile.lastPenaltyCheck && profile.lastPenaltyCheck >= yesterday) {
@@ -500,8 +503,9 @@ export function planDayCorrection(
       checkpoint,
       nextHistory,
       boss?.bossId === 'medusa'
-        ? (dateKey, candidate) => isMedusaStatueOn(boss, candidate, dateKey, items) ? 2 : 1
-        : undefined,
+        ? (dateKey, candidate) => (isMedusaStatueOn(boss, candidate, dateKey, items) ? 2 : 1)
+          * eclipseMultiplierForDay(dateKey)
+        : (dateKey) => eclipseMultiplierForDay(dateKey),
       protectionEnabledForDay,
       protectionEnabledForDay,
     )

@@ -79,6 +79,11 @@ import {
   weatherSeed,
 } from '../src/lib/weather.ts'
 
+beforeEach(() => {
+  resetWeatherSeedForTests()
+  weatherSeed({ getItem: () => 'stable-test-841', setItem: () => {} })
+})
+
 const BAT = BOSSES['giant-bat']
 const SLOGRA = BOSSES['slogra-gaibon']
 const LEGION = BOSSES.legion

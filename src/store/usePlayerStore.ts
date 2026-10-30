@@ -3,11 +3,13 @@ import { db, ensurePlayerProfile } from '../db/database'
 import { activeEncounter } from '../lib/bosses'
 import { cureCost, removeCurse } from '../lib/curses'
 import { todayKey } from '../lib/date'
+import { SYSTEM_RESOURCES } from '../lib/resources'
+import { canPurchaseAncientAmulet } from '../lib/relics'
 import { potionRecovery } from '../lib/modifiers'
 import { HP_PER_LEVEL, levelUpRecovery, xpToNextLevel } from '../lib/gamification'
 import { defaultRoutes, effectiveMaxHp, evaluateRoute, ROUTE_IDS, ROUTES } from '../lib/routes'
 import { soulSlotsForLevel } from '../lib/souls'
-import { SYSTEM_RESOURCES } from '../lib/resources'
+import { eclipseMultiplierForDay } from '../lib/weather'
 import type { Completion, CurseId, Item, LevelUpInfo, PlayerProfile, RouteId, SoulId } from '../types'
 
 interface PlayerState {
@@ -27,6 +29,7 @@ interface PlayerState {
   /** Cura una maldición con agua bendita o pagando a la sacerdotisa. */
   cureCurse: (id: CurseId, method: 'holyWater' | 'priest') => Promise<boolean>
   buyStreakFreeze: (cost: number) => Promise<boolean>
+  buyAncientAmulet: () => Promise<boolean>
   setStreakFreezes: (quantity: number) => Promise<void>
   startRoute: (routeId: RouteId) => Promise<boolean>
   evaluateRoutes: (items: Item[], completionsByItem: Record<string, Completion[]>) => Promise<void>
@@ -157,7 +160,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const current = get().profile
     if (!current || current.dead || amount <= 0) return
 
-    const nextHp = Math.max(0, current.hp - amount)
+    const nextHp = Math.max(0, current.hp - Math.ceil(amount * eclipseMultiplierForDay(todayKey())))
     const died = nextHp === 0
 
     const updated: PlayerProfile = {
@@ -261,6 +264,26 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       streakFreezes: current.streakFreezes + 1,
     }
     await db.profile.put(updated)
+    set({ profile: updated })
+    return true
+  },
+
+  buyAncientAmulet: async () => {
+    const today = todayKey()
+    const cost = SYSTEM_RESOURCES.ancientAmulet.cost
+    const updated = await db.transaction('rw', db.profile, async () => {
+      const current = await db.profile.get(1)
+      if (!current || !canPurchaseAncientAmulet(current, today, cost)) return null
+
+      const next: PlayerProfile = {
+        ...current,
+        coins: current.coins - cost,
+        relics: [...(current.relics ?? []), 'ancientAmulet'],
+      }
+      await db.profile.put(next)
+      return next
+    })
+    if (!updated) return false
     set({ profile: updated })
     return true
   },

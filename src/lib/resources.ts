@@ -16,4 +16,7 @@ export const SYSTEM_RESOURCES = {
     description: 'Protege un fallo de obligación.',
     cost: 20,
   },
+  ancientAmulet: {
+    cost: 41269,
+  },
 } as const

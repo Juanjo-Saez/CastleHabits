@@ -85,6 +85,27 @@ export const COIN_PALETTE: Palette = {
   g: '#8f7228',
 }
 
+export const ANCIENT_AMULET = [
+  '....OOO....',
+  '...OGGGO...',
+  '..OGGGGGO..',
+  '..OGGLLGO..',
+  '...OGGGO...',
+  '....OGO....',
+  '....ORO....',
+  '...ORRRO...',
+  '...ORLRO...',
+  '....ORO....',
+  '.....O.....',
+]
+
+export const ANCIENT_AMULET_PALETTE: Palette = {
+  O: OUTLINE,
+  G: '#c9a24b',
+  L: '#f3e3a8',
+  R: '#8f1d3c',
+}
+
 export const SKULL = [
   '.OOOOO.',
   'OBBBBBO',

@@ -1,9 +1,10 @@
 import { RELICS } from '../lib/relics'
-import { ORB, OUTLINE } from '../lib/pixelArt'
+import { ANCIENT_AMULET, ANCIENT_AMULET_PALETTE, ORB, OUTLINE } from '../lib/pixelArt'
 import { usePlayerStore } from '../store/usePlayerStore'
 import PixelArt from './PixelArt'
 
 const LOCKED_PALETTE = { O: OUTLINE, m: '#2a2e44', L: '#4b5170', d: '#15172a' }
+const LOCKED_AMULET_PALETTE = { O: OUTLINE, G: '#2a2e44', L: '#4b5170', R: '#15172a' }
 
 function RelicsGrid() {
   const owned = usePlayerStore((s) => s.profile?.relics ?? [])
@@ -26,8 +27,12 @@ function RelicsGrid() {
             }`}
           >
             <PixelArt
-              rows={ORB}
-              palette={palette}
+              rows={def.id === 'ancientAmulet' ? ANCIENT_AMULET : ORB}
+              palette={
+                def.id === 'ancientAmulet'
+                  ? isUnlocked ? ANCIENT_AMULET_PALETTE : LOCKED_AMULET_PALETTE
+                  : palette
+              }
               scale={4}
               className={isUnlocked ? 'drop-shadow-[0_0_6px_rgba(255,255,255,0.35)]' : ''}
             />

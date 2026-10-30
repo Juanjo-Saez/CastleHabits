@@ -1,7 +1,15 @@
 import { useState } from 'react'
-import { COIN, COIN_PALETTE } from '../lib/pixelArt'
+import {
+  ANCIENT_AMULET,
+  ANCIENT_AMULET_PALETTE,
+  COIN,
+  COIN_PALETTE,
+} from '../lib/pixelArt'
 import { SYSTEM_RESOURCES } from '../lib/resources'
+import { RELICS } from '../lib/relics'
 import { effectiveMaxHp, shopPrice } from '../lib/routes'
+import { isEclipseDay } from '../lib/weather'
+import { todayKey } from '../lib/date'
 import { usePlayerStore } from '../store/usePlayerStore'
 import { useRewardsStore } from '../store/useRewardsStore'
 import PixelArt from './PixelArt'
@@ -24,6 +32,10 @@ function RewardsShop() {
   const consumeVitalityPotion = usePlayerStore((s) => s.consumeVitalityPotion)
   const streakFreezes = usePlayerStore((s) => s.profile?.streakFreezes ?? 0)
   const buyStreakFreeze = usePlayerStore((s) => s.buyStreakFreeze)
+  const buyAncientAmulet = usePlayerStore((s) => s.buyAncientAmulet)
+  const ownsAncientAmulet = Boolean(profile?.relics?.includes('ancientAmulet'))
+  const eclipse = isEclipseDay(todayKey())
+  const amuletCost = SYSTEM_RESOURCES.ancientAmulet.cost
 
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
@@ -68,6 +80,11 @@ function RewardsShop() {
     setMessage(ok ? 'Has comprado una congelación de racha.' : 'No tienes oro suficiente.')
   }
 
+  const handleBuyAncientAmulet = async () => {
+    const ok = await buyAncientAmulet()
+    setMessage(ok ? 'Has adquirido el amuleto antiguo.' : 'No tienes oro suficiente.')
+  }
+
   const handleRedeem = async (rewardId: string, rewardName: string) => {
     const ok = await redeem(rewardId)
     setMessage(ok ? `«${rewardName}» es tuyo. Disfrútalo, cazador.` : null)
@@ -91,6 +108,33 @@ function RewardsShop() {
       <p className="mb-3 font-body text-sm text-silver-500 italic">
         «Tengo artículos muy raros... si puedes pagarlos.»
       </p>
+
+      {eclipse && (
+        <div className="mb-3 flex items-center gap-3 border-y border-gold-600/30 py-3">
+          <PixelArt
+            rows={ANCIENT_AMULET}
+            palette={ANCIENT_AMULET_PALETTE}
+            scale={3}
+            title="Amuleto antiguo"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="cv-shadow font-pixel text-xl leading-none text-silver-100">
+              {RELICS.ancientAmulet.name}
+            </p>
+            <p className="mt-1 font-body text-sm text-silver-500 italic">
+              {RELICS.ancientAmulet.description}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={ownsAncientAmulet || coins < amuletCost}
+            onClick={() => void handleBuyAncientAmulet()}
+            className="cv-btn px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {ownsAncientAmulet ? 'Adquirido' : `${amuletCost} oro`}
+          </button>
+        </div>
+      )}
 
       <div className="mb-3 border-y border-gold-600/30 py-3">
         <div className="flex items-center justify-between gap-2">

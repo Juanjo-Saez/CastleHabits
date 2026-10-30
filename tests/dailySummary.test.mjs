@@ -6,12 +6,15 @@ import { addXp, levelUpRecovery, rewindXp, xpToNextLevel } from '../src/lib/gami
 import { computeMissedPenalties } from '../src/lib/penalties.ts'
 import { defaultRoutes } from '../src/lib/routes.ts'
 import { clearSummaryMarker, hasShownSummary, markSummaryShown } from '../src/lib/summaryMarker.ts'
+import { resetWeatherSeedForTests, weatherSeed } from '../src/lib/weather.ts'
 
 const yesterday = '2026-10-27'
 const runStartedAt = '2026-10-20T02:00:00'
 
 beforeEach((context) => {
   context.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 9, 28, 12).getTime() })
+  resetWeatherSeedForTests()
+  weatherSeed({ getItem: () => 'stable-test-841', setItem: () => {} })
 })
 
 function item(changes = {}) {

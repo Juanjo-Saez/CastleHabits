@@ -80,6 +80,14 @@ export function weatherForDay(dateKey: string = todayKey(), seed = weatherSeed()
   return selectWeather(dateKey, seed)
 }
 
+export function isEclipseDay(dateKey: string, seed?: string): boolean {
+  return weatherForDay(dateKey, seed) === 'eclipse'
+}
+
+export function eclipseMultiplierForDay(dateKey: string, seed?: string): number {
+  return isEclipseDay(dateKey, seed) ? 2 : 1
+}
+
 export function weatherProfile(kind: WeatherKind): WeatherProfile {
   return WEATHER_PROFILES.find((profile) => profile.kind === kind) ?? WEATHER_PROFILES[0]
 }

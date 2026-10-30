@@ -1,4 +1,6 @@
 import type { RelicId } from '../types'
+import type { PlayerProfile } from '../types'
+import { isEclipseDay } from './weather'
 
 export interface RelicDefinition {
   id: RelicId
@@ -24,6 +26,26 @@ export const RELICS: Record<RelicId, RelicDefinition> = {
     description: 'Aumenta en 1 punto la vida máxima por cada victoria contra Legion en esta expedición.',
     maxHpPerVictory: 1,
   },
+  ancientAmulet: {
+    id: 'ancientAmulet',
+    name: 'Amuleto antiguo',
+    description: 'Pertenecía a un hombre muy callado...',
+  },
+}
+
+export function canPurchaseAncientAmulet(
+  profile: Pick<PlayerProfile, 'dead' | 'coins' | 'relics'> | null | undefined,
+  dateKey: string,
+  price: number,
+  seed?: string,
+): boolean {
+  return Boolean(
+    profile
+    && !profile.dead
+    && profile.coins >= price
+    && !profile.relics?.includes('ancientAmulet')
+    && isEclipseDay(dateKey, seed),
+  )
 }
 
 export function hasRelic(relics: RelicId[] | undefined, id: RelicId): boolean {

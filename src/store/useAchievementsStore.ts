@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { db } from '../db/database'
 import { ACHIEVEMENTS, type AchievementContext } from '../lib/achievements'
 import { usePlayerStore } from './usePlayerStore'
+import { eclipseMultiplierForDay } from '../lib/weather'
+import { todayKey } from '../lib/date'
 import type { Achievement } from '../types'
 
 interface AchievementsState {
@@ -48,7 +50,7 @@ export const useAchievementsStore = create<AchievementsState>((set, get) => ({
     set({ unlocked: updated })
 
     if (totalBonus > 0) {
-      await usePlayerStore.getState().awardCompletion(0, totalBonus)
+      await usePlayerStore.getState().awardCompletion(0, totalBonus * eclipseMultiplierForDay(todayKey()))
     }
   },
 }))

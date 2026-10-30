@@ -13,11 +13,14 @@ import { defaultRoutes } from '../src/lib/routes.ts'
 import { buildItemStats } from '../src/lib/itemStats.ts'
 import { buildDaySummary } from '../src/lib/calendar.ts'
 import { buildDailyStats } from '../src/lib/stats.ts'
+import { resetWeatherSeedForTests, weatherSeed } from '../src/lib/weather.ts'
 
 const today = '2026-10-28'
 const yesterday = '2026-10-27'
 beforeEach((context) => {
   context.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 9, 28, 12).getTime() })
+  resetWeatherSeedForTests()
+  weatherSeed({ getItem: () => 'stable-test-841', setItem: () => {} })
 })
 
 function activity(changes = {}) {

@@ -189,7 +189,7 @@ export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' |
 export type DeathStakePercent = 0 | 10 | 25
 export type SoulId = BossId
 export type SoulRank = 1 | 2 | 3
-export type RelicId = 'rosary' | 'silverMirror' | 'heart'
+export type RelicId = 'rosary' | 'silverMirror' | 'heart' | 'ancientAmulet'
 
 export interface SoulProgress {
   rank: SoulRank

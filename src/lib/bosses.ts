@@ -18,6 +18,7 @@ import { collectSoul } from './souls'
 import { isItemDueOn, isMetCompletion, isObligation, isWindowCompleted } from './recurrence'
 import { effectiveMaxHp } from './routes'
 import { streakEndingOn } from './streak'
+import { eclipseMultiplierForDay } from './weather'
 
 type Random = () => number
 
@@ -1099,9 +1100,18 @@ function newEncounter(
   }
 }
 
-export function applyBossDamage(profile: PlayerProfile, damage: number): PlayerProfile {
-  const hp = Math.max(0, profile.hp - damage)
+export function applyBossDamage(profile: PlayerProfile, damage: number, dateKey: string): PlayerProfile {
+  const hp = Math.max(0, profile.hp - Math.ceil(damage * eclipseMultiplierForDay(dateKey)))
   return { ...profile, hp, dead: hp === 0 }
+}
+
+export function eclipseAdjustedRewards(rewards: BossRewards, dateKey: string): BossRewards {
+  const multiplier = eclipseMultiplierForDay(dateKey)
+  return {
+    ...rewards,
+    xp: rewards.xp * multiplier,
+    coins: rewards.coins * multiplier,
+  }
 }
 
 export function applyBossRevenge(profile: PlayerProfile, boss: BossDefinition): PlayerProfile {
@@ -1296,7 +1306,7 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
   })
   if (profile.dead) return { encounters: input.encounters, changed: [], profile, leveledUp: false }
 
-  const tick = tickCurses(profile.curses, profile.hp, today)
+  const tick = tickCurses(profile.curses, profile.hp, today, eclipseMultiplierForDay)
   if (tick.changed) profile = { ...profile, curses: tick.curses, hp: tick.hp }
 
   let current = latestEncounter([...records.values()])
@@ -1321,7 +1331,7 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
         : boss.objective.kind === 'scythes' ? boss.objective.target
         : bossGoal(boss, items, today)
       if (boss.objective.kind === 'lifeSteal' && goal > 0) {
-        profile = applyBossDamage(profile, goal)
+        profile = applyBossDamage(profile, goal, today)
       }
       current = {
         ...current,
@@ -1352,13 +1362,14 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
         ? [boss.firstVictoryRelic]
         : []
       if (relics.length > 0) profile = { ...profile, relics: [...(profile.relics ?? []), ...relics] }
-      const rewards = boss.objective.kind === 'scythes'
+      const rolledRewards = boss.objective.kind === 'scythes'
         ? {
           ...baseRewards,
           coins: baseRewards.coins + (current.stakeCoins ?? 0)
             * (scytheProgress(current, items, completionsByItem, today).scythes === 0 ? 3 : 2),
         }
         : baseRewards
+      const rewards = eclipseAdjustedRewards(rolledRewards, verdict.resolvedOn ?? today)
       const awardedRewards = {
         ...rewards,
         ...(soulResult.award ? { souls: { [boss.id]: soulResult.award } } : {}),
@@ -1371,7 +1382,8 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
         ...current, status: 'victory', resolvedOn: verdict.resolvedOn, rewardGranted: true, rewards: awardedRewards,
       }
     } else if (verdict.lost || today > (current.windowEnd as string)) {
-      profile = applyBossDamage(profile, boss.defeatDamage)
+      const damageDate = verdict.resolvedOn ?? shiftKey(current.windowEnd as string, 1)
+      profile = applyBossDamage(profile, boss.defeatDamage, damageDate)
       if (boss.defeatCurse && !profile.dead) {
         const curses = addCurse(
           profile.curses,

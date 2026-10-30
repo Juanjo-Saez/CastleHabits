@@ -137,7 +137,12 @@ export interface CurseTick {
  * Aplica el daño diario atrasado hasta hoy y retira las caducadas. Es idempotente: cada día
  * se cobra una sola vez gracias a `lastTickOn`. La vida nunca baja de 1.
  */
-export function tickCurses(curses: ActiveCurse[] | undefined, hp: number, today: string): CurseTick {
+export function tickCurses(
+  curses: ActiveCurse[] | undefined,
+  hp: number,
+  today: string,
+  damageMultiplierForDay: (dateKey: string) => number = () => 1,
+): CurseTick {
   const current = curses ?? []
   let health = hp
   let changed = false
@@ -148,7 +153,7 @@ export function tickCurses(curses: ActiveCurse[] | undefined, hp: number, today:
     if (drain > 0) {
       let day = lastTickOn ? shiftDateKey(lastTickOn, 1) : curse.startedOn
       while (day <= today && day < curse.expiresOn) {
-        health = Math.max(Math.min(health, 1), health - drain)
+        health = Math.max(Math.min(health, 1), health - Math.ceil(drain * damageMultiplierForDay(day)))
         lastTickOn = day
         day = shiftDateKey(day, 1)
       }
