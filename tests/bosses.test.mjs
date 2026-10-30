@@ -57,6 +57,12 @@ import { computeMissedPenalties } from '../src/lib/penalties.ts'
 import { defaultRoutes, effectiveMaxHp } from '../src/lib/routes.ts'
 import { relicMaxHpBonus } from '../src/lib/relics.ts'
 import {
+  bossEntranceToken,
+  hasSeenBossEntrance,
+  isBossEntrancePending,
+  markBossEntranceSeen,
+} from '../src/lib/bossEntranceMarker.ts'
+import {
   collectSoul,
   equippedSoulPassives,
   equippedSoulRank,
@@ -72,6 +78,32 @@ const FRANKENSTEIN = BOSSES.frankenstein
 const SUCCUBUS = BOSSES.succubus
 const DEATH = BOSSES.death
 const MEDUSA = BOSSES.medusa
+
+test('la entrada cinematográfica de un boss usa un marcador local idempotente y limitado', () => {
+  const values = new Map()
+  const storage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+  }
+  const encounter = { id: 'enc:1', createdAt: '2026-10-30T12:00:00.000Z' }
+  const token = bossEntranceToken(encounter)
+
+  assert.equal(isBossEntrancePending({ ...encounter, status: 'scheduled' }, storage), false)
+  assert.equal(isBossEntrancePending({ ...encounter, status: 'active' }, storage), true)
+  assert.equal(hasSeenBossEntrance(token, storage), false)
+  markBossEntranceSeen(token, storage)
+  markBossEntranceSeen(token, storage)
+  assert.equal(hasSeenBossEntrance(token, storage), true)
+  assert.equal(isBossEntrancePending({ ...encounter, status: 'victory' }, storage), false)
+
+  for (let index = 2; index <= 35; index += 1) {
+    markBossEntranceSeen(`enc:${index}:created:active`, storage)
+  }
+  const stored = JSON.parse(values.get('habitos.boss.entrance.seen'))
+  assert.equal(stored.length, 30)
+  assert.equal(stored.includes(token), false)
+  assert.equal(hasSeenBossEntrance(token, null), false)
+})
 
 function chore(id, changes = {}) {
   return {

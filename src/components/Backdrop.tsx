@@ -1,6 +1,8 @@
 import type { CSSProperties } from 'react'
+import { activeEncounter } from '../lib/bosses'
 import { BAT_A, BAT_B, BAT_PALETTE } from '../lib/pixelArt'
 import { effectiveMaxHp } from '../lib/routes'
+import { useBossStore } from '../store/useBossStore'
 import { usePlayerStore } from '../store/usePlayerStore'
 import CastleSilhouette from './CastleSilhouette'
 import PixelArt from './PixelArt'
@@ -12,10 +14,11 @@ const BATS = [
 ]
 
 function Backdrop() {
+  const bossActive = useBossStore((s) => Boolean(activeEncounter(s.encounters)))
   const hpRatio = usePlayerStore((s) =>
     s.profile ? s.profile.hp / effectiveMaxHp(s.profile) : 1,
   )
-  const bloodMoon = hpRatio < 0.3
+  const bloodMoon = hpRatio < 0.3 || bossActive
 
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden cv-sky" aria-hidden>
@@ -23,10 +26,20 @@ function Backdrop() {
       {/* Luna y castillo se anclan a la columna de la app para que el boss del Castillo coincida con la luna. */}
       <div className="absolute inset-0 mx-auto max-w-md">
         <div
-          className={`cv-moon cv-moon-spot absolute h-28 w-28 ${bloodMoon ? 'cv-moon--blood' : ''}`}
+          className={`cv-moon cv-moon-spot cv-backdrop-moon absolute h-28 w-28 ${bloodMoon ? 'cv-moon--blood' : ''}`}
         />
-        <CastleSilhouette className="absolute inset-x-0 bottom-0 w-full" style={{ height: 'var(--castle-h)' }} />
+        <CastleSilhouette
+          className="absolute inset-x-0 bottom-0 z-0 w-full"
+          style={{ height: 'var(--castle-h)' }}
+        />
       </div>
+
+      {bossActive && (
+        <div className="cv-boss-storm" aria-hidden>
+          <span />
+          <span />
+        </div>
+      )}
 
       {BATS.map((bat) => (
         <div

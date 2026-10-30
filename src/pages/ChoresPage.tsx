@@ -1,5 +1,5 @@
 import { addDays, format } from 'date-fns'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import BossAnnouncement from '../components/BossAnnouncement'
 import BossBanner from '../components/BossBanner'
 import BossDialog from '../components/BossDialog'
@@ -17,6 +17,11 @@ import SectionTitle from '../components/SectionTitle'
 import SortPicker from '../components/SortPicker'
 import TomorrowPanel from '../components/TomorrowPanel'
 import { activeEncounter, BOSSES, hidesTomorrow, summarizeBoss } from '../lib/bosses'
+import {
+  bossEntranceToken,
+  isBossEntrancePending,
+  markBossEntranceSeen,
+} from '../lib/bossEntranceMarker'
 import { logicalNow, todayKey } from '../lib/date'
 import {
   isItemDueOn,
@@ -43,8 +48,15 @@ function ChoresPage() {
   const [sortKey, setSortKey] = useState<TaskSortKey>('difficulty')
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [bossOpen, setBossOpen] = useState(false)
+  const [bossResultPending, setBossResultPending] = useState(false)
+  const [bossEntrancePhase, setBossEntrancePhase] = useState<'revealing' | null>(null)
+  const resultPendingRef = useRef(bossResultPending)
   const skyRef = useRef<HTMLDivElement>(null)
   const selectedItem = items.find((item) => item.id === selectedItemId && !item.archived)
+
+  useEffect(() => {
+    resultPendingRef.current = bossResultPending
+  }, [bossResultPending])
 
   // La página arranca bajo el cielo; desplazarla hacia arriba lo deja ver sin HUD ni navegación.
   useLayoutEffect(() => {
@@ -153,7 +165,7 @@ function ChoresPage() {
     }
   }, [])
 
-  const scrollSky = (top: 'sky' | 'tasks') => {
+  const scrollSky = useCallback((top: 'sky' | 'tasks') => {
     const sky = skyRef.current
     const scroller = sky?.closest('main')
     if (!sky || !scroller) return
@@ -161,7 +173,7 @@ function ChoresPage() {
       top: top === 'sky' ? 0 : sky.offsetHeight,
       behavior: prefersReducedMotion() ? 'auto' : 'smooth',
     })
-  }
+  }, [])
 
   const today = logicalNow()
   const key = todayKey()
@@ -207,6 +219,37 @@ function ChoresPage() {
 
   const bossEncounter = activeEncounter(encounters)
   const bossSummary = bossEncounter ? summarizeBoss(bossEncounter, items, completionsByItem, key) : null
+  const activeBossToken = bossEncounter ? bossEntranceToken(bossEncounter) : null
+
+  useEffect(() => {
+    if (!bossEncounter || !activeBossToken || !isBossEntrancePending(bossEncounter)) {
+      return
+    }
+
+    let cancelled = false
+    let revealTimer = 0
+    const launchTimer = window.setTimeout(() => {
+      if (cancelled || resultPendingRef.current) return
+      scrollSky('sky')
+      if (prefersReducedMotion()) {
+        markBossEntranceSeen(activeBossToken)
+        return
+      }
+      setBossEntrancePhase('revealing')
+      revealTimer = window.setTimeout(() => {
+        if (cancelled || resultPendingRef.current) return
+        markBossEntranceSeen(activeBossToken)
+        setBossEntrancePhase(null)
+      }, 1900)
+    }, 0)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(launchTimer)
+      window.clearTimeout(revealTimer)
+      setBossEntrancePhase(null)
+    }
+  }, [activeBossToken, bossEncounter, scrollSky])
 
   return (
     <>
@@ -215,6 +258,12 @@ function ChoresPage() {
         bossId={bossEncounter?.bossId ?? null}
         onOpenBoss={() => setBossOpen(true)}
         onReturn={() => scrollSky('tasks')}
+        entrancePhase={bossEntrancePhase ?? undefined}
+        onSkipEntrance={() => {
+          if (!activeBossToken) return
+          markBossEntranceSeen(activeBossToken)
+          setBossEntrancePhase(null)
+        }}
       />
       <div className="cv-castle-snap-stop min-h-[calc(100dvh-5rem)]">
         <PageHeader title="El Castillo" subtitle="Cada estancia guarda una tarea pendiente." />
@@ -289,7 +338,7 @@ function ChoresPage() {
       {bossOpen && bossSummary && (
         <BossDialog summary={bossSummary} onClose={() => setBossOpen(false)} onDeathStake={chooseDeathStake} />
       )}
-      <BossAnnouncement />
+      <BossAnnouncement onResultPendingChange={setBossResultPending} />
     </>
   )
 }

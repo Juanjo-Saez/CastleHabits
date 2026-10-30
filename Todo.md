@@ -79,7 +79,8 @@ Estado revisado el 30 de octubre de 2026. Este documento refleja el punto actual
 
 ### Prioridad siguiente — Presentación y eventos del Castillo
 
-- [ ] **Entrada cinematográfica de los bosses.**
+- [x] **Entrada cinematográfica de los bosses.**
+  - OpenSpec: `openspec/changes/boss-cinematic-entrance/`
   - Detectar cuándo un encuentro pasa a estar activo por primera vez y
     reproducir una presentación única para ese encuentro, sin volver a
     conceder recompensas ni aplicar efectos si se repite la vista.
