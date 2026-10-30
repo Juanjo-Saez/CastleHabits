@@ -2,7 +2,7 @@ import { addDays, format, parseISO } from 'date-fns'
 import { v4 as uuid } from 'uuid'
 import { db } from '../db/database'
 import type { BossEncounter, Completion, DaySnapshot, Item, ItemEvent, PenaltyCheckpoint, PlayerProfile } from '../types'
-import { activeEncounter } from './bosses'
+import { activeEncounter, effectPercentForItemOn } from './bosses'
 import { modifyCoins, modifyXp } from './modifiers'
 import { activityDateKey, logicalNow, todayKey } from './date'
 import { addXp, DIFFICULTY_COINS, DIFFICULTY_XP, HP_PER_LEVEL, rewindXp, xpToNextLevel } from './gamification'
@@ -145,7 +145,11 @@ function yesterdayMisses(events: ItemEvent[], checkpoint: PenaltyCheckpoint, run
     && event.kind === 'missed' && penaltyDate(event, checkpoint.items) === checkpoint.date)
 }
 
-function replayPenalties(checkpoint: PenaltyCheckpoint, history: Record<string, Completion[]>) {
+function replayPenalties(
+  checkpoint: PenaltyCheckpoint,
+  history: Record<string, Completion[]>,
+  damageMultiplierForDay: (dateKey: string, item: Item) => number = () => 1,
+) {
   const result = computeMissedPenalties(
     checkpoint.items,
     history,
@@ -153,6 +157,7 @@ function replayPenalties(checkpoint: PenaltyCheckpoint, history: Record<string, 
     checkpoint.freezes,
     { enabled: checkpoint.shieldEnabled, readyOn: checkpoint.shieldReadyOn },
     checkpoint.date,
+    damageMultiplierForDay,
   )
   result.missedEvents = result.missedEvents.map((event) => ({
     ...event,
@@ -165,7 +170,7 @@ function replayPenalties(checkpoint: PenaltyCheckpoint, history: Record<string, 
 export function snapshotOf(profile: PlayerProfile, date: string): DaySnapshot {
   return {
     date, runStartedAt: profile.runStartedAt, level: profile.level, xp: profile.xp,
-    hp: profile.hp, maxHp: effectiveMaxHp(profile),
+    hp: profile.hp, maxHp: effectiveMaxHp(profile, date),
   }
 }
 
@@ -194,11 +199,16 @@ async function ensureSnapshot(profile: PlayerProfile, history: Record<string, Co
 
 /** Guarda las entradas de la evaluación de ayer, no solo el daño, para poder repetirla. */
 export async function settleDayPenalties(): Promise<void> {
-  await db.transaction('rw', [db.profile, db.items, db.completions, db.itemEvents, db.daySnapshots], async () => {
+  await db.transaction('rw', [db.profile, db.items, db.completions, db.itemEvents, db.daySnapshots, db.bossEncounters], async () => {
     let profile = await db.profile.get(1)
     if (!profile || profile.dead) return
     const items = await db.items.toArray()
     const history = historyByItem(await db.completions.toArray())
+    const encounters = await db.bossEncounters.toArray()
+    const damageMultiplierForDay = (dateKey: string, item: Item) => {
+      const encounter = encounters.find((candidate) => effectPercentForItemOn(candidate, 'damagePercent', dateKey, item.zone) !== 100)
+      return effectPercentForItemOn(encounter, 'damagePercent', dateKey, item.zone) / 100
+    }
     const yesterday = yesterdayKey()
     if (profile.lastPenaltyCheck && profile.lastPenaltyCheck >= yesterday) {
       if (profile.penaltyCheckpoint?.date === yesterday) {
@@ -235,7 +245,7 @@ export async function settleDayPenalties(): Promise<void> {
     if (profile.lastPenaltyCheck && profile.lastPenaltyCheck < dayBefore) {
       const earlier = computeMissedPenalties(
         items, history, profile.lastPenaltyCheck, profile.streakFreezes,
-        { enabled: hasShield(profile), readyOn: profile.shieldReadyOn }, dayBefore,
+        { enabled: hasShield(profile), readyOn: profile.shieldReadyOn }, dayBefore, damageMultiplierForDay,
       )
       await db.itemEvents.bulkPut(earlier.missedEvents)
       const hp = Math.max(0, profile.hp - earlier.totalDamage)
@@ -252,7 +262,7 @@ export async function settleDayPenalties(): Promise<void> {
         shieldEnabled: hasShield(profile), shieldReadyOn: profile.shieldReadyOn,
         runStartedAt: profile.runStartedAt,
       }
-      const result = replayPenalties(checkpoint, history)
+      const result = replayPenalties(checkpoint, history, damageMultiplierForDay)
       await db.itemEvents.bulkPut(result.missedEvents)
       const hp = Math.max(0, profile.hp - result.totalDamage)
       profile = {

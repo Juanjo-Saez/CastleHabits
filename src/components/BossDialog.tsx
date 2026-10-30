@@ -3,6 +3,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import {
   describeEffect,
   describeEffectLong,
+  bestiaryMechanic,
   RESOURCE_LABEL,
   rewardMultiplier,
   type BossSummary,
@@ -156,7 +157,7 @@ function BossDialog({
                 {kind === 'days' ? (
                   <Plate label="Hoy" value={today.due === 0 ? '—' : `${today.done}/${today.due}`} />
                 ) : (
-                  <Plate label="Golpes" value={`${damage}/${goal}`} />
+                  <Plate label={kind === 'pieces' ? 'Piezas' : 'Golpes'} value={`${damage}/${goal}`} />
                 )}
               </div>
 
@@ -181,7 +182,7 @@ function BossDialog({
                   </p>
                 </section>
               ) : (
-                <section aria-label="Vida del boss" className="flex flex-col gap-2">
+                <section aria-label={kind === 'pieces' ? 'Piezas del boss' : 'Vida del boss'} className="flex flex-col gap-2">
                   {bars.map((bar) => (
                     <div key={bar.name}>
                       <div className="mb-1 flex justify-between font-pixel text-base leading-none text-silver-300">
@@ -191,7 +192,7 @@ function BossDialog({
                       <div
                         className="cv-bar"
                         role="progressbar"
-                        aria-label={`Vida de ${bar.name}`}
+                        aria-label={kind === 'pieces' ? `Estado de la pieza de ${bar.name}` : `Vida de ${bar.name}`}
                         aria-valuemin={0}
                         aria-valuemax={bar.max}
                         aria-valuenow={bar.hp}
@@ -222,10 +223,13 @@ function BossDialog({
                   Cumple todas las obligaciones recurrentes y pergaminos que vencen ese día (al menos una) en {objective.targetDays} días,
                   seguidos o no, dentro de {definition.windowDays} días. Hábitos y misiones secundarias no cuentan.
                 </>
+              ) : objective.kind === 'pieces' ? (
+                <>
+                  {bestiaryMechanic(definition)} Debes desactivar todas las piezas seleccionadas en {definition.windowDays} días.
+                </>
               ) : (
                 <>
-                  Cada tarea cumplida, sea obligación, pergamino, hábito o misión secundaria, le hace un golpe según su
-                  dificultad. Debes agotar su vida ({goal || 'según tu carga'})
+                  {bestiaryMechanic(definition)} Debes agotar su vida ({goal || 'según tu carga'})
                   en {definition.windowDays} días.
                 </>
               )}

@@ -169,7 +169,7 @@ export interface Reminder {
   createdAt: string
 }
 
-export type BossId = 'giant-bat' | 'slogra-gaibon'
+export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein'
 
 /** `scheduled` es la espera inicial; `cooldown`, la espera posterior a un encuentro resuelto. */
 export type BossStatus = 'scheduled' | 'active' | 'victory' | 'defeat' | 'cooldown'
@@ -177,7 +177,7 @@ export type BossStatus = 'scheduled' | 'active' | 'victory' | 'defeat' | 'cooldo
 /** Consumibles de inventario que pueden soltar los bosses. */
 export type BossResource = 'postponeToken' | 'vitalityPotion' | 'streakFreeze' | 'holyWater'
 
-export type CurseId = 'impaledSpear' | 'heaviness' | 'avarice' | 'silence' | 'poison' | 'charm' | 'shadow'
+export type CurseId = 'impaledSpear' | 'heaviness' | 'avarice' | 'silence' | 'poison' | 'charm' | 'shadow' | 'stitches'
 
 /** Maldición en curso: rige desde `startedOn` hasta el día anterior a `expiresOn`. */
 export interface ActiveCurse {
@@ -209,6 +209,8 @@ export interface BossEncounter {
   windowEnd?: string
   /** Meta fijada al activarse según la carga real (p. ej. vida total del boss de golpes). */
   goal?: number
+  /** Zonas que forman las piezas de un boss de objetivo `pieces`. */
+  zones?: string[]
   resolvedOn?: string
   /** Día en que podrá activarse la siguiente aparición, fijado al resolver. */
   nextActivationOn?: string

@@ -3,7 +3,7 @@ import { db } from '../db/database'
 import { todayKey } from '../lib/date'
 import { activeEncounter, planBossSync } from '../lib/bosses'
 import { modifyCoins, modifyXp, type ModifierContext } from '../lib/modifiers'
-import type { BossEncounter, Completion } from '../types'
+import type { BossEncounter, Completion, Item } from '../types'
 import { mergeLevelUp, usePlayerStore } from './usePlayerStore'
 
 interface BossState {
@@ -67,13 +67,13 @@ export function currentActiveBoss(): BossEncounter | null {
 }
 
 /** Boss y maldiciones que alteran las reglas ahora mismo. */
-export function currentModifiers(): ModifierContext {
-  return { boss: currentActiveBoss(), curses: usePlayerStore.getState().profile?.curses }
+export function currentModifiers(item?: Pick<Item, 'zone'>): ModifierContext {
+  return { boss: currentActiveBoss(), curses: usePlayerStore.getState().profile?.curses, zone: item?.zone }
 }
 
 /** Aplica los efectos del boss y las maldiciones a una cantidad de EXP ya calculada con los bonos normales. */
-export function xpAfterModifiers(xp: number, dateKey = todayKey()): number {
-  return modifyXp(xp, currentModifiers(), dateKey)
+export function xpAfterModifiers(xp: number, dateKey = todayKey(), item?: Pick<Item, 'zone'>): number {
+  return modifyXp(xp, currentModifiers(item), dateKey)
 }
 
 export function coinsAfterModifiers(coins: number, dateKey = todayKey()): number {

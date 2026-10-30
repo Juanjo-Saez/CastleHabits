@@ -21,18 +21,23 @@ type Random = () => number
 /** Cómo se vence un boss: días completos de constancia, o golpes (una tarea cumplida = un golpe). */
 export type BossObjective =
   | { kind: 'days'; targetDays: number }
+  | { kind: 'pieces'; maxPieces: number }
   | {
     kind: 'hits'
     /** Fracción de la vida total que tiene la primera barra. */
     share: number
     damage: Record<Difficulty, number>
     load: { days: number; factor: number; min: number; max: number }
+    /** Golpes de ciertas dificultades necesarios antes de poder dañar el núcleo. */
+    guard?: { hits: number; difficulties: Difficulty[] }
   }
 
 /** Efectos de entorno: rigen mientras el boss está activo. */
 export type EnvEffect =
   | { kind: 'xpPercent'; percent: number }
   | { kind: 'potionPercent'; percent: number }
+  | { kind: 'damagePercent'; percent: number }
+  | { kind: 'zonePercent'; xpPercent: number; damagePercent: number }
 
 /** Una entrada de la tabla de premios; cada una se sortea por separado. */
 export interface DropEntry {
@@ -134,6 +139,61 @@ export const BOSSES: Record<BossId, BossDefinition> = {
     maxDelay: 15,
     weight: 1,
   },
+  legion: {
+    id: 'legion',
+    name: 'Legion',
+    parts: ['Cáscara', 'Núcleo'],
+    grammar: { subject: 'Legion', object: 'a Legion', plural: false },
+    mechanic: 'Escudo y ruptura',
+    description: 'Una esfera de cuerpos que se amontonan para ocultar el corazón que la mantiene unida.',
+    lore: 'Cada cuerpo de Legion cree ser el centro de la esfera. Cuando la cáscara se rompe, todos recuerdan al mismo tiempo que solo hay un núcleo que vencer.',
+    soulChance: 0.04,
+    windowDays: 3,
+    objective: {
+      kind: 'hits',
+      share: 0.5,
+      damage: { trivial: 1, easy: 2, medium: 3, hard: 5 },
+      load: { days: 3, factor: 1.2, min: 8, max: 50 },
+      guard: { hits: 3, difficulties: ['medium', 'hard'] },
+    },
+    effects: [{ kind: 'damagePercent', percent: 150 }],
+    defeatDamage: 15,
+    defeatCurse: { id: 'heaviness', days: 7 },
+    reward: { xp: 110, coins: 90 },
+    drops: [
+      { item: 'postponeToken', chance: 0.5, min: 1, max: 1 },
+      { item: 'vitalityPotion', chance: 0.3, min: 1, max: 1 },
+      { item: 'goldBag', chance: 0.35, min: 50, max: 150 },
+    ],
+    minDelay: 10,
+    maxDelay: 15,
+    weight: 1,
+  },
+  frankenstein: {
+    id: 'frankenstein',
+    name: 'Frankenstein',
+    parts: ['Piezas'],
+    grammar: { subject: 'Frankenstein', object: 'a Frankenstein', plural: false },
+    mechanic: 'Piezas y relámpagos',
+    description: 'Un monstruo cosido que vuelve a levantarse mientras una sola zona del castillo carga la tormenta.',
+    lore: 'El doctor reunió cinco piezas y las ató a las estancias donde más se incumple. Cada obligación cumplida apaga una costura, pero Igor vuelve a remendarla cuando el día termina en deuda.',
+    soulChance: 0.05,
+    windowDays: 5,
+    objective: { kind: 'pieces', maxPieces: 5 },
+    effects: [{ kind: 'zonePercent', xpPercent: 200, damagePercent: 200 }],
+    defeatDamage: 20,
+    defeatCurse: { id: 'stitches', days: 7 },
+    reward: { xp: 130, coins: 70 },
+    drops: [
+      { item: 'postponeToken', chance: 0.45, min: 1, max: 1 },
+      { item: 'vitalityPotion', chance: 0.4, min: 1, max: 1 },
+      { item: 'streakFreeze', chance: 0.3, min: 1, max: 1 },
+      { item: 'holyWater', chance: 0.1, min: 1, max: 1 },
+    ],
+    minDelay: 10,
+    maxDelay: 15,
+    weight: 1,
+  },
 }
 
 export const BOSS_IDS = Object.keys(BOSSES) as BossId[]
@@ -202,15 +262,72 @@ export function effectPercent(
   kind: EnvEffect['kind'],
   dateKey: string,
 ): number {
-  if (!encounter || !isEffectActiveOn(encounter, dateKey)) return 100
+  if (!encounter || encounter.status !== 'active') return 100
+  return effectPercentOn(encounter, kind, dateKey)
+}
+
+/** Porcentaje de un efecto para una fecha histórica de la ventana del encuentro. */
+export function effectPercentOn(
+  encounter: BossEncounter | null | undefined,
+  kind: EnvEffect['kind'],
+  dateKey: string,
+): number {
+  if (!encounter || !encounter.windowStart || !encounter.windowEnd
+    || dateKey < encounter.windowStart || dateKey > encounter.windowEnd) return 100
   return BOSSES[encounter.bossId].effects
-    .filter((effect) => effect.kind === kind)
+    .filter((effect): effect is Extract<EnvEffect, { percent: number }> => effect.kind === kind && 'percent' in effect)
     .reduce((percent, effect) => (percent * effect.percent) / 100, 100)
 }
 
+/** Zona cargada por Relámpagos en una fecha; es estable para una aparición concreta. */
+export function chargedZoneOn(encounter: BossEncounter | null | undefined, dateKey: string): string | null {
+  const zones = encounter?.zones ?? []
+  if (!encounter || zones.length === 0 || !encounter.windowStart || !encounter.windowEnd
+    || dateKey < encounter.windowStart || dateKey > encounter.windowEnd) return null
+  const seed = `${encounter.id}:${dateKey}`
+  const hash = [...seed].reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 7)
+  return zones[hash % zones.length]
+}
+
+/** Efecto global y, si procede, el multiplicador de la zona cargada para una tarea. */
+function effectPercentForItemOnInternal(
+  encounter: BossEncounter | null | undefined,
+  kind: 'xpPercent' | 'damagePercent',
+  dateKey: string,
+  zone?: string,
+): number {
+  const global = effectPercentOn(encounter, kind, dateKey)
+  if (!zone || chargedZoneOn(encounter, dateKey) !== zone) return global
+  const zoneEffect = BOSSES[encounter?.bossId ?? 'giant-bat'].effects.find((effect) => effect.kind === 'zonePercent')
+  if (!zoneEffect) return global
+  const zonePercent = kind === 'xpPercent' ? zoneEffect.xpPercent : zoneEffect.damagePercent
+  return (global * zonePercent) / 100
+}
+
+/** Efecto de una tarea en tiempo real; los encuentros resueltos ya no modifican recompensas. */
+export function effectPercentForItem(
+  encounter: BossEncounter | null | undefined,
+  kind: 'xpPercent' | 'damagePercent',
+  dateKey: string,
+  zone?: string,
+): number {
+  if (!encounter || encounter.status !== 'active') return 100
+  return effectPercentForItemOn(encounter, kind, dateKey, zone)
+}
+
+/** Efecto de una tarea en una fecha histórica, aunque el encuentro ya esté resuelto. */
+export function effectPercentForItemOn(
+  encounter: BossEncounter | null | undefined,
+  kind: 'xpPercent' | 'damagePercent',
+  dateKey: string,
+  zone?: string,
+): number {
+  return effectPercentForItemOnInternal(encounter, kind, dateKey, zone)
+}
+
 /** EXP tras el efecto del boss: se aplica después de los bonos normales y redondea hacia arriba. */
-export function bossXp(xp: number, encounter: BossEncounter | null | undefined, dateKey: string): number {
-  const percent = effectPercent(encounter, 'xpPercent', dateKey)
+export function bossXp(xp: number, encounter: BossEncounter | null | undefined, dateKey: string, zone?: string): number {
+  const percent = effectPercentForItem(encounter, 'xpPercent', dateKey, zone)
   return percent === 100 ? xp : Math.ceil((xp * percent) / 100)
 }
 
@@ -288,8 +405,19 @@ export function clamp(value: number, min: number, max: number): number {
 /** Meta que se fija al activar el boss: días a lograr, o vida total de un boss de golpes. */
 export function bossGoal(boss: BossDefinition, items: Item[], today: string): number {
   if (boss.objective.kind === 'days') return boss.objective.targetDays
+  if (boss.objective.kind === 'pieces') return bossZones(boss, items).length
   const { days, factor, min, max } = boss.objective.load
   return clamp(Math.round(dailyLoad(items, today) * days * factor), min, max)
+}
+
+/** Zonas fijadas al activar Frankenstein; el orden estable evita resultados distintos entre dispositivos. */
+export function bossZones(boss: BossDefinition, items: Item[]): string[] {
+  if (boss.objective.kind !== 'pieces') return []
+  return [...new Set(items
+    .filter((item) => isBossObligation(item) && item.zone)
+    .map((item) => item.zone as string))]
+    .sort((left, right) => left.localeCompare(right))
+    .slice(0, boss.objective.maxPieces)
 }
 
 export interface BossBar {
@@ -299,7 +427,14 @@ export interface BossBar {
 }
 
 /** Reparte el daño total entre las barras: la primera se agota antes de herir la segunda. */
-export function splitBars(boss: BossDefinition, goal: number, damage: number): BossBar[] {
+export function splitBars(boss: BossDefinition, goal: number, damage: number, guardHits = 0): BossBar[] {
+  if (boss.objective.kind === 'hits' && boss.objective.guard) {
+    const guard = boss.objective.guard
+    return [
+      { name: boss.parts[0], max: guard.hits, hp: Math.max(0, guard.hits - Math.min(guardHits, guard.hits)) },
+      { name: boss.parts[1] ?? 'Núcleo', max: goal, hp: Math.max(0, goal - damage) },
+    ]
+  }
   if (boss.objective.kind !== 'hits' || boss.parts.length < 2) {
     return [{ name: boss.parts[0], max: goal, hp: Math.max(0, goal - damage) }]
   }
@@ -316,6 +451,52 @@ export interface HitProgress {
   damage: number
   /** Primer día en que el daño acumulado alcanza la meta. */
   reachedOn?: string
+  /** Golpes que han roto la cáscara, si el boss tiene una. */
+  guardHits?: number
+  guardBrokenOn?: string
+}
+
+export interface PieceProgress {
+  disabledZones: string[]
+  reachedOn?: string
+}
+
+function zoneStatus(
+  zone: string,
+  items: Item[],
+  completionsByItem: Record<string, Completion[]>,
+  dateKey: string,
+): { due: number; done: number } {
+  const zoneItems = items.filter((item) => item.zone === zone && isBossDueOn(item, dateKey))
+  const done = zoneItems.filter((item) => isWindowCompleted(item, completionsByItem[item.id] ?? [], dateKey)).length
+  return { due: zoneItems.length, done }
+}
+
+/** Estado de las piezas y sus remiendos diarios, derivado de las obligaciones de cada zona. */
+export function pieceProgress(
+  encounter: BossEncounter,
+  items: Item[],
+  completionsByItem: Record<string, Completion[]>,
+  today: string,
+): PieceProgress {
+  const zones = encounter.zones ?? []
+  if (!encounter.windowStart || !encounter.windowEnd || zones.length === 0) return { disabledZones: [] }
+  const last = encounter.windowEnd < today ? encounter.windowEnd : today
+  const disabled = new Set<string>()
+  let reachedOn: string | undefined
+  for (let day = encounter.windowStart; day <= last; day = shiftKey(day, 1)) {
+    const statuses = zones.map((zone) => ({ zone, ...zoneStatus(zone, items, completionsByItem, day) }))
+    const hasUnfulfilled = statuses.some((status) => status.due > status.done)
+    if (hasUnfulfilled) {
+      const repaired = zones.find((zone) => disabled.has(zone))
+      if (repaired) disabled.delete(repaired)
+    }
+    for (const status of statuses) {
+      if (status.done > 0) disabled.add(status.zone)
+    }
+    if (!reachedOn && !hasUnfulfilled && disabled.size === zones.length) reachedOn = day
+  }
+  return { disabledZones: zones.filter((zone) => disabled.has(zone)), reachedOn }
 }
 
 /** Daño acumulado por cumplidos de la ventana; se deriva siempre de los registros reales. */
@@ -327,15 +508,41 @@ export function hitProgress(
 ): HitProgress {
   const boss = BOSSES[encounter.bossId]
   if (boss.objective.kind !== 'hits' || !encounter.windowStart || !encounter.windowEnd) return { damage: 0 }
-  const { damage: table } = boss.objective
+  const { damage: table, guard } = boss.objective
   const last = encounter.windowEnd < today ? encounter.windowEnd : today
-  const perDay = new Map<string, number>()
+  const completions: { itemId: string; date: string; createdAt: string; id: string; damage: number; difficulty: Difficulty }[] = []
   // Todas las tareas golpean, también las creadas durante el combate; archivadas incluidas si ya cumplieron.
   for (const item of items) {
     for (const completion of completionsByItem[item.id] ?? []) {
       if (completion.date < encounter.windowStart || completion.date > last || !isMetCompletion(item, completion)) continue
-      perDay.set(completion.date, (perDay.get(completion.date) ?? 0) + table[item.difficulty])
+      completions.push({
+        itemId: item.id,
+        date: completion.date,
+        createdAt: completion.createdAt,
+        id: completion.id,
+        damage: table[item.difficulty],
+        difficulty: item.difficulty,
+      })
     }
+  }
+  completions.sort((left, right) => left.date.localeCompare(right.date)
+    || left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id))
+  const perDay = new Map<string, number>()
+  const seen = new Set<string>()
+  let guardHits = 0
+  let guardBrokenOn: string | undefined
+  for (const completion of completions) {
+    const itemDay = `${completion.itemId}:${completion.date}`
+    if (seen.has(itemDay)) continue
+    seen.add(itemDay)
+    if (guard && !guardBrokenOn) {
+      if (guard.difficulties.includes(completion.difficulty)) {
+        guardHits += 1
+        if (guardHits >= guard.hits) guardBrokenOn = completion.date
+      }
+      continue
+    }
+    perDay.set(completion.date, (perDay.get(completion.date) ?? 0) + completion.damage)
   }
   const goal = encounter.goal ?? 0
   let total = 0
@@ -344,7 +551,7 @@ export function hitProgress(
     total += perDay.get(day) ?? 0
     if (!reachedOn && goal > 0 && total >= goal) reachedOn = day
   }
-  return { damage: total, reachedOn }
+  return { damage: total, reachedOn, guardHits: guard ? guardHits : undefined, guardBrokenOn }
 }
 
 export interface BossSummary {
@@ -354,10 +561,11 @@ export interface BossSummary {
   /** Constancia: fechas completas y días necesarios. */
   completedDates: string[]
   target: number
-  /** Golpes: daño hecho, vida total y barras. */
+  /** Golpes o piezas: progreso, meta y barras. */
   damage: number
   goal: number
   bars: BossBar[]
+  guardHits: number
   /** Días que quedan de la ventana, contando hoy; 0 si no está activo. */
   daysLeft: number
   today: BossDayStatus
@@ -374,8 +582,16 @@ export function summarizeBoss(
   const kind = definition.objective.kind
   const goal = encounter.goal ?? (definition.objective.kind === 'days' ? definition.objective.targetDays : 0)
   const completedDates = active && kind === 'days' ? completeDatesOf(encounter, items, completionsByItem, today) : []
+  const progress = kind === 'hits' && active ? hitProgress(encounter, items, completionsByItem, today) : null
+  const pieces = kind === 'pieces' && active
+    ? pieceProgress(encounter, items, completionsByItem, today)
+    : { disabledZones: encounter.status === 'victory' ? encounter.zones ?? [] : [] }
   const damage = kind === 'hits'
-    ? (active ? hitProgress(encounter, items, completionsByItem, today).damage : (encounter.status === 'victory' ? goal : 0))
+    ? (active ? progress?.damage ?? 0 : (encounter.status === 'victory' ? goal : 0))
+    : kind === 'pieces' ? pieces.disabledZones.length : 0
+  const guardHits = kind === 'hits' && definition.objective.kind === 'hits' && definition.objective.guard
+    ? (active ? (progress?.guardHits ?? 0)
+      : (encounter.status === 'victory' ? definition.objective.guard.hits : 0))
     : 0
   return {
     encounter,
@@ -385,7 +601,16 @@ export function summarizeBoss(
     target: definition.objective.kind === 'days' ? definition.objective.targetDays : 0,
     damage,
     goal,
-    bars: kind === 'hits' ? splitBars(definition, goal, damage) : [],
+    bars: kind === 'hits'
+      ? splitBars(definition, goal, damage, guardHits)
+      : kind === 'pieces'
+        ? (encounter.zones ?? []).map((zone) => ({
+          name: zone,
+          max: 1,
+          hp: pieces.disabledZones.includes(zone) ? 0 : 1,
+        }))
+        : [],
+    guardHits,
     daysLeft: active && encounter.windowEnd
       ? Math.max(0, differenceInCalendarDays(parseISO(encounter.windowEnd), parseISO(today)) + 1)
       : 0,
@@ -398,23 +623,34 @@ export function bossCountsFor(item: Item, encounter: BossEncounter | null, dateK
   if (!encounter || !isEffectActiveOn(encounter, dateKey)) return false
   return BOSSES[encounter.bossId].objective.kind === 'hits'
     ? !item.archived
+    : BOSSES[encounter.bossId].objective.kind === 'pieces'
+      ? Boolean(item.zone && encounter.zones?.includes(item.zone) && isBossDueOn(item, dateKey))
     : isBossDueOn(item, dateKey)
 }
 
 /** Etiqueta corta de un efecto de entorno, para chips y placas. */
 export function describeEffect(effect: EnvEffect): string {
-  return effect.kind === 'xpPercent' ? `EXP −${100 - effect.percent}%` : `Poción −${100 - effect.percent}%`
+  if (effect.kind === 'xpPercent') return `EXP −${100 - effect.percent}%`
+  if (effect.kind === 'potionPercent') return `Poción −${100 - effect.percent}%`
+  if (effect.kind === 'damagePercent') {
+    return `Daño por fallo ×${(effect.percent / 100).toLocaleString('es-ES', { maximumFractionDigits: 2 })}`
+  }
+  return 'Relámpagos · EXP y daño ×2 en una zona'
 }
 
 /** Explicación completa de un efecto de entorno. */
 export function describeEffectLong(effect: EnvEffect): string {
-  return effect.kind === 'xpPercent'
-    ? `Mientras esté activo, la EXP que ganas se reduce un ${100 - effect.percent} %.`
-    : `Mientras esté activo, las pociones de vigor curan un ${100 - effect.percent} % menos.`
+  if (effect.kind === 'xpPercent') return `Mientras esté activo, la EXP que ganas se reduce un ${100 - effect.percent} %.`
+  if (effect.kind === 'potionPercent') return `Mientras esté activo, las pociones de vigor curan un ${100 - effect.percent} % menos.`
+  if (effect.kind === 'damagePercent') {
+    return `Mientras esté activo, el daño por fallo se multiplica por ${(effect.percent / 100).toLocaleString('es-ES', { maximumFractionDigits: 2 })}.`
+  }
+  return 'Cada día una zona queda cargada: sus tareas dan el doble de EXP y causan el doble de daño por fallo.'
 }
 /** Texto corto del avance: días conseguidos o daño hecho. */
 export function encounterSummaryLine(summary: BossSummary): string {
   if (summary.kind === 'hits') return `${summary.damage}/${summary.goal} de daño`
+  if (summary.kind === 'pieces') return `${summary.damage}/${summary.goal} piezas`
   return `${summary.completedDates.length}/${summary.target} días`
 }
 
@@ -463,6 +699,19 @@ export function bestiaryUnlocks(victories: number): Record<BestiaryUnlockKey, bo
 export function bestiaryMechanic(boss: BossDefinition): string {
   if (boss.objective.kind === 'days') {
     return `Completa todas tus obligaciones durante ${boss.objective.targetDays} días dentro de una ventana de ${boss.windowDays} días.`
+  }
+  if (boss.objective.kind === 'pieces') {
+    return `Desactiva hasta ${boss.objective.maxPieces} piezas ligadas a zonas cumpliendo sus obligaciones; Igor remienda una pieza cada día con deudas.`
+  }
+  if (boss.objective.guard) {
+    const labels: Record<Difficulty, string> = {
+      trivial: 'triviales',
+      easy: 'fáciles',
+      medium: 'medias',
+      hard: 'difíciles',
+    }
+    const difficulties = boss.objective.guard.difficulties.map((difficulty) => labels[difficulty]).join(' o ')
+    return `Rompe la cáscara con ${boss.objective.guard.hits} golpes de tareas ${difficulties}; después cualquier tarea hiere el núcleo.`
   }
   const order = boss.parts.length > 1 ? `, en orden: ${boss.parts.join(' y luego ')}` : ''
   return `Cada tarea cumplida le asesta un golpe${order}.`
@@ -616,7 +865,14 @@ function verdictOf(
     const target = encounter.goal ?? boss.objective.targetDays
     return { won: dates.length >= target, resolvedOn: dates[target - 1] }
   }
+  if (boss.objective.kind === 'pieces') {
+    const progress = pieceProgress(encounter, items, completionsByItem, today)
+    return { won: Boolean(progress.reachedOn), resolvedOn: progress.reachedOn }
+  }
   const progress = hitProgress(encounter, items, completionsByItem, today)
+  if (boss.objective.guard && (progress.guardHits ?? 0) < boss.objective.guard.hits) {
+    return { won: false }
+  }
   return { won: Boolean(progress.reachedOn), resolvedOn: progress.reachedOn }
 }
 
@@ -678,6 +934,7 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
         windowStart: today,
         windowEnd: shiftKey(today, boss.windowDays - 1),
         goal: bossGoal(boss, items, today),
+        zones: bossZones(boss, items),
       }
       save(current)
     }
@@ -697,7 +954,9 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
     } else if (today > (current.windowEnd as string)) {
       profile = applyBossDamage(profile, boss.defeatDamage)
       if (boss.defeatCurse && !profile.dead) {
-        profile = { ...profile, curses: addCurse(profile.curses, boss.defeatCurse.id, boss.id, today, boss.defeatCurse.days) }
+        const curses = addCurse(profile.curses, boss.defeatCurse.id, boss.id, today, boss.defeatCurse.days)
+        const cursed = { ...profile, curses }
+        profile = { ...cursed, hp: Math.min(cursed.hp, effectiveMaxHp(cursed, today)) }
       }
       resolved = {
         ...current,

@@ -75,6 +75,7 @@ export function computeMissedPenalties(
   availableStreakFreezes = 0,
   shield: { enabled: boolean; readyOn?: string } = { enabled: false },
   throughDate = format(addDays(startOfDay(logicalNow()), -1), 'yyyy-MM-dd'),
+  damageMultiplierForDay: (dateKey: string, item: Item) => number = () => 1,
 ): {
   totalDamage: number
   newLastChecked: string
@@ -119,7 +120,7 @@ export function computeMissedPenalties(
 
       const streak = (streaks.get(item.id) ?? 0) + 1
       streaks.set(item.id, streak)
-      const damage = damageForMissedStreak(streak)
+      const damage = Math.ceil(damageForMissedStreak(streak) * damageMultiplierForDay(key, item))
       totalDamage += damage
       missedEvents.push(buildItemEvent(item, 'missed', scheduledKey, { damage, activityDate: key }, eventId))
     }

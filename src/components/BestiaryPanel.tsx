@@ -72,7 +72,7 @@ function BestiaryCard({ boss, entry, level }: Readonly<{ boss: BossDefinition; e
         <p className="cv-label">Cómo vencerla</p>
         <p className="font-body text-sm text-silver-100">{bestiaryMechanic(boss)}</p>
         {boss.effects.map((effect) => (
-          <p key={`${effect.kind}-${effect.percent}`} className="font-body text-sm text-silver-300">
+          <p key={effect.kind} className="font-body text-sm text-silver-300">
             {describeEffectLong(effect)}
           </p>
         ))}

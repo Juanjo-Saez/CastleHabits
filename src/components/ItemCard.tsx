@@ -128,7 +128,7 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
     // Se calcula antes de actuar: una victoria al completar apaga el efecto del boss durante la acción.
     const earned = reward === -1 && completion?.xpEarned
       ? completion.xpEarned
-      : xpAfterModifiers(xpWithBonus(DIFFICULTY_XP[item.difficulty], profile))
+      : xpAfterModifiers(xpWithBonus(DIFFICULTY_XP[item.difficulty], profile), todayKey(), item)
     const earnedCoins = reward === -1 && completion?.coinsEarned
       ? completion.coinsEarned
       : coinsAfterModifiers(DIFFICULTY_COINS[item.difficulty])

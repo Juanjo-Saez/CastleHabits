@@ -48,8 +48,13 @@
 - [x] 7.2 Probabilidades de objetos con 5 victorias; historia y versión élite con 10; probabilidad base del alma con 20.
 - [x] 7.3 Cada bloque bloqueado indica las victorias que faltan; las derrotas y la primera victoria siempre se muestran.
 
-## Pendiente
+## Trabajo pendiente
 
-- [ ] Fase 4: almas equipables con casillas por nivel, reliquias por expedición y bosses Succubus, Death y Legion.
-- [ ] Versión élite (1/10 tras 10 victorias), látigo y maldiciones graves.
-- [ ] Bosses restantes y sus disparadores reactivos.
+Lo que queda se reparte en changes propios, listados en [proposal.md](./proposal.md#changes-derivados):
+
+- [ ] `boss-almas-reliquias`: almas, piedad, reliquias y contador de piedad del bestiario.
+- [ ] `boss-premios-elite`: élite, látigo y títulos.
+- [ ] `boss-maldiciones-graves`: petrificación, amnesia, cadenas, penitencia y revancha.
+- [x] [boss-legion](../boss-legion/tasks.md): cáscara, núcleo, bolsa de oro y daño por fallo ×1,5.
+- [x] [boss-frankenstein](../boss-frankenstein/tasks.md): piezas por zona, remiendos de Igor, Relámpagos y Costuras.
+- [ ] Un change por boss pendiente, en el orden del proposal: Succubus, Death, Medusa, Cerbero, Hidra/Escila, Doppelgänger, Sukamon y Drácula.

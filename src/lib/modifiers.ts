@@ -1,11 +1,12 @@
 import type { ActiveCurse, BossEncounter } from '../types'
 import { activeCursesOn, CURSES } from './curses'
-import { effectPercent } from './bosses'
+import { effectPercent, effectPercentForItem } from './bosses'
 
 /** Lo que altera las reglas normales en un día: el boss activo y las maldiciones en curso. */
 export interface ModifierContext {
   boss?: BossEncounter | null
   curses?: ActiveCurse[]
+  zone?: string
 }
 
 function cursePercent(
@@ -21,7 +22,8 @@ function cursePercent(
 
 /** EXP final: bonos normales, luego el efecto del boss y las maldiciones, redondeando hacia arriba. */
 export function modifyXp(xp: number, ctx: ModifierContext, dateKey: string): number {
-  const percent = (effectPercent(ctx.boss, 'xpPercent', dateKey) * cursePercent(ctx, dateKey, (c) => c.xpPercent)) / 100
+  const percent = (effectPercentForItem(ctx.boss, 'xpPercent', dateKey, ctx.zone)
+    * cursePercent(ctx, dateKey, (c) => c.xpPercent)) / 100
   return percent === 100 ? xp : Math.ceil((xp * percent) / 100)
 }
 
@@ -34,6 +36,12 @@ export function modifyCoins(coins: number, ctx: ModifierContext, dateKey: string
 export function potionRecovery(base: number, ctx: ModifierContext, dateKey: string): number {
   const percent = (effectPercent(ctx.boss, 'potionPercent', dateKey) * cursePercent(ctx, dateKey, (c) => c.potionPercent)) / 100
   return Math.floor((base * percent) / 100)
+}
+
+/** Daño de una penalización, incluyendo efectos globales y de zona del boss. */
+export function modifyDamage(damage: number, ctx: ModifierContext, dateKey: string): number {
+  const percent = effectPercentForItem(ctx.boss, 'damagePercent', dateKey, ctx.zone)
+  return percent === 100 ? damage : Math.ceil((damage * percent) / 100)
 }
 
 export function canPostpone(ctx: ModifierContext, dateKey: string): boolean {

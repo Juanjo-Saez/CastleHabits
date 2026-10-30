@@ -184,9 +184,13 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       return
     }
 
-    const xp = xpAfterModifiers(xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile))
-    const coins = coinsAfterModifiers(DIFFICULTY_COINS[item.difficulty])
     const today = todayKey()
+    const xp = xpAfterModifiers(
+      xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile),
+      today,
+      item,
+    )
+    const coins = coinsAfterModifiers(DIFFICULTY_COINS[item.difficulty])
     const scheduledDate = scheduledDateFor(item, logicalNow())
     let effectiveDueDate = today
     if (item.type === 'todo' && item.dueDate && item.postponedUntil !== today) {
@@ -257,7 +261,12 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
 
     const wasComplete = prevQty >= goal
     const isComplete = nextQty >= goal
-    const xp = xpAfterModifiers(xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile))
+    const today = todayKey()
+    const xp = xpAfterModifiers(
+      xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile),
+      today,
+      item,
+    )
     const coins = coinsAfterModifiers(DIFFICULTY_COINS[item.difficulty])
 
     if (!wasComplete && isComplete) {

@@ -276,6 +276,63 @@ export const SLOGRA_PALETTE: Palette = {
   S: '#7a5a3a',
   T: '#d7deea',
 }
+
+/** Legion: esfera de cuerpos alrededor de un núcleo dorado. */
+export const LEGION = [
+  '........OOOO........',
+  '.....OOmmmmOOO......',
+  '...OOmMmmmmmMOO....',
+  '..OmMmmmGmmmMmmO...',
+  '.OmMmmGGLGGmmmMmO..',
+  'OmMmmGLLPLLGmmmMO..',
+  'OmMmmGLLPLLGmmmMO..',
+  'OmMmmmGGLGGmmmmMO..',
+  '.OmMmmmmmmmmmmMmO..',
+  '..OmMmmmmmmmmMmO...',
+  '...OmMmmmmmMmO.....',
+  '....OmMmmmmMO......',
+  '.....OmMmmMO.......',
+  '......OmMMO........',
+  '.......OOO.........',
+]
+
+export const LEGION_PALETTE: Palette = {
+  O: '#0a0412',
+  M: '#3d1835',
+  m: '#7d2c4f',
+  G: '#c9a24b',
+  L: '#f3e3a8',
+  P: '#150d1c',
+}
+
+/** Frankenstein: cuerpo cosido bajo una descarga eléctrica. */
+export const FRANKENSTEIN = [
+  '....OO......OO....',
+  '...ObBO....OObO...',
+  '..ObBBBOOOObBBbO..',
+  '..OBBmmGGmmBBO...',
+  '..OBmGLLLGmBO....',
+  '...OmGLLLGmO.....',
+  '...OmMmmmMO......',
+  '..OmMmmmmMO......',
+  '..OmMmmmmMO......',
+  '...OOmMmOO.......',
+  '....OmMmO........',
+  '...OmMmmMO.......',
+  '..OmMmmmmMO......',
+  '.OOO......OOO....',
+]
+
+export const FRANKENSTEIN_PALETTE: Palette = {
+  O: '#0a0412',
+  B: '#9aa5a6',
+  b: '#d7deea',
+  m: '#315b4a',
+  M: '#1b3028',
+  G: '#c9a24b',
+  L: '#f3e3a8',
+}
+
 export const DIAMOND = ['..G..', '.GLG.', 'GLRLG', '.GLG.', '..G..']
 
 export const ORNAMENT = [

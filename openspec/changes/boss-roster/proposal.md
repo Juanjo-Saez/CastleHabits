@@ -18,25 +18,25 @@ Diseño de los siguientes encuentros tras el Murciélago gigante. Es un document
 
 | Pieza | Estado |
 |---|---|
-| Motor con objetivos `days` y `hits`, meta fijada al activarse según la carga real | Hecho |
+| Motor con objetivos `days`, `hits` y `pieces`, metas fijadas al activarse y zonas persistidas cuando hace falta | Hecho |
 | Premios: sorteo independiente por objeto, consuelo y multiplicador por nivel | Hecho |
 | Consumibles nuevos: agua bendita (cura una maldición) y bolsa de oro (en el motor, sin boss que la suelte aún) | Hecho |
 | Persistencia: los encuentros resueltos sobreviven a jubilarse y los pendientes se reprograman | Hecho |
 | Migración de los premios antiguos de un solo recurso | Hecho |
-| Efectos de entorno `xpPercent` y `potionPercent` | Hecho |
+| Efectos de entorno globales y efectos por zona (`xpPercent`, `potionPercent`, `damagePercent`, Relámpagos) | Hecho |
 | Siete maldiciones leves con sus modificadores (EXP, oro, pociones, aplazar y daño diario) | Hecho |
 | Curas: agua bendita y sacerdotisa (`30 + 10 × nivel`) en el Perfil | Hecho |
 | Boss Slogra y Gaibon (sprites, barras de vida, golpe visual en la tarjeta y en la tarea) | Hecho |
 | Selección: sorteo ponderado sin repetir el último y gancho para disparadores reactivos | Hecho; ningún boss implementado tiene disparador en el diseño |
 | Bestiario: datos (`bestiaryOf`) | Hecho |
 | Bestiario: pantalla en el Perfil con desbloqueos por victorias | Hecho |
-| Almas, reliquias, élite, látigo y maldiciones graves | Pendiente |
-| Resto de bosses (Succubus, Death, Frankenstein, Legion, Medusa, Cerbero, Doppelgänger, Hidra, Drácula, Sukamon) | Pendiente |
+| Almas, reliquias, élite, látigo y maldiciones graves | Pendiente; se implementa en `boss-almas-reliquias`, `boss-premios-elite` y `boss-maldiciones-graves` |
+| Resto de bosses (Succubus, Death, Medusa, Cerbero, Doppelgänger, Hidra, Drácula, Sukamon) | Pendiente; un change por boss |
 
 ### Modelo de datos
 
-- **`BossDefinition`** (`lib/bosses.ts`): id, partes, nombre gramatical, ventana, objetivo (`days` o `hits`), efectos, daño y maldición de derrota, premio base, tabla de objetos, enfriamiento, peso y disparador opcional.
-- **`BossEncounter`**: una aparición. El id es `enc:<sequence>` (los anteriores conservan `giant-bat:<n>`). `bossId` es provisional mientras está pendiente y un disparador puede cambiarlo al activarse. Guarda `goal` (meta fijada al activarse), `rewards` (EXP, oro y objetos concedidos) y `curse` (maldición aplicada al perder).
+- **`BossDefinition`** (`lib/bosses.ts`): id, partes, nombre gramatical, ventana, objetivo (`days`, `hits` o `pieces`), efectos, daño y maldición de derrota, premio base, tabla de objetos, enfriamiento, peso y disparador opcional.
+- **`BossEncounter`**: una aparición. El id es `enc:<sequence>` (los anteriores conservan `giant-bat:<n>`). `bossId` es provisional mientras está pendiente y un disparador puede cambiarlo al activarse. Guarda `goal` (meta fijada al activarse), `zones` cuando el boss fija zonas, `rewards` (EXP, oro y objetos concedidos) y `curse` (maldición aplicada al perder).
 - **Perfil:** `holyWater` y `curses` (máximo 2, con `startedOn`, `expiresOn` y `lastTickOn`). Se reinician al jubilarse.
 - **Golpes:** sin restricción por fecha de creación; el único límite es un completado por tarea y día.
 - **Progreso derivado:** los golpes y los días completos se calculan siempre desde los completados reales, así que corregir ayer o deshacer una tarea los recalcula solos.
@@ -277,5 +277,26 @@ Títulos por hitos (1, 5, 20 victorias), marcos y auras del Cazador desde almas 
 
 ## Fuera de alcance de este documento
 
-- El código de cada boss; se hará uno por uno con su propio OpenSpec, empezando por el motor general.
+- El código de cada boss; se hará uno por uno con su propio OpenSpec. El motor general ya está hecho (Fase 2).
 - Cambiar las reglas actuales de EXP, daño, rutas o Hardcore fuera de lo descrito.
+
+## Changes derivados
+
+Este documento es el diseño compartido. El trabajo pendiente se implementa en changes propios, en este orden:
+
+1. **[boss-almas-reliquias](../boss-almas-reliquias/proposal.md)**: almas persistentes, piedad, reliquias y contador de piedad del bestiario. Va antes que los bosses que dan almas.
+2. **[boss-premios-elite](../boss-premios-elite/proposal.md)**: élite, látigo y títulos por hitos.
+3. **[boss-maldiciones-graves](../boss-maldiciones-graves/proposal.md)**: petrificación, amnesia, cadenas, penitencia y revancha.
+4. **Un change por boss**, cuando toque implementarlo. Orden sugerido:
+   - **[boss-legion](../boss-legion/proposal.md)**: hecho; da la bolsa de oro y usa la cáscara antes del núcleo.
+   - **[boss-frankenstein](../boss-frankenstein/proposal.md)**: hecho; piezas por zona, Relámpagos y Costuras.
+   - Succubus: robo de vida.
+   - Death: apuesta y segunda oportunidad; necesita almas y su Hoz.
+   - Medusa: necesita almas y petrificación.
+   - Cerbero.
+   - Hidra/Escila.
+   - Doppelgänger: necesita almas.
+   - Sukamon: minijefe.
+   - Drácula: el último; necesita revancha, Marca, almas y élite.
+
+Este change queda cerrado con las Fases 1–3 completadas.

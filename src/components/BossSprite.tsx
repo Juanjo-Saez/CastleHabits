@@ -1,5 +1,16 @@
 import type { BossId } from '../types'
-import { GAIBON, GAIBON_PALETTE, GIANT_BAT, GIANT_BAT_PALETTE, SLOGRA, SLOGRA_PALETTE } from '../lib/pixelArt'
+import {
+  GAIBON,
+  GAIBON_PALETTE,
+  FRANKENSTEIN,
+  FRANKENSTEIN_PALETTE,
+  GIANT_BAT,
+  GIANT_BAT_PALETTE,
+  LEGION,
+  LEGION_PALETTE,
+  SLOGRA,
+  SLOGRA_PALETTE,
+} from '../lib/pixelArt'
 import PixelArt from './PixelArt'
 
 /** Dibujo de cada boss; los de dos partes se componen en una sola escena. */
@@ -15,6 +26,12 @@ function BossSprite({ bossId, scale = 3, className = '' }: Readonly<{ bossId: Bo
         <PixelArt rows={GAIBON} palette={GAIBON_PALETTE} scale={scale} className="absolute top-0 right-0" />
       </span>
     )
+  }
+  if (bossId === 'legion') {
+    return <PixelArt rows={LEGION} palette={LEGION_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
+  }
+  if (bossId === 'frankenstein') {
+    return <PixelArt rows={FRANKENSTEIN} palette={FRANKENSTEIN_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
   }
   return <PixelArt rows={GIANT_BAT} palette={GIANT_BAT_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
 }

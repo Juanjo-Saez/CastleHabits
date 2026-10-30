@@ -1,5 +1,6 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns'
-import { activityDateKey } from './date'
+import { activityDateKey, todayKey } from './date'
+import { activeCursesOn, CURSES } from './curses'
 import { isCompletedOn } from './recurrence'
 import type {
   Completion,
@@ -250,10 +251,14 @@ export function xpWithBonus(xp: number, profile: PlayerProfile | null): number {
 }
 
 /** Vida m\u00e1xima real: la base m\u00e1s el bono de Castle Within si est\u00e1 equipado. */
-export function effectiveMaxHp(profile: PlayerProfile): number {
+export function effectiveMaxHp(profile: PlayerProfile, dateKey = todayKey()): number {
   const passive = activePassive(profile)
-  if (passive?.id !== 'castle-within') return profile.maxHp
-  return Math.round((profile.maxHp * (100 + passive.percent)) / 100)
+  const base = passive?.id === 'castle-within'
+    ? Math.round((profile.maxHp * (100 + passive.percent)) / 100)
+    : profile.maxHp
+  const curseDelta = activeCursesOn(profile.curses, dateKey)
+    .reduce((total, curse) => total + (CURSES[curse.id]?.maxHpDelta ?? 0), 0)
+  return Math.max(1, base + curseDelta)
 }
 
 export function hasShield(profile: PlayerProfile | null): boolean {

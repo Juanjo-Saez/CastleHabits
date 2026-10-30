@@ -8,13 +8,20 @@ import {
   bossCountsFor,
   bossGoal,
   bossXp,
+  bossZones,
+  chargedZoneOn,
   completeDatesOf,
   dailyLoad,
+  describeEffect,
+  effectPercent,
+  effectPercentForItem,
+  effectPercentOn,
   evaluateBossDay,
   hitProgress,
   isBossDueOn,
   migrateEncounter,
   pickBoss,
+  pieceProgress,
   planBossSync,
   randomInt,
   rewardMultiplier,
@@ -28,10 +35,12 @@ import { addCurse, CURSES, cureCost, tickCurses } from '../src/lib/curses.ts'
 import { planDayCorrection } from '../src/lib/dayCorrections.ts'
 import { canPostpone, modifyCoins, modifyXp, potionRecovery } from '../src/lib/modifiers.ts'
 import { computeMissedPenalties } from '../src/lib/penalties.ts'
-import { defaultRoutes } from '../src/lib/routes.ts'
+import { defaultRoutes, effectiveMaxHp } from '../src/lib/routes.ts'
 
 const BAT = BOSSES['giant-bat']
 const SLOGRA = BOSSES['slogra-gaibon']
+const LEGION = BOSSES.legion
+const FRANKENSTEIN = BOSSES.frankenstein
 
 function chore(id, changes = {}) {
   return {
@@ -42,6 +51,10 @@ function chore(id, changes = {}) {
 
 function done(itemId, date, changes = {}) {
   return { id: `${itemId}:${date}`, itemId, date, xpEarned: 10, coinsEarned: 2, createdAt: `${date}T12:00:00`, ...changes }
+}
+
+function zoneTodo(id, zone, dueDate = '2026-10-10') {
+  return chore(id, { type: 'todo', zone, dueDate })
 }
 
 function byItem(completions) {
@@ -66,6 +79,18 @@ function activeBoss(windowStart = '2026-10-10', changes = {}) {
 
 function sloBoss(windowStart = '2026-10-10', changes = {}) {
   return activeBoss(windowStart, { id: 'enc:1', bossId: 'slogra-gaibon', goal: 20, ...changes })
+}
+
+function legionBoss(windowStart = '2026-10-10', changes = {}) {
+  return activeBoss(windowStart, { id: 'enc:1', bossId: 'legion', goal: 8, windowEnd: shiftKey(windowStart, 2), ...changes })
+}
+
+function frankensteinBoss(windowStart = '2026-10-10', changes = {}) {
+  return {
+    id: 'enc:1', bossId: 'frankenstein', sequence: 1, status: 'active', scheduledFor: windowStart,
+    windowStart, windowEnd: shiftKey(windowStart, 4), goal: 3, zones: ['A', 'B', 'C'],
+    rewardGranted: false, damageApplied: false, createdAt: '2026-10-01T00:00:00.000Z', ...changes,
+  }
 }
 
 function sync(state, today, random = () => 0) {
@@ -230,6 +255,181 @@ test('cada tarea cumplida golpea según su dificultad, también las creadas dura
   const summary = summarizeBoss(boss, items, byItem(completions), '2026-10-12')
   assert.equal(summary.damage, 14)
   assert.equal(summary.goal, 20)
+})
+
+test('Legion exige romper la cáscara antes de dañar el núcleo', () => {
+  const items = [
+    chore('medium-a', { difficulty: 'medium' }),
+    chore('medium-b', { difficulty: 'medium' }),
+    chore('medium-c', { difficulty: 'medium' }),
+    chore('hard-a', { difficulty: 'hard' }),
+    chore('easy-a', { difficulty: 'easy' }),
+  ]
+  const completions = [
+    done('medium-a', '2026-10-10'),
+    done('medium-b', '2026-10-10'),
+    done('hard-a', '2026-10-10'),
+    done('easy-a', '2026-10-11'),
+  ]
+  const progress = hitProgress(legionBoss(), items, byItem(completions), '2026-10-11')
+  assert.equal(progress.guardHits, 3)
+  assert.equal(progress.guardBrokenOn, '2026-10-10')
+  assert.equal(progress.damage, 2)
+
+  const summary = summarizeBoss(legionBoss(), items, byItem(completions), '2026-10-11')
+  assert.deepEqual(summary.bars, [
+    { name: 'Cáscara', max: 3, hp: 0 },
+    { name: 'Núcleo', max: 8, hp: 6 },
+  ])
+  assert.equal(bestiaryMechanic(LEGION), 'Rompe la cáscara con 3 golpes de tareas medias o difíciles; después cualquier tarea hiere el núcleo.')
+})
+
+test('Legion escala la vida del núcleo y aplica sus premios y entorno', () => {
+  const daily = Array.from({ length: 6 }, (_, index) => chore(`legion-${index}`, { createdAt: '2026-09-01T12:00:00' }))
+  assert.equal(bossGoal(LEGION, daily, '2026-10-20'), 22)
+  const active = legionBoss()
+  assert.equal(effectPercent(active, 'damagePercent', '2026-10-11'), 150)
+  assert.equal(effectPercent(active, 'damagePercent', '2026-10-13'), 100)
+  assert.equal(effectPercentOn({ ...active, status: 'victory' }, 'damagePercent', '2026-10-11'), 150)
+  assert.equal(describeEffect(LEGION.effects[0]), 'Daño por fallo ×1,5')
+
+  const rewards = rollRewards(LEGION, 1, () => 0)
+  assert.deepEqual(rewards, {
+    xp: 110,
+    coins: 140,
+    items: { postponeToken: 1, vitalityPotion: 1 },
+  })
+})
+
+test('Legion se vence al romper la cáscara y agotar después el núcleo', () => {
+  const items = [
+    chore('medium-a', { difficulty: 'medium' }),
+    chore('medium-b', { difficulty: 'medium' }),
+    chore('medium-c', { difficulty: 'medium' }),
+    chore('hard-a', { difficulty: 'hard' }),
+    chore('hard-b', { difficulty: 'hard' }),
+    chore('easy-a', { difficulty: 'easy' }),
+  ]
+  const completions = [
+    done('medium-a', '2026-10-10'),
+    done('medium-b', '2026-10-10'),
+    done('hard-a', '2026-10-10'),
+    done('hard-b', '2026-10-11'),
+    done('medium-c', '2026-10-11'),
+    done('easy-a', '2026-10-11'),
+  ]
+  const result = sync({
+    items,
+    completions,
+    encounters: [legionBoss()],
+    profile: profile({ level: 1 }),
+  }, '2026-10-11', () => 0)
+  const [victory] = result.encounters
+  assert.equal(victory.status, 'victory')
+  assert.equal(victory.resolvedOn, '2026-10-11')
+  assert.equal(result.profile.coins, 140)
+  assert.equal(result.profile.postponeTokens, 1)
+  assert.equal(result.profile.vitalityPotions, 1)
+})
+
+test('Legion derrota, hiere y aplica Pesadez si no se rompe su cáscara', () => {
+  const result = sync({
+    encounters: [legionBoss()],
+    profile: profile({ hp: 40 }),
+  }, '2026-10-13')
+  const [defeat] = result.encounters
+  assert.equal(defeat.status, 'defeat')
+  assert.equal(defeat.curse, 'heaviness')
+  assert.equal(result.profile.hp, 25)
+  assert.deepEqual(result.profile.curses.map((curse) => [curse.id, curse.sourceBoss, curse.expiresOn]), [
+    ['heaviness', 'legion', '2026-10-20'],
+  ])
+})
+
+test('Frankenstein fija las zonas disponibles y desactiva sus piezas al cumplirlas', () => {
+  const items = [zoneTodo('a', 'A'), zoneTodo('b', 'B'), zoneTodo('c', 'C'), zoneTodo('d', 'D')]
+  assert.deepEqual(bossZones(FRANKENSTEIN, items), ['A', 'B', 'C', 'D'])
+  const encounter = frankensteinBoss('2026-10-10', { zones: ['A', 'B', 'C', 'D'], goal: 4 })
+  const progress = pieceProgress(
+    encounter,
+    items,
+    byItem([done('a', '2026-10-10'), done('b', '2026-10-10'), done('c', '2026-10-10')]),
+    '2026-10-10',
+  )
+  assert.deepEqual(progress.disabledZones, ['A', 'B', 'C'])
+  assert.equal(progress.reachedOn, undefined)
+})
+
+test('Igor remienda una pieza por cada día con obligaciones incumplidas', () => {
+  const items = [zoneTodo('a', 'A'), zoneTodo('b', 'B', '2026-10-11'), zoneTodo('c', 'C', '2026-10-11')]
+  const progress = pieceProgress(
+    frankensteinBoss(),
+    items,
+    byItem([done('a', '2026-10-10'), done('b', '2026-10-11')]),
+    '2026-10-11',
+  )
+  assert.deepEqual(progress.disabledZones, ['B'])
+})
+
+test('Relámpagos duplica EXP y daño solo en la zona cargada del día', () => {
+  const encounter = frankensteinBoss()
+  const charged = chargedZoneOn(encounter, '2026-10-10')
+  assert.ok(charged)
+  assert.equal(effectPercentForItem(encounter, 'xpPercent', '2026-10-10', charged), 200)
+  assert.equal(effectPercentForItem(encounter, 'xpPercent', '2026-10-10', 'other'), 100)
+  assert.equal(effectPercentForItem({ ...encounter, status: 'victory' }, 'xpPercent', '2026-10-10', charged), 100)
+})
+
+test('Frankenstein se vence con todas las piezas y concede sus premios', () => {
+  const items = [zoneTodo('a', 'A'), zoneTodo('b', 'B'), zoneTodo('c', 'C')]
+  const result = planBossSync({
+    today: '2026-10-10',
+    items,
+    completionsByItem: byItem(items.map((item) => done(item.id, '2026-10-10'))),
+    encounters: [frankensteinBoss()],
+    profile: profile(),
+    random: () => 0,
+  })
+  const [victory] = result.encounters
+  assert.equal(victory.status, 'victory')
+  assert.equal(victory.resolvedOn, '2026-10-10')
+  assert.equal(victory.rewards.xp, 130)
+  assert.equal(victory.rewards.coins, 70)
+  assert.deepEqual(victory.rewards.items, {
+    postponeToken: 1, vitalityPotion: 1, streakFreeze: 1, holyWater: 1,
+  })
+})
+
+test('Frankenstein derrota, aplica Costuras y reduce la vida máxima', () => {
+  const result = planBossSync({
+    today: '2026-10-11',
+    items: [zoneTodo('a', 'A')],
+    completionsByItem: {},
+    encounters: [frankensteinBoss('2026-10-10', { windowEnd: '2026-10-10', goal: 1, zones: ['A'] })],
+    profile: profile({ hp: 40 }),
+    random: () => 0,
+  })
+  const [defeat] = result.encounters
+  assert.equal(defeat.status, 'defeat')
+  assert.equal(defeat.curse, 'stitches')
+  assert.equal(result.profile.hp, 20)
+  assert.equal(result.profile.maxHp, 50)
+  assert.equal(effectiveMaxHp(result.profile, '2026-10-11'), 45)
+})
+
+test('el daño por fallo de Legion se redondea hacia arriba tras multiplicarlo por 1,5', () => {
+  const item = chore('missed', { createdAt: '2026-10-11T12:00:00' })
+  const active = legionBoss()
+  const result = computeMissedPenalties(
+    [item],
+    {},
+    undefined,
+    0,
+    { enabled: false },
+    '2026-10-11',
+    (date) => effectPercent(active, 'damagePercent', date) / 100,
+  )
+  assert.equal(result.totalDamage, 2)
 })
 
 test('el daño pasa de una barra a la siguiente y las barras suman la vida total', () => {
@@ -406,8 +606,8 @@ test('la mecánica describe el objetivo de cada boss con sus unidades', () => {
 
 test('el siguiente boss no repite el último y respeta el sorteo ponderado', () => {
   assert.equal(pickBoss('giant-bat', () => 0), 'slogra-gaibon')
-  assert.equal(pickBoss('slogra-gaibon', () => 0.99), 'giant-bat')
-  assert.deepEqual(new Set([pickBoss(undefined, () => 0), pickBoss(undefined, () => 0.99)]), new Set(['giant-bat', 'slogra-gaibon']))
+  assert.equal(pickBoss('slogra-gaibon', () => 0.99), 'frankenstein')
+  assert.deepEqual(new Set([pickBoss(undefined, () => 0), pickBoss(undefined, () => 0.99)]), new Set(['giant-bat', 'frankenstein']))
 })
 
 test('un disparador reactivo se impone al sorteo al acabar el enfriamiento', () => {

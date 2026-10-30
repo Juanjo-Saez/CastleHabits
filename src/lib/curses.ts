@@ -14,6 +14,8 @@ export interface CurseDefinition {
   blocksPostpone?: boolean
   /** Vida que quita cada día, sin bajar nunca de 1. */
   drainPerDay?: number
+  /** Cambio temporal de vida máxima mientras dure la maldición. */
+  maxHpDelta?: number
 }
 
 /** Maldiciones leves: caducan solas. Las graves llegarán con los bosses que las aplican. */
@@ -45,6 +47,10 @@ export const CURSES: Record<CurseId, CurseDefinition> = {
   shadow: {
     id: 'shadow', name: 'Sombra', severity: 'leve', xpPercent: 90,
     description: 'Ganas un 10 % menos de EXP.',
+  },
+  stitches: {
+    id: 'stitches', name: 'Costuras', severity: 'leve', maxHpDelta: -5,
+    description: 'Tu vida máxima se reduce en 5 puntos.',
   },
 }
 
