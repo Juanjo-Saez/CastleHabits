@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { beforeEach, test } from 'node:test'
 import {
   BOSSES,
+  applyBossReward,
   applyBossRevenge,
   bestiaryMechanic,
   bestiaryOf,
@@ -58,6 +59,7 @@ import {
   collectSoul,
   equippedSoulPassives,
   equippedSoulRank,
+  isFirstZoneCompletionOn,
   soulChanceWithPity,
   soulSlotsForLevel,
 } from '../src/lib/souls.ts'
@@ -472,6 +474,19 @@ test('la victoria llega con dos días completos, concede una sola vez y programa
   assert.equal(later.changed.length, 0)
 })
 
+test('una recompensa de boss al subir de nivel recupera la mitad de la vida máxima sin superar el máximo', () => {
+  const result = applyBossReward(profile({
+    level: 1,
+    xp: 70,
+    hp: 5,
+    maxHp: 20,
+  }), { xp: 10, coins: 0, items: {} })
+  assert.equal(result.leveledUp, true)
+  assert.equal(result.profile.level, 2)
+  assert.equal(result.profile.maxHp, 25)
+  assert.equal(result.profile.hp, 18)
+})
+
 test('cada objeto del premio se sortea por separado y hay un consuelo si no sale ninguno', () => {
   // Sello falla, poción sale (cantidad 1), congelación y agua bendita fallan.
   const some = rollRewards(BAT, 1, sequence([0.9, 0.1, 0, 0.9, 0.9]))
@@ -589,6 +604,54 @@ test('la pasiva de Legion añade monedas solo a tareas triviales y escala por ra
   assert.equal(modifyCoins(2, { soulProfile: rankThree, itemDifficulty: 'trivial' }, '2026-10-30'), 5)
   assert.equal(modifyCoins(2, { soulProfile: rankThree, itemDifficulty: 'easy' }, '2026-10-30'), 2)
   assert.equal(modifyCoins(2, { itemDifficulty: 'trivial' }, '2026-10-30'), 2)
+})
+
+test('la pasiva de Frankenstein bonifica una sola primera tarea por zona y escala por rango', () => {
+  const date = '2026-10-30'
+  const item = zoneTodo('zone-a-2', 'castle')
+  const first = zoneTodo('zone-a-1', 'castle')
+  const otherZone = zoneTodo('zone-b-1', 'garden')
+  const noZone = chore('unassigned')
+  const items = [item, first, otherZone, noZone]
+  const completions = byItem([done(first.id, date)])
+  const rankOne = profile({
+    souls: { frankenstein: { rank: 1, fragments: 0 } },
+    equippedSouls: ['frankenstein'],
+    dailySoulLoadout: { date, souls: ['frankenstein'] },
+  })
+  const rankThree = { ...rankOne, souls: { frankenstein: { rank: 3, fragments: 0 } } }
+
+  assert.equal(isFirstZoneCompletionOn(item, items, completions, date), false)
+  assert.equal(isFirstZoneCompletionOn(otherZone, items, completions, date), true)
+  assert.equal(isFirstZoneCompletionOn(noZone, items, completions, date), false)
+  assert.equal(modifyXp(10, {
+    soulProfile: rankOne,
+    soulDate: date,
+    soulFirstZone: true,
+  }, date), 12)
+  assert.equal(modifyXp(10, {
+    soulProfile: {
+      ...rankOne,
+      souls: { frankenstein: { rank: 2, fragments: 0 } },
+    },
+    soulDate: date,
+    soulFirstZone: true,
+  }, date), 13)
+  assert.equal(modifyXp(10, {
+    soulProfile: rankThree,
+    soulDate: date,
+    soulFirstZone: true,
+  }, date), 14)
+  assert.equal(modifyXp(10, {
+    soulProfile: rankThree,
+    soulDate: date,
+    soulFirstZone: false,
+  }, date), 10)
+  assert.equal(modifyXp(10, {
+    soulProfile: rankThree,
+    soulDate: '2026-10-31',
+    soulFirstZone: true,
+  }, date), 10)
 })
 
 test('las reliquias de primera victoria se conceden por expedición y el corazón aumenta la vida máxima', () => {

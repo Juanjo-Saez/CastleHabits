@@ -1,4 +1,14 @@
-import type { DailySoulLoadout, PlayerProfile, SoulAward, SoulId, SoulProgress, SoulRank } from '../types'
+import type {
+  Completion,
+  DailySoulLoadout,
+  Item,
+  PlayerProfile,
+  SoulAward,
+  SoulId,
+  SoulProgress,
+  SoulRank,
+} from '../types'
+import { isWindowCompleted } from './recurrence'
 
 export const MAX_SOUL_PITY = 20
 
@@ -43,7 +53,7 @@ const SOUL_EFFECTS: Partial<Record<SoulId, string>> = {
   'giant-bat': '+5 % de EXP en un día con todas las obligaciones cumplidas.',
   'slogra-gaibon': '+5 monedas al cumplir 5 tareas en un día.',
   legion: 'Las tareas triviales dan +1 moneda.',
-  frankenstein: 'La primera tarea de cada zona da +20 % de EXP al día.',
+  frankenstein: 'La primera tarea de cada zona da +20/+30/+40 % de EXP según el rango.',
   succubus: 'La primera poción del día cura el doble.',
   death: 'Segunda oportunidad: una vez por expedición sobrevives a un golpe mortal con 1 HP.',
   medusa: 'Una congelación de racha gratis cada 7 días.',
@@ -102,6 +112,22 @@ export function equippedSoulPassives(
     const rank = equippedSoulRank(profile, id)
     if (!definition.passiveId || rank === 0) return []
     return [{ id, passiveId: definition.passiveId, rank }]
+  })
+}
+
+/** Indica si completar este item sería la primera tarea acabada de su zona ese día. */
+export function isFirstZoneCompletionOn(
+  item: Item,
+  items: Item[],
+  completionsByItem: Record<string, Completion[]>,
+  dateKey: string,
+): boolean {
+  if (!item.zone) return false
+  return !items.some((candidate) => {
+    if (candidate.id === item.id || candidate.zone !== item.zone) return false
+    const history = completionsByItem[candidate.id] ?? []
+    return history.some((completion) => completion.date === dateKey)
+      && isWindowCompleted(candidate, history, dateKey)
   })
 }
 

@@ -17,6 +17,7 @@ import {
 } from '../lib/recurrence'
 import { xpWithBonus } from '../lib/routes'
 import { canPostpone as postponeAllowed, streaksEnabled } from '../lib/modifiers'
+import { isFirstZoneCompletionOn } from '../lib/souls'
 import { playWhip } from '../lib/sound'
 import { computeMissStreak, computeStreak } from '../lib/streak'
 import { coinsAfterModifiers, useBossStore, xpAfterModifiers } from '../store/useBossStore'
@@ -67,6 +68,8 @@ function describeMissedOn(dateKey: string): string {
 
 function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>) {
   const history = useItemsStore((s) => s.completionsByItem[item.id]) ?? []
+  const items = useItemsStore((s) => s.items)
+  const completionsByItem = useItemsStore((s) => s.completionsByItem)
   const toggleBoolean = useItemsStore((s) => s.toggleBoolean)
   const adjustQuantity = useItemsStore((s) => s.adjustQuantity)
   const postponeItem = useItemsStore((s) => s.postponeItem)
@@ -142,7 +145,12 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
     // Se calcula antes de actuar: una victoria al completar apaga el efecto del boss durante la acción.
     const earned = reward === -1 && completion?.xpEarned
       ? completion.xpEarned
-      : xpAfterModifiers(xpWithBonus(DIFFICULTY_XP[item.difficulty], profile), todayKey(), item)
+      : xpAfterModifiers(
+        xpWithBonus(DIFFICULTY_XP[item.difficulty], profile),
+        todayKey(),
+        item,
+        reward === 1 && isFirstZoneCompletionOn(item, items, completionsByItem, todayKey()),
+      )
     const earnedCoins = reward === -1 && completion?.coinsEarned
       ? completion.coinsEarned
       : coinsAfterModifiers(DIFFICULTY_COINS[item.difficulty], todayKey(), item)

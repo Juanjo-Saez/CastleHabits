@@ -40,6 +40,91 @@ Estado revisado el 30 de octubre de 2026. Este documento refleja el punto actual
 
 ## Fixes pendientes
 
+### Prioridad inmediata — Progresión y vitalidad
+
+- [x] **Fix P0: rebalancear la vida inicial y la curación al subir de nivel.**
+  - Un personaje nuevo y cada expedición reiniciada deben empezar en nivel 1
+    con **20/20 de vida**, sin conservar la vida máxima ganada en expediciones
+    anteriores.
+  - Mantener la ganancia de **+5 de vida máxima base por nivel**; esta
+    progresión solo existe durante la expedición actual.
+  - Al subir de nivel, recuperar **+50 % de la vida máxima efectiva** sobre la
+    vida actual, sin superar el máximo; redondear la curación al entero superior.
+  - Aplicar la misma regla tanto a la EXP de tareas como a las recompensas de
+    bosses y a las correcciones históricas.
+
+- [ ] **Fix P0: hacer la curva de EXP más lenta y progresiva.**
+  - Mantener los primeros saltos en **75 EXP** (nivel 1 → 2) y **100 EXP**
+    (nivel 2 → 3).
+  - Fijar **175 EXP** para nivel 3 → 4 y **225 EXP** para nivel 4 → 5.
+  - Desde nivel 5, multiplicar cada requisito anterior por **1,20** y
+    redondear el resultado al múltiplo de 5 más cercano: 270, 325, 390,
+    470, 565...
+  - Actualizar la barra de progreso, los resúmenes diarios, las correcciones,
+    los tests y cualquier texto que muestre los requisitos de EXP.
+
+- [ ] **Fix P0: convertir el Corazón en Corazón de Legion.**
+  - Renombrar la reliquia visible a **Corazón de Legion** y actualizar su
+    descripción y el Bestiario.
+  - Sustituir el bono fijo de +5 de vida máxima por **+1 de vida máxima por
+    cada victoria contra Legion dentro de la expedición actual**.
+  - Contabilizar las victorias reales de Legion del personaje actual, incluyendo
+    la primera victoria que concede la reliquia y las revanchas posteriores.
+  - Reiniciar el contador al jubilar o renacer; no arrastrar victorias ni vida
+    máxima de una expedición a la siguiente.
+  - Mantener la compatibilidad con perfiles existentes que ya tengan la reliquia
+    `heart`, migrando su nombre y comportamiento sin perder la expedición.
+  - Cubrir con tests la primera victoria, varias victorias, derrotas,
+    reinicio de expedición, cálculo de vida máxima y correcciones históricas.
+
+### Prioridad siguiente — Presentación y eventos del Castillo
+
+- [ ] **Entrada cinematográfica de los bosses.**
+  - Detectar cuándo un encuentro pasa a estar activo por primera vez y
+    reproducir una presentación única para ese encuentro, sin volver a
+    conceder recompensas ni aplicar efectos si se repite la vista.
+  - Redirigir automáticamente la cámara o el scroll hacia la zona del cielo
+    al aparecer el boss, respetando la parada intermedia ya existente y
+    permitiendo volver después a las tareas.
+  - Añadir una animación de aparición en el cielo: relámpagos, destello,
+    silueta o entrada específica del boss y transición de vuelta a la escena.
+  - Mantener la animación accesible y tolerante a `prefers-reduced-motion`,
+    con una forma de omitirla y sin bloquear la interacción principal.
+  - Registrar el estado de presentación por encuentro para que recargar,
+    navegar o abrir el modal no reproduzca efectos de juego ni duplique la
+    cinemática de forma inesperada.
+
+- [ ] **Rediseño visual del Castillo.**
+  - Redefinir la composición de la escena, capas de profundidad, iluminación,
+    luna, cielo y silueta del castillo para que la aparición de bosses y otros
+    eventos tenga un espacio visual propio.
+  - Mantener la navegación vertical entre tareas, parada intermedia y cielo,
+    además de los controles para volver a las tareas.
+  - Diseñar el nuevo aspecto para escritorio y móvil, evitando que el HUD,
+    los diálogos o las animaciones tapen las tareas.
+  - Separar la escena base de los efectos temporales para poder activar
+    relámpagos, niebla, eclipses, bosses y eventos sin duplicar la estructura.
+  - Validar visualmente la escena en las resoluciones móviles objetivo y en
+    escritorio antes de dar el rediseño por terminado.
+
+- [ ] **Encuentro raro del Murciélago dorado.**
+  - Hacer que aparezca ocasionalmente en el Castillo con una probabilidad
+    baja y explícita, sin convertirlo en una fuente habitual de monedas.
+  - Mostrarlo como un elemento interactivo y claramente distinguible del
+    Murciélago gigante; solo debe conceder la recompensa una vez por aparición.
+  - Al pulsarlo, conceder una cantidad pequeña y aleatoria de oro cuyo rango
+    dependa del nivel del personaje, con límites para evitar desequilibrios.
+  - Persistir la aparición, su estado de reclamación y la recompensa para que
+    recargar o navegar no permita cobrarla dos veces.
+  - Dar feedback visual y sonoro opcional al capturarlo, respetando
+    `prefers-reduced-motion` y los ajustes de sonido.
+  - Cubrir la aparición rara, la recompensa según nivel, el clic repetido, la
+    persistencia y el reinicio de expedición.
+  - Definir durante la implementación la tabla exacta de probabilidad y
+    recompensa; propuesta inicial de balance: aparición de aproximadamente
+    3–5 % por oportunidad válida y recompensa de 1–5 monedas, escalada
+    suavemente con el nivel.
+
 ### 1. Obligaciones con margen y completado
 
 - [x] Si una obligación con margen se completa en cualquier día de su ventana, dejar de mostrar el resto de días de la ventana como completados o pendientes; la tarea sale de la lista diaria hasta su siguiente aparición pendiente. Ejemplo: peinar a la gata los martes y sábados, y que una vez completada no siga apareciendo.

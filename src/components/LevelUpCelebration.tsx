@@ -36,7 +36,7 @@ function LevelUpCelebration() {
         </p>
         <ul className="relative mt-2 flex flex-col gap-0.5 font-body text-silver-100">
           <li>+{levelUp.maxHpGain} de vida máxima (ahora {levelUp.maxHp})</li>
-          <li>Vida restaurada al máximo</li>
+          <li>+50 % de vida máxima recuperada</li>
           {titleChanged && <li className="text-gold-300">Nuevo rango: {newTitle}</li>}
         </ul>
         <button type="button" onClick={clearLevelUp} className="cv-btn cv-btn--gold relative mt-3 px-3 py-1">

@@ -15,7 +15,7 @@
 - [ ] Slogra: bono de monedas al quinto cumplimiento diario.
 - [ ] Gaibon: aplazamiento gratuito semanal con registro idempotente.
 - [x] Legion: moneda adicional para tareas triviales.
-- [ ] Frankenstein: bono de EXP para la primera tarea de cada zona.
+- [x] Frankenstein: bono de EXP para la primera tarea de cada zona, con escala +20/+30/+40 % por rango y cobertura de tareas booleanas, cuantitativas y correcciones históricas.
 - [ ] Succubus: primera poción diaria con curación reforzada.
 - [ ] Death: segunda oportunidad única por expedición.
 - [ ] Medusa: congelación gratuita con periodo de siete días.

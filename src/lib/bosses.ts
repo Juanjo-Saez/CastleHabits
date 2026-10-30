@@ -13,7 +13,7 @@ import type {
 } from '../types'
 import { addCurse, removeCurse, tickCurses } from './curses'
 import { activityDateKey, shiftDateKey } from './date'
-import { HP_PER_LEVEL, xpToNextLevel } from './gamification'
+import { HP_PER_LEVEL, levelUpRecovery, xpToNextLevel } from './gamification'
 import { collectSoul } from './souls'
 import { isItemDueOn, isMetCompletion, isObligation, isWindowCompleted } from './recurrence'
 import { effectiveMaxHp } from './routes'
@@ -1113,7 +1113,7 @@ export function applyBossRevenge(profile: PlayerProfile, boss: BossDefinition): 
   }
 }
 
-/** Misma progresión que una completación normal: sube niveles y restaura la vida al subir. */
+/** Misma progresión que una completación normal: sube niveles y recupera media vida máxima. */
 export function applyBossReward(
   profile: PlayerProfile,
   rewards: BossRewards,
@@ -1140,7 +1140,12 @@ export function applyBossReward(
     holyWater: (profile.holyWater ?? 0) + gained('holyWater'),
   }
   return {
-    profile: leveledUp ? { ...next, hp: effectiveMaxHp(next) } : next,
+    profile: leveledUp
+      ? {
+          ...next,
+          hp: Math.min(effectiveMaxHp(next), profile.hp + levelUpRecovery(effectiveMaxHp(next))),
+        }
+      : next,
     leveledUp,
   }
 }

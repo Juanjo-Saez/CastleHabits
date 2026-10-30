@@ -72,6 +72,40 @@ test('registrar ayer devuelve daño y registra la actividad en ayer, no como rec
   assert.equal(next.events[0].activityDate, yesterday)
 })
 
+test('una corrección histórica usa el Alma de Frankenstein fijada para ese día y no el loadout actual', () => {
+  const items = [
+    activity({ id: 'clean', zone: 'castle' }),
+    activity({ id: 'read', zone: 'castle' }),
+  ]
+  const state = fixture({ items })
+  state.profile.souls = { frankenstein: { rank: 1, fragments: 0 } }
+  state.profile.equippedSouls = ['frankenstein']
+  const snapshot = {
+    date: yesterday,
+    runStartedAt: state.profile.runStartedAt,
+    level: 1,
+    xp: 0,
+    hp: state.profile.hp,
+    maxHp: state.profile.maxHp,
+    soulLoadout: ['frankenstein'],
+  }
+  const first = planDayCorrection(
+    { itemId: 'clean', date: yesterday, quantity: 1 },
+    state.profile, items, state.completions, state.events, undefined, snapshot,
+  )
+  assert.equal(first.completions[0].xpEarned, 12)
+
+  const alreadyCompleted = fixture({ items, completions: [completion('clean')] })
+  alreadyCompleted.profile.souls = state.profile.souls
+  alreadyCompleted.profile.equippedSouls = ['frankenstein']
+  const second = planDayCorrection(
+    { itemId: 'read', date: yesterday, quantity: 1 },
+    alreadyCompleted.profile, items, alreadyCompleted.completions, alreadyCompleted.events,
+    undefined, snapshot,
+  )
+  assert.equal(second.completions[0].xpEarned, 10)
+})
+
 test('agrupa fallos, registros, pendientes y misiones secundarias en ese orden semántico', () => {
   const runStartedAt = '2026-10-26T02:00:00'
   const items = [

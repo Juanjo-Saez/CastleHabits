@@ -4,7 +4,7 @@ import { activeEncounter } from '../lib/bosses'
 import { cureCost, removeCurse } from '../lib/curses'
 import { todayKey } from '../lib/date'
 import { potionRecovery } from '../lib/modifiers'
-import { HP_PER_LEVEL, xpToNextLevel } from '../lib/gamification'
+import { HP_PER_LEVEL, levelUpRecovery, xpToNextLevel } from '../lib/gamification'
 import { defaultRoutes, effectiveMaxHp, evaluateRoute, ROUTE_IDS, ROUTES } from '../lib/routes'
 import { soulSlotsForLevel } from '../lib/souls'
 import { SYSTEM_RESOURCES } from '../lib/resources'
@@ -115,13 +115,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       maxHp += HP_PER_LEVEL
       leveledUp = true
     }
+    const nextMaxHp = effectiveMaxHp({ ...current, maxHp })
 
     const updated: PlayerProfile = {
       ...current,
       level,
       xp: currentXp,
       maxHp,
-      hp: leveledUp ? effectiveMaxHp({ ...current, maxHp }) : current.hp,
+      hp: leveledUp
+        ? Math.min(nextMaxHp, current.hp + levelUpRecovery(nextMaxHp))
+        : current.hp,
       coins: current.coins + coins,
     }
     await db.profile.put(updated)
@@ -335,8 +338,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       coins: 0,
       postponeTokens: 0,
       vitalityPotions: 0,
-      hp: 50,
-      maxHp: 50,
+      hp: 20,
+      maxHp: 20,
       streakFreezes: 0,
       holyWater: 0,
       curses: [],

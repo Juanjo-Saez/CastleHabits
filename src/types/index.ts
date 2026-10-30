@@ -161,7 +161,7 @@ export interface DaySnapshot {
 export interface LevelUpInfo {
   from: number
   to: number
-  /** Vida máxima ganada con las subidas (la vida se restaura al máximo). */
+  /** Vida máxima ganada con las subidas; cada subida recupera parcialmente la vida. */
   maxHpGain: number
   maxHp: number
 }

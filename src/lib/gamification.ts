@@ -44,6 +44,11 @@ export function xpToNextLevel(level: number): number {
 /** Vida máxima que concede cada nivel ganado. */
 export const HP_PER_LEVEL = 5
 
+/** Vida que se recupera al subir: la mitad de la vida máxima efectiva, redondeada hacia arriba. */
+export function levelUpRecovery(maxHp: number): number {
+  return Math.ceil(maxHp / 2)
+}
+
 /** Suma EXP aplicando las subidas de nivel, igual que al completar una actividad. */
 export function addXp(level: number, xp: number, amount: number): { level: number; xp: number } {
   let nextLevel = level

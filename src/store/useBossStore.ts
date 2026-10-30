@@ -84,8 +84,9 @@ export function xpAfterModifiers(
   xp: number,
   dateKey = todayKey(),
   item?: Pick<Item, 'zone' | 'difficulty'>,
+  soulFirstZone = false,
 ): number {
-  return modifyXp(xp, currentModifiers(item), dateKey)
+  return modifyXp(xp, { ...currentModifiers(item), soulFirstZone }, dateKey)
 }
 
 export function coinsAfterModifiers(

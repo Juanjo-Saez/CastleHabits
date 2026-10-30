@@ -6,7 +6,15 @@ import { activeEncounter, effectPercentForItemOn, isMedusaStatueOn, protectionsD
 import { activeCursesOn, CURSES, removeCurse } from './curses'
 import { curseDamageMultiplier, freezesEnabled, modifyCoins, modifyXp } from './modifiers'
 import { activityDateKey, logicalNow, todayKey } from './date'
-import { addXp, DIFFICULTY_COINS, DIFFICULTY_XP, HP_PER_LEVEL, rewindXp, xpToNextLevel } from './gamification'
+import {
+  addXp,
+  DIFFICULTY_COINS,
+  DIFFICULTY_XP,
+  HP_PER_LEVEL,
+  levelUpRecovery,
+  rewindXp,
+  xpToNextLevel,
+} from './gamification'
 import { buildItemEvent, itemEventId } from './itemEvents'
 import { computeMissedPenalties } from './penalties'
 import {
@@ -20,6 +28,7 @@ import {
   windowDaysOf,
 } from './recurrence'
 import { effectiveMaxHp, hasShield, recomputeRoute, ROUTE_IDS, xpWithBonus } from './routes'
+import { isFirstZoneCompletionOn } from './souls'
 
 export interface DayCorrection {
   itemId: string
@@ -361,7 +370,9 @@ export function reconcileSnapshot(snapshot: DaySnapshot, xpDelta: number, damage
     : { level: snapshot.level, xp: Math.max(0, snapshot.xp + xpDelta) }
   const levelsGained = next.level - snapshot.level
   const maxHp = snapshot.maxHp + levelsGained * HP_PER_LEVEL
-  const health = levelsGained > 0 ? maxHp : snapshot.hp
+  const health = levelsGained > 0
+    ? Math.min(maxHp, snapshot.hp + levelUpRecovery(maxHp))
+    : snapshot.hp
   return { ...snapshot, ...next, maxHp, hp: Math.max(0, Math.min(maxHp, health - damageDelta)) }
 }
 
@@ -407,7 +418,11 @@ export function planDayCorrection(
   const complete = input.quantity >= goal
   const previousQuantity = existing ? (item.trackingType === 'boolean' ? 1 : existing.quantityDone ?? 0) : 0
   if (previousQuantity === input.quantity) return { profile, completions, events, leveledUp: false }
-  const correctionSoulLoadout = snapshot?.date === input.date ? snapshot.soulLoadout : undefined
+  const correctionSoulLoadout = snapshot?.date === input.date
+    ? snapshot.soulLoadout
+    : profile.dailySoulLoadout?.date === input.date
+      ? profile.dailySoulLoadout.souls
+      : undefined
   const modifiers = {
     boss,
     curses: profile.curses,
@@ -419,6 +434,7 @@ export function planDayCorrection(
         }
       : undefined,
     soulDate: correctionSoulLoadout ? input.date : undefined,
+    soulFirstZone: complete && isFirstZoneCompletionOn(item, items, history, input.date),
   }
   const xp = complete
     ? (existing?.xpEarned || modifyXp(xpWithBonus(DIFFICULTY_XP[item.difficulty], profile), modifiers, input.date))
@@ -503,7 +519,9 @@ export function planDayCorrection(
   }
 
   const maxHealth = effectiveMaxHp(nextProfile)
-  const health = leveledUp ? maxHealth : profile.hp
+  const health = leveledUp
+    ? Math.min(maxHealth, profile.hp + levelUpRecovery(maxHealth))
+    : profile.hp
   nextProfile.hp = Math.max(0, Math.min(maxHealth, health - damageDelta))
   nextProfile.dead = nextProfile.hp === 0
   if (nextProfile.dead && confirmedDamage !== Math.max(0, damageDelta)) {

@@ -179,7 +179,7 @@ function SummaryContent({ summary, onClose, onReplay }: Readonly<{
   }, [stage, instant, summary.xpGained, summary.coinsGained, summary.damage, vitals])
 
   const hpPercent = vitals ? Math.min(100, (vitals.hp / vitals.maxHp) * 100) : 0
-  // Tras subir de nivel la vida se restaura, así que la vida de partida no se puede deducir del daño.
+  // Tras subir de nivel se aplica una curación parcial, así que la vida de partida no se puede deducir del daño.
   const hpBefore = vitals && vitals.levelsGained === 0
     ? Math.min(100, ((vitals.hp + summary.damage) / vitals.maxHp) * 100)
     : hpPercent
@@ -293,7 +293,7 @@ function SummaryContent({ summary, onClose, onReplay }: Readonly<{
                 <p className="cv-label relative text-gold-300">Ascensión</p>
                 <p className="cv-title relative mt-1 text-4xl">Nivel {vitals.levelBefore} → {vitals.levelAfter}</p>
                 <p className="relative mt-1 font-body text-silver-300 italic">
-                  +{vitals.maxHpGain} de vida máxima · la vida se restauró al máximo
+                  +{vitals.maxHpGain} de vida máxima · +50 % de vida máxima recuperada
                 </p>
               </div>
             )}

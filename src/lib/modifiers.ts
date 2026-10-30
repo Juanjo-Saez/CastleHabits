@@ -13,6 +13,7 @@ export interface ModifierContext {
   /** Perfil actual para pasivas de Almas; no se pasa al recalcular días cerrados. */
   soulProfile?: Pick<PlayerProfile, 'souls' | 'equippedSouls' | 'dailySoulLoadout'>
   soulDate?: string
+  soulFirstZone?: boolean
   itemDifficulty?: Difficulty
 }
 
@@ -31,7 +32,13 @@ function cursePercent(
 export function modifyXp(xp: number, ctx: ModifierContext, dateKey: string): number {
   const percent = (effectPercentForItem(ctx.boss, 'xpPercent', dateKey, ctx.zone)
     * cursePercent(ctx, dateKey, (c) => c.xpPercent)) / 100
-  return percent === 100 ? xp : Math.ceil((xp * percent) / 100)
+  const modified = percent === 100 ? xp : Math.ceil((xp * percent) / 100)
+  const frankensteinRank = ctx.soulFirstZone && ctx.soulProfile
+    ? equippedSoulRank(ctx.soulProfile, 'frankenstein', ctx.soulDate)
+    : 0
+  return frankensteinRank > 0
+    ? Math.ceil((modified * (120 + (frankensteinRank - 1) * 10)) / 100)
+    : modified
 }
 
 export function modifyCoins(coins: number, ctx: ModifierContext, dateKey: string): number {

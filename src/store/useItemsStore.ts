@@ -9,6 +9,7 @@ import { itemEventId, recordItemEvent } from '../lib/itemEvents'
 import { canPostpone } from '../lib/modifiers'
 import { completionInWindow, isItemDueOn, isObligation, marginDaysOf, scheduledDateFor } from '../lib/recurrence'
 import { xpWithBonus } from '../lib/routes'
+import { isFirstZoneCompletionOn } from '../lib/souls'
 import { useAchievementsStore } from './useAchievementsStore'
 import { coinsAfterModifiers, currentModifiers, useBossStore, xpAfterModifiers } from './useBossStore'
 import { usePlayerStore, mergeLevelUp } from './usePlayerStore'
@@ -185,10 +186,14 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     }
 
     const today = todayKey()
+    const firstZoneCompletion = isFirstZoneCompletionOn(
+      item, get().items, get().completionsByItem, today,
+    )
     const xp = xpAfterModifiers(
       xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile),
       today,
       item,
+      firstZoneCompletion,
     )
     const coins = coinsAfterModifiers(DIFFICULTY_COINS[item.difficulty], today, item)
     const scheduledDate = scheduledDateFor(item, logicalNow())
@@ -262,12 +267,16 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     const wasComplete = prevQty >= goal
     const isComplete = nextQty >= goal
     const today = todayKey()
+    const firstZoneCompletion = !wasComplete && isComplete && isFirstZoneCompletionOn(
+      item, get().items, get().completionsByItem, today,
+    )
     const xp = xpAfterModifiers(
       xpWithBonus(DIFFICULTY_XP[item.difficulty], usePlayerStore.getState().profile),
       today,
       item,
+      firstZoneCompletion,
     )
-    const coins = coinsAfterModifiers(DIFFICULTY_COINS[item.difficulty])
+    const coins = coinsAfterModifiers(DIFFICULTY_COINS[item.difficulty], today, item)
 
     if (!wasComplete && isComplete) {
       await usePlayerStore.getState().awardCompletion(xp, coins)

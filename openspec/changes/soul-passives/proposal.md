@@ -34,14 +34,14 @@ pruebas de idempotencia y corrección de ayer.
 | Slogra | +5 monedas al cumplir 5 tareas en un día |
 | Gaibon | Un aplazamiento gratis por semana |
 | Legion | Las tareas triviales dan +1 moneda |
-| Frankenstein | La primera tarea de cada zona cada día da +20 % de EXP |
+| Frankenstein | La primera tarea de cada zona cada día da +20 % de EXP (rango 1), +30 % (rango 2) o +40 % (rango 3) |
 | Succubus | La primera poción del día cura el doble |
 | Death | Segunda oportunidad una vez por expedición |
 | Medusa | Una congelación de racha gratis cada 7 días |
 
-Los rangos superiores refuerzan cada pasiva y se definirán en el change que
-implemente el efecto concreto. No se inventan multiplicadores en esta fase de
-infraestructura.
+Los rangos superiores refuerzan cada pasiva y se concretan en la sección de
+implementación de cada efecto. La primera integración implementada es Legion;
+Frankenstein fija explícitamente la escala +20/+30/+40 % en la tabla anterior.
 
 ## Alcance de esta fase
 
@@ -54,22 +54,31 @@ infraestructura.
 - Mantener los efectos de juego existentes sin cambios hasta que cada pasiva
   tenga un punto de integración y un registro idempotente.
 
-## Primera integración: Legion
+## Integraciones runtime implementadas
 
-La pasiva de Legion es la primera integración runtime porque solo depende de la
-tarea que se está completando:
+### Legion
 
 - Rango 1: +1 moneda en tareas triviales.
 - Rango 2: +2 monedas en tareas triviales.
 - Rango 3: +3 monedas en tareas triviales.
 - No afecta tareas fáciles, medias o difíciles.
 - Solo se calcula para una recompensa nueva del día actual.
+
+### Frankenstein
+
+- Solo se bonifica la primera tarea completada de cada zona en la fecha operativa.
+- Rango 1: +20 % de EXP; rango 2: +30 %; rango 3: +40 %.
+- Una tarea sin zona no puede activar la pasiva.
+- El cálculo se aplica tanto a tareas booleanas como cuantitativas al alcanzar
+  la meta.
+- Las correcciones históricas usan el `soulLoadout` del snapshot de esa fecha,
+  nunca el loadout actual.
 - Las correcciones de días cerrados usan el loadout guardado en su snapshot.
 
 ## Fuera de alcance
 
-- Aplicar todavía las bonificaciones a EXP, monedas, pociones, congelaciones o
-  daño.
+- Aplicar todavía las bonificaciones de las pasivas aún pendientes: EXP, monedas,
+  pociones, congelaciones o daño.
 - Crear contadores manuales por pasiva.
 - Cambiar la persistencia de Almas, su piedad, sus fragmentos o las casillas.
 - Activar pasivas de Almas no pertenecientes a bosses implementados.

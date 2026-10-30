@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { beforeEach, test } from 'node:test'
 import { buildDailySummary, summaryDateKey } from '../src/lib/dailySummary.ts'
 import { planDayCorrection, reconcileSnapshot } from '../src/lib/dayCorrections.ts'
-import { addXp, rewindXp } from '../src/lib/gamification.ts'
+import { addXp, levelUpRecovery, rewindXp } from '../src/lib/gamification.ts'
 import { computeMissedPenalties } from '../src/lib/penalties.ts'
 import { defaultRoutes } from '../src/lib/routes.ts'
 import { clearSummaryMarker, hasShownSummary, markSummaryShown } from '../src/lib/summaryMarker.ts'
@@ -215,14 +215,18 @@ test('corregir ayer recalcula el resumen sin rastro de la edición', () => {
 
 test('la corrección ajusta el snapshot igual que el perfil, también con subida de nivel', () => {
   assert.deepEqual(reconcileSnapshot(snapshot({ hp: 49 }), 10, -1), snapshot({ hp: 50, xp: 10 }))
-  const leveled = reconcileSnapshot(snapshot({ level: 1, xp: 70, hp: 40 }), 10, 0)
+  const leveled = reconcileSnapshot(snapshot({ level: 1, xp: 70, hp: 10 }), 10, 0)
   assert.equal(leveled.level, 2)
   assert.equal(leveled.xp, 5)
   assert.equal(leveled.maxHp, 55)
-  assert.equal(leveled.hp, 55)
+  assert.equal(leveled.hp, 38)
   const lowered = reconcileSnapshot(snapshot({ level: 3, xp: 4 }), -10, 0)
   assert.equal(lowered.level, 3)
   assert.equal(lowered.xp, 0)
+})
+
+test('la recuperación al subir redondea hacia arriba la mitad de la vida máxima', () => {
+  assert.deepEqual([levelUpRecovery(20), levelUpRecovery(25), levelUpRecovery(55)], [10, 13, 28])
 })
 
 test('la marca de presentación automática es idempotente y no depende del perfil', () => {
