@@ -1,7 +1,16 @@
 import { addDays, format, parseISO } from 'date-fns'
 import { v4 as uuid } from 'uuid'
 import { db } from '../db/database'
-import type { BossEncounter, Completion, DaySnapshot, Item, ItemEvent, PenaltyCheckpoint, PlayerProfile } from '../types'
+import type {
+  BossEncounter,
+  Completion,
+  DaySnapshot,
+  Item,
+  ItemEvent,
+  PenaltyCheckpoint,
+  PlayerProfile,
+  SoulPassiveActivation,
+} from '../types'
 import { activeEncounter, effectPercentForItemOn, isMedusaStatueOn, protectionsDisabledOn } from './bosses'
 import { activeCursesOn, CURSES, removeCurse } from './curses'
 import { curseDamageMultiplier, freezesEnabled, modifyCoins, modifyXp } from './modifiers'
@@ -28,14 +37,19 @@ import {
   windowDaysOf,
 } from './recurrence'
 import { effectiveMaxHp, hasShield, recomputeRoute, ROUTE_IDS, xpWithBonus } from './routes'
-import { isFirstZoneCompletionOn } from './souls'
+import { cerberusFailureDamageMultiplier, isFirstZoneCompletionOn } from './souls'
 import {
   dailySoulBonusTotals,
   reconcileDailySoulRewards,
   type DailySoulBonusCompletion,
   type DailySoulRewardResult,
 } from './dailySoulRewards'
-import { reconcileSoulPassiveActivations } from './soulPassiveLedger'
+import {
+  createSoulPassiveActivation,
+  reconcileSoulPassiveActivations,
+  soulPassiveRankOn,
+  soulPassiveReadyOn,
+} from './soulPassiveLedger'
 import { eclipseMultiplierForDay } from './weather'
 
 export interface DayCorrection {
@@ -183,6 +197,14 @@ function replayPenalties(
     damageMultiplierForDay,
     freezesEnabledForDay(checkpoint.date),
     shieldEnabledForDay,
+    {
+      date: checkpoint.date,
+      medusaRank: checkpoint.medusaRank,
+      medusaReadyOn: checkpoint.medusaReadyOn,
+      deathRank: checkpoint.deathRank,
+      deathSavesUsed: checkpoint.deathSavesUsed,
+      deathHp: checkpoint.deathHp,
+    },
   )
   result.missedEvents = result.missedEvents.map((event) => ({
     ...event,
@@ -199,7 +221,70 @@ export function snapshotOf(profile: PlayerProfile, date: string): DaySnapshot {
     soulLoadout: profile.dailySoulLoadout?.date === date
       ? [...profile.dailySoulLoadout.souls]
       : undefined,
+    soulRanks: Object.fromEntries(
+      Object.entries(profile.souls ?? {}).flatMap(([id, progress]) =>
+        progress ? [[id, progress.rank]] : [],
+      ),
+    ),
   }
+}
+
+function soulSnapshotForDate(
+  profile: PlayerProfile,
+  date: string,
+  saved?: DaySnapshot,
+): Pick<DaySnapshot, 'date' | 'soulLoadout' | 'soulRanks'> | undefined {
+  if (saved && saved.runStartedAt === profile.runStartedAt) return saved
+  if (profile.dailySoulLoadout?.date !== date) return undefined
+  return {
+    date,
+    soulLoadout: [...profile.dailySoulLoadout.souls],
+    soulRanks: Object.fromEntries(
+      Object.entries(profile.souls ?? {}).flatMap(([id, progress]) =>
+        progress ? [[id, progress.rank]] : [],
+      ),
+    ),
+  }
+}
+
+function passiveActivationsForMisses(
+  profile: PlayerProfile,
+  checkpoint: PenaltyCheckpoint,
+  events: ItemEvent[],
+) {
+  const runStartedAt = checkpoint.runStartedAt
+  if (!runStartedAt) return []
+  const snapshot = {
+    date: checkpoint.date,
+    soulLoadout: checkpoint.soulLoadout,
+    soulRanks: checkpoint.soulRanks,
+  }
+  return events.flatMap((event) => {
+    const soulId = event.soulPassiveId === 'secondChance'
+      ? 'death'
+      : event.soulPassiveId === 'weeklyFreeze' ? 'medusa' : null
+    if (!soulId) return []
+    const activation = createSoulPassiveActivation({
+      profile,
+      soulId,
+      date: checkpoint.date,
+      runStartedAt,
+      sourceId: event.id,
+      snapshot,
+      rankOverride: event.soulPassiveRank,
+    })
+    return activation ? [activation] : []
+  })
+}
+
+function deathSavesBeforePenalties(
+  activations: SoulPassiveActivation[],
+  date: string,
+): number {
+  return activations.filter((activation) =>
+    activation.passiveId === 'secondChance'
+    && (activation.date < date || (activation.date === date && activation.sourceId.startsWith('boss:'))),
+  ).length
 }
 
 /**
@@ -257,13 +342,18 @@ export function applyPenance(
 
 /** Guarda las entradas de la evaluación de ayer, no solo el daño, para poder repetirla. */
 export async function settleDayPenalties(): Promise<void> {
-  await db.transaction('rw', [db.profile, db.items, db.completions, db.itemEvents, db.daySnapshots, db.bossEncounters], async () => {
+  await db.transaction('rw', [
+    db.profile, db.items, db.completions, db.itemEvents, db.daySnapshots, db.bossEncounters,
+    db.soulPassiveActivations,
+  ], async () => {
     let profile = await db.profile.get(1)
     if (!profile || profile.dead) return
     const items = await db.items.toArray()
     const history = historyByItem(await db.completions.toArray())
     const encounters = await db.bossEncounters.toArray()
+    const snapshotsByDate = new Map((await db.daySnapshots.toArray()).map((snapshot) => [snapshot.date, snapshot]))
     const currentCurses = profile.curses
+    const soulProfile = profile
     const protectionsEnabledForDay = (dateKey: string) => !encounters.some((encounter) =>
       protectionsDisabledOn(encounter, dateKey))
     const freezesEnabledForDay = (dateKey: string) => freezesEnabled({ curses: currentCurses }, dateKey)
@@ -276,8 +366,15 @@ export async function settleDayPenalties(): Promise<void> {
         candidate.bossId === 'medusa'
         && isMedusaStatueOn(candidate, item, dateKey, items)
         && !isWindowCompleted(item, history[item.id] ?? [], dateKey)) ? 2 : 1
+      const soulRank = soulPassiveRankOn(
+        soulProfile,
+        'cerberus',
+        dateKey,
+        soulSnapshotForDate(soulProfile, dateKey, snapshotsByDate.get(dateKey)),
+      )
       return bossMultiplier * statueMultiplier
         * curseDamageMultiplier({ curses: currentCurses }, dateKey)
+        * cerberusFailureDamageMultiplier(soulRank)
         * eclipseMultiplierForDay(dateKey)
     }
     const yesterday = yesterdayKey()
@@ -330,13 +427,41 @@ export async function settleDayPenalties(): Promise<void> {
     }
 
     if (!profile.dead) {
+      const soulSnapshot = soulSnapshotForDate(profile, yesterday, snapshotsByDate.get(yesterday))
+      const soulLoadout = soulSnapshot?.soulLoadout
+      const deathRank = soulPassiveRankOn(profile, 'death', yesterday, soulSnapshot) || undefined
+      const medusaRank = soulPassiveRankOn(profile, 'medusa', yesterday, soulSnapshot) || undefined
+      const priorActivations = profile.runStartedAt
+        ? await db.soulPassiveActivations
+          .where('runStartedAt')
+          .equals(profile.runStartedAt)
+          .toArray()
+        : []
+      const previousDeathSaves = deathSavesBeforePenalties(priorActivations, yesterday)
+      const medusaReadyOn = priorActivations
+        .filter((activation) => activation.passiveId === 'weeklyFreeze' && activation.date < yesterday)
+        .map(soulPassiveReadyOn)
+        .sort()
+        .at(-1)
       const checkpoint: PenaltyCheckpoint = {
         date: yesterday, items, freezes: profile.streakFreezes,
         shieldEnabled: hasShield(profile), shieldReadyOn: profile.shieldReadyOn,
         runStartedAt: profile.runStartedAt,
+        soulLoadout,
+        soulRanks: soulSnapshot?.soulRanks,
+        deathSavesUsed: previousDeathSaves,
+        deathRank,
+        deathHp: profile.hp,
+        medusaRank,
+        medusaReadyOn,
       }
       const result = replayPenalties(checkpoint, history, damageMultiplierForDay, freezesEnabledForDay, shieldEnabledForDay)
       await db.itemEvents.bulkPut(result.missedEvents)
+      const passiveSources = result.missedEvents.map((event) => event.id)
+      const passiveActivations = passiveActivationsForMisses(profile, checkpoint, result.missedEvents)
+      if (profile.runStartedAt) {
+        await reconcileSoulPassiveActivations(profile.runStartedAt, passiveSources, passiveActivations)
+      }
       const hp = Math.max(0, profile.hp - result.totalDamage)
       profile = {
         ...profile, hp, dead: hp === 0, lastPenaltyCheck: yesterday,
@@ -345,7 +470,17 @@ export async function settleDayPenalties(): Promise<void> {
       }
       profile = applyPenance(profile, items, history, yesterday)
     }
-    if (!profile.dead) await db.daySnapshots.put(snapshotOf(profile, yesterday))
+    if (!profile.dead) {
+      const checkpoint = profile.penaltyCheckpoint
+      const snapshot = snapshotOf(profile, yesterday)
+      await db.daySnapshots.put(checkpoint?.date === yesterday
+        ? {
+            ...snapshot,
+            soulLoadout: checkpoint.soulLoadout,
+            soulRanks: checkpoint.soulRanks,
+          }
+        : snapshot)
+    }
     await db.profile.put(profile)
   })
 }
@@ -585,13 +720,27 @@ export function planDayCorrection(
   if (checkpoint?.date === yesterdayKey()) {
     const oldMisses = yesterdayMisses(events, checkpoint, profile.runStartedAt)
     const protectionEnabledForDay = (dateKey: string) => !protectionsDisabledOn(boss, dateKey)
+    const soulSnapshot = {
+      date: checkpoint.date,
+      soulLoadout: checkpoint.soulLoadout,
+      soulRanks: checkpoint.soulRanks,
+    }
+    const cerberusRank = soulPassiveRankOn(profile, 'cerberus', checkpoint.date, soulSnapshot)
     const result = replayPenalties(
       checkpoint,
       nextHistory,
-      boss?.bossId === 'medusa'
-        ? (dateKey, candidate) => (isMedusaStatueOn(boss, candidate, dateKey, items) ? 2 : 1)
+      (dateKey, candidate) => {
+        const bossMultiplier = effectPercentForItemOn(boss, 'damagePercent', dateKey, candidate.zone) / 100
+        const statueMultiplier = boss?.bossId === 'medusa'
+          && isMedusaStatueOn(boss, candidate, dateKey, items) ? 2 : 1
+        const soulMultiplier = dateKey === checkpoint.date
+          ? cerberusFailureDamageMultiplier(cerberusRank)
+          : 1
+        return bossMultiplier * statueMultiplier
+          * curseDamageMultiplier({ curses: profile.curses }, dateKey)
+          * soulMultiplier
           * eclipseMultiplierForDay(dateKey)
-        : (dateKey) => eclipseMultiplierForDay(dateKey),
+      },
       protectionEnabledForDay,
       protectionEnabledForDay,
     )
@@ -643,7 +792,25 @@ export async function saveDayCorrection(input: DayCorrection, confirmedDamage?: 
     const events = await db.itemEvents.toArray()
     const snapshot = await db.daySnapshots.get(input.date)
     const boss = activeEncounter(await db.bossEncounters.toArray())
-    const initialPlan = planDayCorrection(input, profile, items, completions, events, confirmedDamage, snapshot, boss)
+    const recordedActivations = profile.runStartedAt
+      ? await db.soulPassiveActivations
+        .where('runStartedAt')
+        .equals(profile.runStartedAt)
+        .toArray()
+      : []
+    const checkpoint = profile.penaltyCheckpoint
+    const replayProfile = checkpoint?.date === input.date
+      ? {
+          ...profile,
+          penaltyCheckpoint: {
+            ...checkpoint,
+            deathSavesUsed: deathSavesBeforePenalties(recordedActivations, checkpoint.date),
+          },
+        }
+      : profile
+    const initialPlan = planDayCorrection(
+      input, replayProfile, items, completions, events, confirmedDamage, snapshot, boss,
+    )
     let plan = initialPlan
     if (initialPlan.completions !== completions) {
       const reconciledRewards = reconcileDailySoulRewards(
@@ -663,6 +830,21 @@ export async function saveDayCorrection(input: DayCorrection, confirmedDamage?: 
         sourceIds.includes(activation.sourceId),
       )
       await reconcileSoulPassiveActivations(profile.runStartedAt!, sourceIds, expected)
+    }
+    if (checkpoint?.date === input.date && checkpoint.runStartedAt) {
+      const missedOnDate = (event: ItemEvent) =>
+        event.kind === 'missed'
+        && belongsToRun(event, checkpoint.runStartedAt)
+        && penaltyDate(event, checkpoint.items) === checkpoint.date
+      const sourceIds = [...events, ...plan.events]
+        .filter(missedOnDate)
+        .map((event) => event.id)
+      const expected = passiveActivationsForMisses(
+        profile,
+        checkpoint,
+        plan.events.filter(missedOnDate),
+      )
+      await reconcileSoulPassiveActivations(checkpoint.runStartedAt, sourceIds, expected)
     }
     const completionIds = new Set(plan.completions.map((completion) => completion.id))
     const eventIds = new Set(plan.events.map((event) => event.id))

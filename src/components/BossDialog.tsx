@@ -121,7 +121,7 @@ function BossDialog({
   const hpRatio = usePlayerStore((s) =>
     s.profile ? s.profile.hp / effectiveMaxHp(s.profile) : 1,
   )
-  const { definition, encounter, completedDates, target, today, kind, bars, damage, goal, statuesBroken, statuesMissed } = summary
+  const { definition, encounter, completedDates, target, today, kind, bars, damage, goal, headsDown, statuesBroken, statuesMissed } = summary
   const active = encounter.status === 'active'
   const appearance = moonAppearance(hpRatio, active, weatherForDay(todayKey()))
   const notice = headline(summary, mode)
@@ -197,8 +197,10 @@ function BossDialog({
                           ? 'Hoces'
                           : kind === 'statues'
                             ? 'Estatuas'
-                            : 'Golpes'}
-                    value={`${damage}/${goal}`}
+                                : kind === 'heads'
+                                  ? 'Cabezas'
+                                  : 'Golpes'}
+                        value={kind === 'heads' ? `${headsDown}/3` : `${damage}/${goal}`}
                   />
                 )}
               </div>
@@ -234,7 +236,9 @@ function BossDialog({
                           ? 'Hoces acumuladas'
                             : kind === 'statues'
                               ? 'Estatuas de Medusa'
-                              : 'Vida del boss'
+                                : kind === 'heads'
+                                  ? 'Cabezas de Cerbero'
+                                  : 'Vida del boss'
                   }
                   className="flex flex-col gap-2"
                 >
@@ -256,7 +260,9 @@ function BossDialog({
                                 ? `Hoces acumuladas de ${bar.name}`
                                 : kind === 'statues'
                                   ? `Estatuas rotas de ${bar.name}`
-                                  : `Vida de ${bar.name}`
+                                  : kind === 'heads'
+                                    ? `Vida de la cabeza de ${bar.name}`
+                                    : `Vida de ${bar.name}`
                         }
                         aria-valuemin={0}
                         aria-valuemax={bar.max}
@@ -279,6 +285,11 @@ function BossDialog({
                   {objective.kind === 'statues' && (
                     <p className="mt-1 text-center font-pixel text-base leading-none text-silver-500">
                       Rotas: {statuesBroken} · sin romper: {statuesMissed} · cada deuda cura a Medusa
+                    </p>
+                  )}
+                  {objective.kind === 'heads' && (
+                    <p className="mt-1 text-center font-pixel text-base leading-snug text-silver-500">
+                      Cabezas derrotadas: {headsDown}/3 · si no completas nada de una categoría en un día, su cabeza recupera 1 punto
                     </p>
                   )}
                 </section>
@@ -334,6 +345,11 @@ function BossDialog({
               ) : objective.kind === 'scythes' ? (
                 <>
                   {bestiaryMechanic(definition)} La ventana dura {definition.windowDays} días.
+                </>
+              ) : objective.kind === 'heads' ? (
+                <>
+                  {bestiaryMechanic(definition)} Debes bajar las tres cabezas antes de que termine la ventana de {definition.windowDays} días.
+                  {' '}Metas: {bars.map((bar) => `${bar.name.toLowerCase()} ${bar.max}`).join(' · ')}.
                 </>
               ) : (
                 <>

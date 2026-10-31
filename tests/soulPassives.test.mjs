@@ -8,6 +8,8 @@ import {
   soulPassiveReadyOn,
 } from '../src/lib/soulPassiveLedger.ts'
 import { dailyPotionMultiplier } from '../src/lib/souls.ts'
+import { resolvePlayerDamage } from '../src/lib/soulDamage.ts'
+import { computeMissedPenalties } from '../src/lib/penalties.ts'
 import {
   dailySoulBonusTotals,
   reconcileDailySoulRewards,
@@ -83,6 +85,39 @@ test('no se registra una pasiva para almas no obtenidas o fuera del loadout diar
   }), null)
 })
 
+test('Death y Medusa registran la pasiva y el rango fijados en su snapshot', () => {
+  const date = '2026-10-31'
+  const runStartedAt = '2026-10-01T02:00:00.000Z'
+  const death = createSoulPassiveActivation({
+    profile: profile({
+      souls: { death: { rank: 3, fragments: 0 } },
+      dailySoulLoadout: { date, souls: ['death'] },
+    }),
+    soulId: 'death',
+    date,
+    runStartedAt,
+    sourceId: 'boss:enc-1:defeat',
+    snapshot: { date, soulLoadout: ['death'], soulRanks: { death: 2 } },
+  })
+  const medusa = createSoulPassiveActivation({
+    profile: profile({
+      souls: { medusa: { rank: 3, fragments: 0 } },
+      dailySoulLoadout: { date, souls: ['medusa'] },
+    }),
+    soulId: 'medusa',
+    date,
+    runStartedAt,
+    sourceId: 'miss-1',
+    snapshot: { date, soulLoadout: ['medusa'], soulRanks: { medusa: 1 } },
+  })
+
+  assert.equal(death.passiveId, 'secondChance')
+  assert.equal(death.rank, 2)
+  assert.equal(medusa.passiveId, 'weeklyFreeze')
+  assert.equal(medusa.rank, 1)
+  assert.equal(soulPassiveReadyOn(medusa), '2026-11-07')
+})
+
 test('la reconciliación elimina solo activaciones obsoletas de las fuentes afectadas', () => {
   const existing = [
     activation('source-a'),
@@ -120,6 +155,61 @@ test('Gaibon guarda el rango usado y aplica enfriamiento móvil desde la fecha d
   assert.equal(soulPassiveCooldownReady([activationForRank(1)], '2026-11-07'), true)
   assert.equal(soulPassiveCooldownReady([activationForRank(2)], '2026-11-05'), true)
   assert.equal(soulPassiveCooldownReady([activationForRank(3)], '2026-11-03'), true)
+})
+
+test('Death evita hasta 1/2/3 golpes mortales según el rango y deja 1 PV', () => {
+  for (const rank of [1, 2, 3]) {
+    let hp = 1
+    let savesUsed = 0
+    for (let save = 0; save < rank; save += 1) {
+      const result = resolvePlayerDamage(hp, 1, rank, savesUsed)
+      assert.equal(result.deathSaved, true)
+      assert.equal(result.hp, 1)
+      savesUsed += Number(result.deathSaved)
+      hp = result.hp
+    }
+
+    const exhausted = resolvePlayerDamage(hp, 1, rank, savesUsed)
+    assert.equal(exhausted.deathSaved, false)
+    assert.equal(exhausted.hp, 0)
+  }
+})
+
+test('Death y Medusa se aplican al daño de fallos con rango, prioridad y cooldown guardado', () => {
+  const date = '2026-10-31'
+  const items = ['one', 'two', 'three'].map((id) => ({
+    id,
+    title: id,
+    type: 'chore',
+    difficulty: 'easy',
+    trackingType: 'boolean',
+    archived: false,
+    createdAt: `${date}T12:00:00`,
+  }))
+  const death = computeMissedPenalties(
+    items, {}, undefined, 0, { enabled: false }, date, () => 1, true, () => true,
+    { date, deathRank: 2, deathSavesUsed: 0, deathHp: 1 },
+  )
+  assert.deepEqual(death.missedEvents.map((event) => event.deathSaved), [true, true, undefined])
+  assert.deepEqual(death.missedEvents.map((event) => event.damage), [0, 0, 1])
+  assert.equal(death.totalDamage, 1)
+  assert.equal(death.deathSavesUsed, 2)
+
+  const medusa = computeMissedPenalties(
+    [items[0]], {}, undefined, 1, { enabled: false }, date, () => 1, true, () => true,
+    { date, medusaRank: 2 },
+  )
+  assert.equal(medusa.missedEvents[0].protectedBy, 'soul')
+  assert.equal(medusa.missedEvents[0].soulPassiveRank, 2)
+  assert.equal(medusa.medusaReadyOn, '2026-11-05')
+  assert.equal(medusa.freezesUsed, 0)
+
+  const cooldown = computeMissedPenalties(
+    [items[0]], {}, undefined, 0, { enabled: false }, date, () => 1, true, () => true,
+    { date, medusaRank: 2, medusaReadyOn: '2026-11-01' },
+  )
+  assert.equal(cooldown.missedEvents[0].protectedBy, undefined)
+  assert.equal(cooldown.totalDamage, 1)
 })
 
 test('Succubus refuerza la primera poción según el rango y deja las siguientes normales', () => {

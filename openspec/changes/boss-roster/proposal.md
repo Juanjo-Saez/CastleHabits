@@ -18,7 +18,7 @@ Diseño de los siguientes encuentros tras el Murciélago gigante. Es un document
 
 | Pieza | Estado |
 |---|---|
-| Motor con objetivos `days`, `hits` y `pieces`, metas fijadas al activarse y zonas persistidas cuando hace falta | Hecho |
+| Motor con objetivos `days`, `hits`, `pieces`, `statues` y `heads`, metas fijadas al activarse y zonas persistidas cuando hace falta | Hecho |
 | Premios: sorteo independiente por objeto, consuelo y multiplicador por nivel | Hecho |
 | Consumibles nuevos: agua bendita (cura una maldición) y bolsa de oro (en el motor, sin boss que la suelte aún) | Hecho |
 | Persistencia: los encuentros resueltos sobreviven a jubilarse y los pendientes se reprograman | Hecho |
@@ -35,7 +35,8 @@ Diseño de los siguientes encuentros tras el Murciélago gigante. Es un document
 | Succubus | Hecho en `boss-succubus` |
 | Death | Hecho en `boss-death` |
 | Medusa | Hecho en `boss-medusa` |
-| Resto de bosses (Cerbero, Doppelgänger, Hidra/Escila, Drácula, Sukamon) | Pendiente; un change por boss |
+| Cerbero | Hecho en `boss-cerberus` |
+| Resto de bosses (Doppelgänger, Hidra/Escila, Drácula, Sukamon) | Pendiente; un change por boss |
 
 ### Modelo de datos
 
@@ -298,7 +299,7 @@ Este documento es el diseño compartido. Los changes derivados y su estado actua
    - [x] **[boss-succubus](../boss-succubus/proposal.md)**: robo de vida.
    - [x] **[boss-death](../boss-death/proposal.md)**: apuesta y Hoz de Death.
    - [x] **[boss-medusa](../boss-medusa/proposal.md)**: estatuas y Amnesia.
-   - [ ] Cerbero.
+   - [x] **[boss-cerberus](../boss-cerberus/proposal.md)**: tres cabezas, Aliento infernal y Triple mordisco.
    - [ ] Hidra/Escila.
    - [ ] Doppelgänger.
    - [ ] Sukamon: minijefe.

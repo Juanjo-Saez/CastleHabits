@@ -25,8 +25,12 @@
 - [x] Frankenstein: bono de EXP para la primera tarea de cada zona, con escala +20/+30/+40 % por rango y cobertura de tareas booleanas, cuantitativas y correcciones históricas.
 - [x] Succubus: primera poción diaria con curación 2×/3×/4× según rango,
       respetando maldiciones, vida máxima e idempotencia.
-- [ ] Death: segunda oportunidad única por expedición.
-- [ ] Medusa: congelación gratuita con periodo de siete días.
+- [x] Death: evita 1/2/3 golpes mortales por expedición según rango, tanto por
+      penalizaciones como por daño de bosses.
+- [x] Medusa: congelación gratis con enfriamiento móvil de 7/5/3 días según
+      rango, antes de consumir congelaciones del inventario.
+- [x] Cerbero: reducción de daño por fallo del 10/15/20 % según rango, aplicada
+      en liquidación y correcciones con el snapshot diario.
 
 ## Persistencia y correcciones
 
@@ -35,12 +39,12 @@
 - [x] Garantizar que equipar o desequipar no reescribe días cerrados.
 - [x] Hacer que las correcciones de ayer recalculen efectos derivados sin
       duplicar recompensas ni consumos.
-- [ ] Integrar y probar la reconciliación del registro con cada pasiva consumible.
+- [x] Integrar y probar la reconciliación del registro con cada pasiva consumible.
 
 ## Verificación
 
 - [x] Tests del catálogo, equipamiento, rangos y entradas obsoletas.
-- [ ] Tests unitarios por pasiva y rango; pendiente Death y Medusa.
-- [ ] Tests de idempotencia y corrección de ayer para Death y Medusa.
+- [x] Tests unitarios de Death, Medusa y Cerbero por rango.
+- [x] Tests de idempotencia y corrección de ayer para Death, Medusa y Cerbero.
 - [ ] Validación visual del panel de Almas con descripciones reales.
-- [x] Ejecutar tests, TypeScript, build y lint.
+- [x] Ejecutar tests, TypeScript, build y lint dirigido a los archivos modificados.

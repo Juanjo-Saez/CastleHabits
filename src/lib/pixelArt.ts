@@ -406,6 +406,33 @@ export const MEDUSA_PALETTE: Palette = {
   M: '#2a1638',
 }
 
+/** Cerbero: tres fauces vigilan sobre un cuerpo guardián. */
+export const CERBERUS = [
+  '....OOO.....OOO.....OOO....',
+  '...OrrrO...OrrrO...OrrrO...',
+  '...OrLLrO..OrLLrO..OrLLrO..',
+  '...OrLPrO..OrLPrO..OrLPrO..',
+  '....OrrO....OrrO....OrrO...',
+  '.....OO......OO......OO....',
+  '...........OOOOO...........',
+  '.........OOrrrrrOO.........',
+  '........OrrrrrrrrrO........',
+  '.......OrrrRrrrRrrrO.......',
+  '.......OrrrRrrrRrrrO.......',
+  '........OrrrOOOrrrO........',
+  '.........OrrrOrrrO.........',
+  '.........OOO...OOO.........',
+  '........OO.......OO........',
+]
+
+export const CERBERUS_PALETTE: Palette = {
+  O: '#0a0412',
+  r: '#8f2f2c',
+  R: '#c34a37',
+  L: '#f3e3a8',
+  P: '#2a1638',
+}
+
 export const DIAMOND = ['..G..', '.GLG.', 'GLRLG', '.GLG.', '..G..']
 
 export const ORNAMENT = [

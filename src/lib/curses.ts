@@ -57,6 +57,10 @@ export const CURSES: Record<CurseId, CurseDefinition> = {
     id: 'stitches', name: 'Costuras', severity: 'leve', maxHpDelta: -5,
     description: 'Tu vida máxima se reduce en 5 puntos.',
   },
+  tripleBite: {
+    id: 'tripleBite', name: 'Triple mordisco', severity: 'leve', damagePercent: 150,
+    description: 'El daño por fallo se multiplica por 1,5 durante 5 días.',
+  },
   deathScythe: {
     id: 'deathScythe', name: 'Hoz de Death', severity: 'grave', maxHpPercent: -10,
     description: 'Tu vida máxima se reduce un 10 % hasta pagar el responso.',

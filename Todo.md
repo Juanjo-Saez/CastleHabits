@@ -14,7 +14,7 @@ OpenSpecs enlazados.
 - **Rutas y oficios:** ya existen Cazavampiros, Tecnomancer y Fortaleza Interior,
   con misiones iniciales, progreso por tramos y oficios equipables.
 - **Bosses:** están implementados el Murciélago gigante, Slogra y Gaibon,
-  Legion, Frankenstein, Succubus, Death y Medusa. Hay Bestiario, almas,
+  Legion, Frankenstein, Succubus, Death, Medusa y Cerbero. Hay Bestiario, almas,
   reliquias, maldiciones y un motor común; algunos premios, pasivas y encuentros
   todavía están pendientes.
 - **Castillo:** escena pixel-art, luna independiente, climas y estados de boss.
@@ -49,13 +49,15 @@ deben acordarse al concretar el OpenSpec.
 
 ### Bosses, almas y premios
 
-- Completar los encuentros pendientes: Cerbero, Doppelgänger, Hidra/Escila,
-  Sukamon y Drácula; Medusa ya está implementada.
+- Completar los encuentros pendientes: Hidra/Escila, Doppelgänger, Sukamon y
+  Drácula; Medusa y Cerbero ya están implementados.
 - Añadir y validar los disparadores reactivos específicos que todavía faltan.
   El sorteo ponderado y el mecanismo de disparadores ya existen.
-- Completar las pasivas runtime restantes de las almas equipadas: el registro
-  idempotente y Murciélago, Slogra, Gaibon, Legion, Frankenstein y Succubus ya
-  están conectados; quedan Death y Medusa. Seguir
+- Pasivas runtime de las almas equipadas completadas: Death salva 1/2/3 golpes
+  mortales por expedición, Medusa concede congelaciones gratuitas con
+  enfriamiento móvil de 7/5/3 días y Cerbero reduce el daño por fallo un
+  10/15/20 % según rango. El registro idempotente cubre liquidación, bosses y
+  correcciones de ayer. Falta la validación visual del panel de Almas; ver
   [soul-passives](./openspec/changes/soul-passives/).
 - Implementar versión élite, látigo, títulos y cosméticos según
   [boss-premios-elite](./openspec/changes/boss-premios-elite/).
@@ -70,19 +72,44 @@ pendientes.
 
 ### Fixes y mejoras de UX
 
-- Revisar y mejorar el Bestiario: su presentación actual no resulta satisfactoria.
-  Rediseñar la navegación y la ficha de cada criatura para que el plantel,
-  el progreso de descubrimiento y la información disponible se entiendan de un
-  vistazo, manteniendo ocultos los datos de criaturas aún no descubiertas.
-  Comprobar también su uso en móvil y acordar el alcance visual y funcional
-  antes de implementarlo.
+- Revisar los controles y flujos de la interfaz para que sean claros y
+  consistentes, especialmente en móvil.
+
+### UI y experiencia visual
+
+- En el futuro, rediseñar de forma integral el apartado visual para darle
+  coherencia entre pantallas y componentes; ahora mismo se percibe demasiado
+  dispar. Acordar primero una dirección visual común y revisar el conjunto
+  antes de rehacer pantallas por separado.
+- Rediseñar el Bestiario como una sección desplegable que se abra como un libro,
+  con navegación y fichas claras para consultar la información descubierta.
+  Mantener ocultos los datos de criaturas no descubiertas, comprobar la
+  experiencia en móvil e incorporar las imágenes de referencia que se
+  adjuntarán más adelante.
+- Diseñar la pantalla de carga inicial con el portón y el castillo, inspirada
+  en el estilo de *Super Castlevania IV*, con animación ligera y respeto a
+  `prefers-reduced-motion`.
+- Retocar los iconos de la aplicación: los actuales son demasiado básicos y no
+  encajan con la calidad visual deseada.
+- Rediseñar el catálogo y la interfaz de la tienda para que las tarjetas de los
+  objetos tengan una presentación consistente. Añadir una animación o
+  confirmación visual al comprar para que la acción y su resultado sean
+  perceptibles.
+- Añadir un inventario a la vista de Cazador para consultar los objetos que
+  posee el personaje.
+- Revisar el calendario: valorar representar los días con velas encendidas
+  (multiplicador x4), apagadas (x2) y falladas para días pasados, según las
+  tareas realizadas o pendientes. El diseño actual diferencia mucho cada día,
+  pero esa diferencia no aporta suficiente información.
+- Rediseñar la presentación de «Corregir ayer» y el botón de «Hoy».
+- Revisar las tarjetas de tareas: reconsiderar la racha y cómo se muestra;
+  cambiar «Mañana» por una acción más clara como «Aplazar»; mejorar el texto
+  que explica cuándo debe hacerse la tarea; y rediseñar el aviso de fallo con
+  fecha (por ejemplo, «Falló el 28/10»), cuya presentación actual no convence.
 
 ### Castillo y eventos
 
 - Validar el gesto de scroll táctil e inercia del Castillo en móviles objetivo.
-- Crear una pantalla de carga de entrada con animación ligera, respetando
-  `prefers-reduced-motion`. La referencia está en
-  [loading-reference.png](./art/references/loading-reference.png).
 - Diseñar un encuentro raro del Murciélago dorado: aparición poco frecuente,
   recompensa moderada de oro, persistencia y protección frente a cobros
   repetidos.

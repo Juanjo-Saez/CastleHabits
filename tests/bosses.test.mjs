@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { beforeEach, test } from 'node:test'
 import {
   BOSSES,
+  applyBossDamage,
   applyBossReward,
   applyBossRevenge,
   bestiaryMechanic,
@@ -12,9 +13,12 @@ import {
   bossXp,
   bossZones,
   chargedZoneOn,
+  cerberusHeadGoals,
+  cerberusProgress,
   completeDatesOf,
   dailyLoad,
   describeEffect,
+  encounterSummaryLine,
   effectPercent,
   effectPercentForItem,
   effectPercentOn,
@@ -116,6 +120,164 @@ test('la entrada cinematográfica de un boss usa un marcador local idempotente y
   assert.equal(stored.length, 30)
   assert.equal(stored.includes(token), false)
   assert.equal(hasSeenBossEntrance(token, null), false)
+})
+
+test('Cerbero fija metas por carga real de cada categoría al aparecer', () => {
+  const obligation = chore('obligation')
+  const scroll = chore('scroll', {
+    type: 'todo',
+    startDate: '2026-10-01',
+    dueDate: '2026-10-20',
+  })
+  const sideQuest = chore('side-quest', { commitment: 'sideQuest' })
+
+  assert.deepEqual(
+    cerberusHeadGoals([obligation, scroll, sideQuest], '2026-10-20'),
+    { obligations: 5, scrolls: 5, sideQuests: 5 },
+  )
+})
+
+test('Cerbero solo se activa si hubo una misión secundaria disponible durante la semana', () => {
+  const trigger = BOSSES.cerberus.trigger
+  const base = { today: '2026-10-20', profile: profile(), completionsByItem: {}, encounters: [] }
+
+  assert.equal(trigger({ ...base, items: [] }), false)
+  assert.equal(trigger({
+    ...base,
+    items: [chore('new-side-quest', { commitment: 'sideQuest', createdAt: '2026-10-19T12:00:00' })],
+  }), false)
+  assert.equal(trigger({
+    ...base,
+    items: [chore('side-quest', { commitment: 'sideQuest' })],
+  }), true)
+  assert.equal(trigger({
+    ...base,
+    items: [chore('side-quest', { commitment: 'sideQuest' })],
+    completionsByItem: { 'side-quest': [done('side-quest', '2026-10-19')] },
+  }), false)
+})
+
+test('Cerbero resalta tareas debidas de sus tres categorías, pero no hábitos', () => {
+  const encounter = {
+    ...activeBoss('2026-10-10'),
+    id: 'enc:cerberus',
+    bossId: 'cerberus',
+    windowEnd: '2026-10-14',
+    headGoals: { obligations: 1, scrolls: 1, sideQuests: 1 },
+  }
+  const items = [
+    chore('obligation'),
+    chore('scroll', { type: 'todo', startDate: '2026-10-01', dueDate: '2026-10-20' }),
+    chore('side-quest', { commitment: 'sideQuest' }),
+  ]
+  const summary = summarizeBoss(encounter, items, {}, '2026-10-10')
+
+  assert.deepEqual(items.map((item) => bossCountsFor(item, encounter, '2026-10-10')), [true, true, true])
+  assert.equal(bossCountsFor(chore('habit', { type: 'habit' }), encounter, '2026-10-10'), false)
+  assert.equal(summary.bars.length, 3)
+  assert.equal(encounterSummaryLine(summary), '0/3 cabezas derrotadas')
+})
+
+test('Cerbero cuenta una vez por tarea y regenera cada cabeza sin progreso de su categoría', () => {
+  const obligation = chore('obligation')
+  const scroll = chore('scroll', {
+    type: 'todo',
+    startDate: '2026-10-01',
+    dueDate: '2026-10-20',
+  })
+  const sideQuest = chore('side-quest', { commitment: 'sideQuest' })
+  const encounter = {
+    ...activeBoss('2026-10-10'),
+    id: 'enc:cerberus',
+    bossId: 'cerberus',
+    windowEnd: '2026-10-14',
+    goal: 6,
+    headGoals: { obligations: 2, scrolls: 2, sideQuests: 2 },
+  }
+  const progress = cerberusProgress(encounter, [obligation, scroll, sideQuest], {
+    obligation: [done('obligation', '2026-10-10'), done('obligation', '2026-10-10')],
+    scroll: [done('scroll', '2026-10-10')],
+    'side-quest': [done('side-quest', '2026-10-10'), done('side-quest', '2026-10-11')],
+  }, '2026-10-11')
+
+  assert.equal(progress.headsDown, 1)
+  assert.deepEqual(progress.bars.map(({ hp }) => hp), [2, 2, 0])
+  assert.equal(progress.goal, 6)
+})
+
+test('Cerbero solo vence cuando las tres cabezas caen el mismo día', () => {
+  const items = [
+    chore('obligation'),
+    chore('scroll', { type: 'todo', startDate: '2026-10-01', dueDate: '2026-10-20' }),
+    chore('side-quest', { commitment: 'sideQuest' }),
+  ]
+  const encounter = {
+    ...activeBoss('2026-10-10'),
+    id: 'enc:cerberus',
+    bossId: 'cerberus',
+    windowEnd: '2026-10-14',
+    goal: 3,
+    headGoals: { obligations: 1, scrolls: 1, sideQuests: 1 },
+  }
+  const staggered = {
+    obligation: [done('obligation', '2026-10-10')],
+    scroll: [done('scroll', '2026-10-11')],
+    'side-quest': [done('side-quest', '2026-10-11')],
+  }
+  assert.equal(cerberusProgress(encounter, items, staggered, '2026-10-11').reachedOn, undefined)
+
+  const together = Object.fromEntries(items.map((item) => [item.id, [done(item.id, '2026-10-10')]]))
+  const result = planBossSync({
+    today: '2026-10-10',
+    profile: profile(),
+    items,
+    completionsByItem: together,
+    encounters: [encounter],
+    random: () => 0,
+  })
+  assert.equal(result.encounters.find((candidate) => candidate.id === encounter.id)?.status, 'victory')
+  assert.equal(result.encounters.find((candidate) => candidate.id === encounter.id)?.resolvedOn, '2026-10-10')
+})
+
+test('Cerbero aplica Triple mordisco cuando acaba el plazo sin derribar las tres cabezas', () => {
+  const encounter = {
+    ...activeBoss('2026-10-10'),
+    id: 'enc:cerberus',
+    bossId: 'cerberus',
+    windowEnd: '2026-10-14',
+    goal: 3,
+    headGoals: { obligations: 1, scrolls: 1, sideQuests: 1 },
+  }
+  const result = planBossSync({
+    today: '2026-10-15',
+    profile: profile(),
+    items: [],
+    completionsByItem: {},
+    encounters: [encounter],
+    random: () => 0,
+  })
+
+  assert.equal(result.encounters.find((candidate) => candidate.id === encounter.id)?.status, 'defeat')
+  assert.ok(result.profile.curses.some((curse) => curse.id === 'tripleBite'))
+})
+
+test('la pasiva de Cerbero reduce daño según rango sin apagar el efecto de entorno', () => {
+  const date = '2026-10-10'
+  const damageForRank = (rank) => modifyDamage(100, {
+    soulProfile: profile({
+      souls: { cerberus: { rank, fragments: 0 } },
+      equippedSouls: ['cerberus'],
+      dailySoulLoadout: { date, souls: ['cerberus'] },
+    }),
+    soulDate: date,
+  }, date)
+  const environmentDamage = modifyDamage(100, {
+    boss: { ...activeBoss(date), bossId: 'cerberus' },
+  }, date)
+
+  assert.ok(damageForRank(1) < environmentDamage)
+  assert.ok(damageForRank(2) < damageForRank(1))
+  assert.ok(damageForRank(3) < damageForRank(2))
 })
 
 function chore(id, changes = {}) {
@@ -359,6 +521,65 @@ test('Death suma una hoz por obligación incumplida y bloquea congelaciones', ()
   assert.equal(protectedMiss.totalDamage, 1)
   assert.equal(protectedMiss.freezesUsed, 0)
   assert.equal(describeEffect(DEATH.effects[0]), 'Mirada · protecciones bloqueadas')
+})
+
+test('Death evita daño mortal de bosses y registra la activación del rango diario', () => {
+  const date = '2026-10-11'
+  const equipped = profile({
+    hp: 1,
+    souls: { death: { rank: 2, fragments: 0 } },
+    equippedSouls: ['death'],
+    dailySoulLoadout: { date, souls: ['death'] },
+  })
+  assert.equal(applyBossDamage(equipped, 2, date, 1).hp, 1)
+  assert.equal(applyBossDamage(equipped, 2, date, 1).dead, false)
+
+  const result = planBossSync({
+    today: date,
+    profile: equipped,
+    items: [],
+    completionsByItem: {},
+    encounters: [activeBoss('2026-10-10', { windowEnd: '2026-10-10', goal: 5 })],
+    daySnapshots: [{
+      date,
+      runStartedAt: equipped.runStartedAt,
+      level: 1,
+      xp: 0,
+      hp: 1,
+      maxHp: 50,
+      soulLoadout: ['death'],
+      soulRanks: { death: 2 },
+    }],
+    random: () => 0,
+  })
+  assert.equal(result.profile.hp, 1)
+  assert.equal(result.profile.dead, false)
+  assert.equal(result.passiveActivations.length, 1)
+  assert.equal(result.passiveActivations[0].soulId, 'death')
+  assert.equal(result.passiveActivations[0].rank, 2)
+  assert.equal(result.passiveActivations[0].sourceId, 'boss:giant-bat:1:defeat')
+
+  const retried = planBossSync({
+    today: date,
+    profile: result.profile,
+    items: [],
+    completionsByItem: {},
+    encounters: result.encounters,
+    soulPassiveActivations: result.passiveActivations,
+    daySnapshots: [{
+      date,
+      runStartedAt: equipped.runStartedAt,
+      level: 1,
+      xp: 0,
+      hp: 1,
+      maxHp: 50,
+      soulLoadout: ['death'],
+      soulRanks: { death: 2 },
+    }],
+    random: () => 0,
+  })
+  assert.equal(retried.profile.hp, 1)
+  assert.equal(retried.passiveActivations.length, 0)
 })
 
 test('Medusa selecciona estatuas de forma determinista y deriva su progreso', () => {
@@ -1113,8 +1334,8 @@ test('la mecánica describe el objetivo de cada boss con sus unidades', () => {
 
 test('el siguiente boss no repite el último y respeta el sorteo ponderado', () => {
   assert.equal(pickBoss('giant-bat', () => 0), 'slogra-gaibon')
-  assert.equal(pickBoss('slogra-gaibon', () => 0.99), 'medusa')
-  assert.deepEqual(new Set([pickBoss(undefined, () => 0), pickBoss(undefined, () => 0.99)]), new Set(['giant-bat', 'medusa']))
+  assert.equal(pickBoss('slogra-gaibon', () => 0.99), 'cerberus')
+  assert.deepEqual(new Set([pickBoss(undefined, () => 0), pickBoss(undefined, () => 0.99)]), new Set(['giant-bat', 'cerberus']))
 })
 
 test('un disparador reactivo se impone al sorteo al acabar el enfriamiento', () => {

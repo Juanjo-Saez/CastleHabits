@@ -28,6 +28,7 @@ const SOUL_NAMES: Partial<Record<SoulId, string>> = {
   succubus: 'Alma de Succubus',
   death: 'Alma de Death',
   medusa: 'Alma de Medusa',
+  cerberus: 'Alma de Cerbero',
 }
 
 const SOUL_PASSIVES: Partial<Record<SoulId, SoulPassiveId>> = {
@@ -38,6 +39,7 @@ const SOUL_PASSIVES: Partial<Record<SoulId, SoulPassiveId>> = {
   succubus: 'dailyPotion',
   death: 'secondChance',
   medusa: 'weeklyFreeze',
+  cerberus: 'damageReduction',
 }
 
 const SOUL_EFFECTS: Partial<Record<SoulId, string>> = {
@@ -46,8 +48,9 @@ const SOUL_EFFECTS: Partial<Record<SoulId, string>> = {
   legion: 'Las tareas triviales dan +1 moneda.',
   frankenstein: 'La primera tarea de cada zona da +20/+30/+40 % de EXP según el rango.',
   succubus: 'La primera poción del día cura el doble.',
-  death: 'Segunda oportunidad: una vez por expedición sobrevives a un golpe mortal con 1 HP.',
-  medusa: 'Una congelación de racha gratis cada 7 días.',
+  death: 'Segunda oportunidad: sobrevives a 1/2/3 golpes mortales por expedición con 1 PV según el rango.',
+  medusa: 'Una congelación de racha gratis cada 7/5/3 días según el rango.',
+  cerberus: 'Reduce el daño por fallo un 10/15/20 % según el rango.',
 }
 
 export const SOULS: Partial<Record<SoulId, SoulDefinition>> = Object.fromEntries(
@@ -78,6 +81,10 @@ export interface EquippedSoulPassive {
 
 export function dailyPotionMultiplier(rank: SoulRank | 0): number {
   return rank === 0 ? 1 : rank + 1
+}
+
+export function cerberusFailureDamageMultiplier(rank: SoulRank | 0): number {
+  return rank === 0 ? 1 : 1 - ([0, 10, 15, 20][rank] / 100)
 }
 
 /** Devuelve el rango runtime de un Alma: solo existe mientras está equipada y obtenida. */

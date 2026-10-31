@@ -8,9 +8,14 @@ import type { ItemEvent } from '../types'
 const PROTECTION_LABEL: Record<NonNullable<ItemEvent['protectedBy']>, string> = {
   shield: 'Protegida por escudo',
   freeze: 'Protegida por congelación',
+  soul: 'Protegida por la congelación de Medusa',
 }
 
 function describeMiss(event: ItemEvent): string {
+  if (event.deathSaved) {
+    const damage = event.damage ? ` · daño ${event.damage}` : ''
+    return `Golpe mortal evitado por Death${damage}`
+  }
   if (event.protectedBy) return PROTECTION_LABEL[event.protectedBy]
   return `Daño ${event.damage ?? 0}`
 }

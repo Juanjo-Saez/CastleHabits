@@ -3,6 +3,7 @@ import { db } from '../db/database'
 import { todayKey } from '../lib/date'
 import { activeEncounter, planBossSync } from '../lib/bosses'
 import { modifyCoins, modifyXp, type ModifierContext } from '../lib/modifiers'
+import { reconcileSoulPassiveActivations } from '../lib/soulPassiveLedger'
 import type { BossEncounter, Completion, DeathStakePercent, Item } from '../types'
 import { mergeLevelUp, usePlayerStore } from './usePlayerStore'
 
@@ -17,19 +18,39 @@ async function runSync(): Promise<void> {
   const before = usePlayerStore.getState().profile
   const result = await db.transaction(
     'rw',
-    [db.profile, db.items, db.completions, db.bossEncounters],
+    [
+      db.profile, db.items, db.completions, db.bossEncounters, db.daySnapshots,
+      db.soulPassiveActivations,
+    ],
     async () => {
       const profile = await db.profile.get(1)
       if (!profile) return null
-      const [items, completions, encounters] = await Promise.all([
+      const [items, completions, encounters, daySnapshots, soulPassiveActivations] = await Promise.all([
         db.items.toArray(),
         db.completions.toArray(),
         db.bossEncounters.toArray(),
+        db.daySnapshots.toArray(),
+        db.soulPassiveActivations.toArray(),
       ])
       const completionsByItem: Record<string, Completion[]> = {}
       for (const completion of completions) (completionsByItem[completion.itemId] ??= []).push(completion)
-      const plan = planBossSync({ today: todayKey(), profile, items, completionsByItem, encounters })
+      const plan = planBossSync({
+        today: todayKey(),
+        profile,
+        items,
+        completionsByItem,
+        encounters,
+        daySnapshots,
+        soulPassiveActivations,
+      })
       if (plan.changed.length > 0) await db.bossEncounters.bulkPut(plan.changed)
+      if (profile.runStartedAt) {
+        await reconcileSoulPassiveActivations(
+          profile.runStartedAt,
+          plan.passiveActivationSources,
+          plan.passiveActivations,
+        )
+      }
       const profileChanged = plan.profile !== profile
       if (profileChanged) await db.profile.put(plan.profile)
       return { plan, profileChanged }

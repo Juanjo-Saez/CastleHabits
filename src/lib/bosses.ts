@@ -1,20 +1,26 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import type {
   BossEncounter,
+  BossCategory,
   BossId,
   BossResource,
   BossRewards,
   Completion,
   CurseId,
+  DaySnapshot,
   Difficulty,
   Item,
   PlayerProfile,
   RelicId,
+  SoulPassiveActivation,
+  SoulRank,
 } from '../types'
 import { addCurse, removeCurse, tickCurses } from './curses'
 import { activityDateKey, shiftDateKey } from './date'
 import { HP_PER_LEVEL, levelUpRecovery, xpToNextLevel } from './gamification'
 import { collectSoul } from './souls'
+import { createSoulPassiveActivation, soulPassiveRankOn } from './soulPassiveLedger'
+import { resolvePlayerDamage } from './soulDamage'
 import { isItemDueOn, isMetCompletion, isObligation, isWindowCompleted } from './recurrence'
 import { effectiveMaxHp } from './routes'
 import { streakEndingOn } from './streak'
@@ -45,6 +51,11 @@ export type BossObjective =
     load: { days: number; factor: number; min: number; max: number }
     dailyMin: number
     dailyMax: number
+  }
+  | {
+    kind: 'heads'
+    load: { factor: number; min: number; max: number }
+    categories: BossCategory[]
   }
 
 /** Efectos de entorno: rigen mientras el boss está activo. */
@@ -302,6 +313,49 @@ export const BOSSES: Record<BossId, BossDefinition> = {
     maxDelay: 15,
     weight: 1,
   },
+  cerberus: {
+    id: 'cerberus',
+    name: 'Cerbero',
+    parts: ['Obligaciones', 'Pergaminos', 'Misiones secundarias'],
+    grammar: { subject: 'Cerbero', object: 'a Cerbero', plural: false },
+    mechanic: 'Tres cabezas',
+    description: 'El guardián de tres cabezas castiga cada categoría que dejas de atender.',
+    lore: 'Cerbero custodia la entrada al inframundo. Sus tres fauces vigilan las obligaciones, los pergaminos y las misiones secundarias: cada una se debilita con tus avances y vuelve a crecer cuando abandonas su rastro.',
+    soulChance: 0.025,
+    windowDays: 5,
+    objective: {
+      kind: 'heads',
+      load: { factor: 1, min: 1, max: 30 },
+      categories: ['obligations', 'scrolls', 'sideQuests'],
+    },
+    effects: [{ kind: 'damagePercent', percent: 125 }],
+    defeatDamage: 0,
+    defeatCurse: { id: 'tripleBite', days: 5 },
+    defeatText: 'El daño por fallo se multiplica por 1,5 durante 5 días',
+    reward: { xp: 150, coins: 80 },
+    drops: [
+      { item: 'postponeToken', chance: 0.4, min: 1, max: 1 },
+      { item: 'vitalityPotion', chance: 0.4, min: 1, max: 1 },
+      { item: 'streakFreeze', chance: 0.4, min: 1, max: 1 },
+      { item: 'holyWater', chance: 0.08, min: 1, max: 1 },
+    ],
+    trigger: ({ today, items, completionsByItem }) => {
+      const cutoff = shiftKey(today, -6)
+      const eligible = items.filter((item) =>
+        !item.archived
+        && item.type !== 'habit'
+        && item.commitment === 'sideQuest'
+        && activityDateKey(item.createdAt) <= cutoff)
+      return eligible.length > 0 && !eligible.some((item) =>
+        (completionsByItem[item.id] ?? []).some((completion) =>
+          completion.date >= cutoff
+          && completion.date <= today
+          && isMetCompletion(item, completion)))
+    },
+    minDelay: 10,
+    maxDelay: 15,
+    weight: 1,
+  },
 }
 
 export const BOSS_IDS = Object.keys(BOSSES) as BossId[]
@@ -523,6 +577,9 @@ export function bossGoal(boss: BossDefinition, items: Item[], today: string): nu
   if (boss.objective.kind === 'pieces') return bossZones(boss, items).length
   if (boss.objective.kind === 'lifeSteal') return 0
   if (boss.objective.kind === 'scythes') return boss.objective.target
+  if (boss.objective.kind === 'heads') {
+    return Object.values(cerberusHeadGoals(items, today)).reduce((total, goal) => total + (goal ?? 0), 0)
+  }
   if (boss.objective.kind === 'statues') {
     const { days, factor, min, max } = boss.objective.load
     return clamp(Math.round(dailyLoad(items, today) * days * factor), min, max)
@@ -549,6 +606,53 @@ export interface BossBar {
   name: string
   max: number
   hp: number
+}
+
+export const BOSS_CATEGORY_LABELS: Record<BossCategory, string> = {
+  obligations: 'Obligaciones',
+  scrolls: 'Pergaminos',
+  sideQuests: 'Misiones secundarias',
+}
+
+function cerberusCategory(item: Item): BossCategory | null {
+  if (item.archived || item.type === 'habit') return null
+  if (item.commitment === 'sideQuest') return 'sideQuests'
+  if (item.type === 'todo') return 'scrolls'
+  return isBossObligation(item) ? 'obligations' : null
+}
+
+function cerberusCategoryDueOn(item: Item, category: BossCategory, dateKey: string): boolean {
+  return cerberusCategory(item) === category
+    && activityDateKey(item.createdAt) <= dateKey
+    && isItemDueOn(item, parseISO(dateKey))
+}
+
+function cerberusDailyLoad(items: Item[], category: BossCategory, today: string): number {
+  const settled = items.filter((item) =>
+    cerberusCategory(item) === category && activityDateKey(item.createdAt) <= shiftKey(today, -7),
+  )
+  const counts: number[] = []
+  for (let offset = 14; offset >= 1; offset -= 1) {
+    const date = shiftKey(today, -offset)
+    counts.push(settled.filter((item) => cerberusCategoryDueOn(item, category, date)).length)
+  }
+  counts.sort((left, right) => left - right)
+  return (counts[6] + counts[7]) / 2
+}
+
+export function cerberusHeadGoals(items: Item[], today: string): Partial<Record<BossCategory, number>> {
+  const boss = BOSSES.cerberus
+  if (boss.objective.kind !== 'heads') return {}
+  const goals: Partial<Record<BossCategory, number>> = {}
+  for (const category of boss.objective.categories) {
+    const load = cerberusDailyLoad(items, category, today)
+    goals[category] = clamp(
+      Math.round(load * boss.windowDays * boss.objective.load.factor),
+      boss.objective.load.min,
+      boss.objective.load.max,
+    )
+  }
+  return goals
 }
 
 /** Reparte el daño total entre las barras: la primera se agota antes de herir la segunda. */
@@ -580,6 +684,70 @@ export function lifeBars(boss: BossDefinition, goal: number, recovered: number):
     max: goal,
     hp: Math.max(0, goal - recovered),
   }]
+}
+
+export interface CerberusProgress {
+  headsDown: number
+  progress: number
+  goal: number
+  bars: BossBar[]
+  reachedOn?: string
+}
+
+export function cerberusProgress(
+  encounter: BossEncounter,
+  items: Item[],
+  completionsByItem: Record<string, Completion[]>,
+  today: string,
+): CerberusProgress {
+  const boss = BOSSES.cerberus
+  if (boss.objective.kind !== 'heads' || !encounter.windowStart || !encounter.windowEnd) {
+    return { headsDown: 0, progress: 0, goal: 0, bars: [] }
+  }
+  const goals = encounter.headGoals ?? cerberusHeadGoals(items, encounter.windowStart)
+  const progress: Partial<Record<BossCategory, number>> = {}
+  for (const category of boss.objective.categories) progress[category] = 0
+  let reachedOn: string | undefined
+  const last = encounter.status === 'victory' && encounter.resolvedOn
+    ? encounter.resolvedOn
+    : encounter.windowEnd < today ? encounter.windowEnd : today
+
+  for (let date = encounter.windowStart; date <= last; date = shiftKey(date, 1)) {
+    for (const category of boss.objective.categories) {
+      let completed = 0
+      for (const item of items) {
+        if (cerberusCategory(item) !== category || activityDateKey(item.createdAt) > date) continue
+        if ((completionsByItem[item.id] ?? []).some((completion) =>
+          completion.date === date && isMetCompletion(item, completion),
+        )) completed += 1
+      }
+      const goal = goals[category] ?? 1
+      const current = progress[category] ?? 0
+      progress[category] = completed > 0
+        ? clamp(current + completed, 0, goal)
+        : Math.max(0, current - 1)
+    }
+    if (!reachedOn && boss.objective.categories.every((category) =>
+      (progress[category] ?? 0) >= (goals[category] ?? 1),
+    )) reachedOn = date
+  }
+
+  const bars = boss.objective.categories.map((category) => {
+    const goal = goals[category] ?? 1
+    const current = progress[category] ?? 0
+    return {
+      name: BOSS_CATEGORY_LABELS[category],
+      max: goal,
+      hp: Math.max(0, goal - current),
+    }
+  })
+  return {
+    headsDown: bars.filter((bar) => bar.hp === 0).length,
+    progress: bars.reduce((total, bar) => total + (bar.max - bar.hp), 0),
+    goal: bars.reduce((total, bar) => total + bar.max, 0),
+    bars,
+    reachedOn,
+  }
 }
 
 export interface HitProgress {
@@ -844,6 +1012,7 @@ export interface BossSummary {
   bars: BossBar[]
   guardHits: number
   scythes: number
+  headsDown: number
   statuesBroken: number
   statuesMissed: number
   /** Días que quedan de la ventana, contando hoy; 0 si no está activo. */
@@ -863,6 +1032,9 @@ export function summarizeBoss(
   const goal = encounter.goal ?? (
     definition.objective.kind === 'days' || definition.objective.kind === 'scythes'
       ? definition.objective.kind === 'days' ? definition.objective.targetDays : definition.objective.target
+      : definition.objective.kind === 'heads'
+        ? Object.values(cerberusHeadGoals(items, encounter.windowStart ?? today))
+          .reduce((total, headGoal) => total + (headGoal ?? 0), 0)
       : definition.objective.kind === 'statues' ? 0
       : 0
   )
@@ -871,6 +1043,7 @@ export function summarizeBoss(
   const life = kind === 'lifeSteal' && active ? lifeProgress(encounter, items, completionsByItem, today) : null
   const scythes = kind === 'scythes' && active ? scytheProgress(encounter, items, completionsByItem, today) : null
   const statues = kind === 'statues' && active ? statueProgress(encounter, items, completionsByItem, today) : null
+  const heads = kind === 'heads' ? cerberusProgress(encounter, items, completionsByItem, today) : null
   const pieces = kind === 'pieces' && active
     ? pieceProgress(encounter, items, completionsByItem, today)
     : { disabledZones: encounter.status === 'victory' ? encounter.zones ?? [] : [] }
@@ -880,7 +1053,8 @@ export function summarizeBoss(
       : kind === 'lifeSteal' ? (active ? life?.recovered ?? 0 : (encounter.status === 'victory' ? goal : 0))
         : kind === 'scythes' ? (active ? scythes?.scythes ?? 0 : (encounter.status === 'defeat' ? 5 : 0))
           : kind === 'statues' ? (active ? statues?.net ?? 0 : (encounter.status === 'victory' ? goal : 0))
-          : 0
+            : kind === 'heads' ? (heads?.progress ?? 0)
+              : 0
   const guardHits = kind === 'hits' && definition.objective.kind === 'hits' && definition.objective.guard
     ? (active ? (progress?.guardHits ?? 0)
       : (encounter.status === 'victory' ? definition.objective.guard.hits : 0))
@@ -903,9 +1077,11 @@ export function summarizeBoss(
         }))
         : kind === 'lifeSteal' ? lifeBars(definition, goal, damage)
           : kind === 'scythes' ? [{ name: 'Hozes', max: 5, hp: damage }]
-            : kind === 'statues' ? [{ name: 'Estatuas', max: goal, hp: Math.max(0, goal - damage) }] : [],
+              : kind === 'statues' ? [{ name: 'Estatuas', max: goal, hp: Math.max(0, goal - damage) }]
+                : kind === 'heads' ? heads?.bars ?? [] : [],
     guardHits,
     scythes: damage,
+    headsDown: heads?.headsDown ?? (encounter.status === 'victory' && kind === 'heads' ? 3 : 0),
     statuesBroken: statues?.broken ?? (encounter.status === 'victory' && kind === 'statues' ? goal : 0),
     statuesMissed: statues?.missed ?? 0,
     daysLeft: active && encounter.windowEnd
@@ -918,15 +1094,20 @@ export function summarizeBoss(
 /** ¿Esta tarea cuenta hoy para el boss activo? Sirve para destacarla en la interfaz. */
 export function bossCountsFor(item: Item, encounter: BossEncounter | null, dateKey: string): boolean {
   if (!encounter || !isEffectActiveOn(encounter, dateKey)) return false
-  return BOSSES[encounter.bossId].objective.kind === 'hits'
+  const objective = BOSSES[encounter.bossId].objective
+  if (objective.kind === 'heads') {
+    const category = cerberusCategory(item)
+    return category !== null && cerberusCategoryDueOn(item, category, dateKey)
+  }
+  return objective.kind === 'hits'
     ? !item.archived
-    : BOSSES[encounter.bossId].objective.kind === 'pieces'
+    : objective.kind === 'pieces'
       ? Boolean(item.zone && encounter.zones?.includes(item.zone) && isBossDueOn(item, dateKey))
-      : BOSSES[encounter.bossId].objective.kind === 'lifeSteal'
+      : objective.kind === 'lifeSteal'
         ? !item.archived
-        : BOSSES[encounter.bossId].objective.kind === 'scythes'
+        : objective.kind === 'scythes'
           ? isBossDueOn(item, dateKey)
-          : BOSSES[encounter.bossId].objective.kind === 'statues'
+          : objective.kind === 'statues'
             ? isBossDueOn(item, dateKey)
             : isBossDueOn(item, dateKey)
 }
@@ -966,6 +1147,7 @@ export function encounterSummaryLine(summary: BossSummary): string {
   if (summary.kind === 'lifeSteal') return `${summary.damage}/${summary.goal} de sangre recuperada`
   if (summary.kind === 'scythes') return `${summary.damage}/${summary.goal} hoces`
   if (summary.kind === 'statues') return `${summary.damage}/${summary.goal} estatuas`
+  if (summary.kind === 'heads') return `${summary.headsDown}/3 cabezas derrotadas`
   return `${summary.completedDates.length}/${summary.target} días`
 }
 
@@ -1026,6 +1208,9 @@ export function bestiaryMechanic(boss: BossDefinition): string {
   }
   if (boss.objective.kind === 'statues') {
     return 'Cada mañana convierte 1–3 obligaciones en estatuas: rómpelas con completados y alcanza la meta antes de que las deudas curen a Medusa.'
+  }
+  if (boss.objective.kind === 'heads') {
+    return 'Cada cabeza vigila una categoría y pierde un punto por cada tarea completada; si un día no completas nada de su categoría, recupera un punto. Derriba las tres dentro de la ventana.'
   }
   if (boss.objective.kind === 'hits' && boss.objective.guard) {
     const labels: Record<Difficulty, string> = {
@@ -1100,8 +1285,20 @@ function newEncounter(
   }
 }
 
-export function applyBossDamage(profile: PlayerProfile, damage: number, dateKey: string): PlayerProfile {
-  const hp = Math.max(0, profile.hp - Math.ceil(damage * eclipseMultiplierForDay(dateKey)))
+export function applyBossDamage(
+  profile: PlayerProfile,
+  damage: number,
+  dateKey: string,
+  deathRank: SoulRank | 0 = 0,
+  deathSavesUsed = 0,
+): PlayerProfile {
+  const resolution = resolvePlayerDamage(
+    profile.hp,
+    Math.ceil(damage * eclipseMultiplierForDay(dateKey)),
+    deathRank,
+    deathSavesUsed,
+  )
+  const hp = resolution.hp
   return { ...profile, hp, dead: hp === 0 }
 }
 
@@ -1207,6 +1404,8 @@ export interface BossSyncInput {
   items: Item[]
   completionsByItem: Record<string, Completion[]>
   encounters: BossEncounter[]
+  daySnapshots?: DaySnapshot[]
+  soulPassiveActivations?: SoulPassiveActivation[]
   random?: Random
 }
 
@@ -1217,6 +1416,8 @@ export interface BossSyncResult {
   /** Mismo objeto que el de entrada si el perfil no cambia. */
   profile: PlayerProfile
   leveledUp: boolean
+  passiveActivationSources: string[]
+  passiveActivations: SoulPassiveActivation[]
 }
 
 interface Verdict {
@@ -1259,6 +1460,10 @@ function verdictOf(
     const progress = statueProgress(encounter, items, completionsByItem, today)
     return { won: Boolean(progress.reachedOn), resolvedOn: progress.reachedOn }
   }
+  if (boss.objective.kind === 'heads') {
+    const progress = cerberusProgress(encounter, items, completionsByItem, today)
+    return { won: Boolean(progress.reachedOn), resolvedOn: progress.reachedOn }
+  }
   const progress = hitProgress(encounter, items, completionsByItem, today)
   if (boss.objective.guard && (progress.guardHits ?? 0) < boss.objective.guard.hits) {
     return { won: false }
@@ -1275,12 +1480,51 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
   const random = input.random ?? Math.random
   const changed = new Map<string, BossEncounter>()
   const records = new Map<string, BossEncounter>()
+  const passiveActivationSources = new Set<string>()
   for (const encounter of input.encounters) {
     const migrated = migrateEncounter(encounter)
     records.set(migrated.id, migrated)
     if (migrated !== encounter) changed.set(migrated.id, migrated)
   }
   let profile = input.profile
+  const passiveActivations: SoulPassiveActivation[] = []
+  const applyDamage = (damage: number, date: string, sourceId: string) => {
+    passiveActivationSources.add(sourceId)
+    const snapshot = input.daySnapshots?.find((candidate) =>
+      candidate.date === date && candidate.runStartedAt === profile.runStartedAt,
+    )
+    const rank = profile.runStartedAt
+      ? soulPassiveRankOn(profile, 'death', date, snapshot) || undefined
+      : undefined
+    const savesUsed = [
+      ...(input.soulPassiveActivations ?? []),
+      ...passiveActivations,
+    ].filter((activation) =>
+      activation.runStartedAt === profile.runStartedAt
+      && activation.passiveId === 'secondChance'
+      && activation.date <= date,
+    ).length
+    const incomingDamage = Math.ceil(damage * eclipseMultiplierForDay(date))
+    const resolution = resolvePlayerDamage(
+      profile.hp,
+      incomingDamage,
+      rank,
+      savesUsed,
+    )
+    profile = applyBossDamage(profile, damage, date, rank ?? 0, savesUsed)
+    if (resolution.deathSaved && profile.runStartedAt && rank) {
+      const activation = createSoulPassiveActivation({
+        profile,
+        soulId: 'death',
+        date,
+        runStartedAt: profile.runStartedAt,
+        sourceId,
+        snapshot,
+        rankOverride: rank,
+      })
+      if (activation) passiveActivations.push(activation)
+    }
+  }
   const historicalLegionVictories = legionVictoriesInRun([...records.values()], profile.runStartedAt)
   const inferredLegionVictories = Math.max(
     profile.legionVictories ?? 0,
@@ -1303,8 +1547,17 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
     changed: [...changed.values()],
     profile,
     leveledUp,
+    passiveActivationSources: [...passiveActivationSources],
+    passiveActivations,
   })
-  if (profile.dead) return { encounters: input.encounters, changed: [], profile, leveledUp: false }
+  if (profile.dead) return {
+    encounters: input.encounters,
+    changed: [],
+    profile,
+    leveledUp: false,
+    passiveActivationSources: [],
+    passiveActivations: [],
+  }
 
   const tick = tickCurses(profile.curses, profile.hp, today, eclipseMultiplierForDay)
   if (tick.changed) profile = { ...profile, curses: tick.curses, hp: tick.hp }
@@ -1330,8 +1583,9 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
         ? initialLifeStolen(profile)
         : boss.objective.kind === 'scythes' ? boss.objective.target
         : bossGoal(boss, items, today)
+      const headGoals = boss.objective.kind === 'heads' ? cerberusHeadGoals(items, today) : undefined
       if (boss.objective.kind === 'lifeSteal' && goal > 0) {
-        profile = applyBossDamage(profile, goal, today)
+        applyDamage(goal, today, `boss:${current.id}:lifeSteal`)
       }
       current = {
         ...current,
@@ -1340,6 +1594,7 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
         windowStart: today,
         windowEnd: shiftKey(today, boss.windowDays - 1),
         goal,
+        ...(headGoals ? { headGoals } : {}),
         zones: bossZones(boss, items),
       }
       save(current)
@@ -1383,7 +1638,7 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
       }
     } else if (verdict.lost || today > (current.windowEnd as string)) {
       const damageDate = verdict.resolvedOn ?? shiftKey(current.windowEnd as string, 1)
-      profile = applyBossDamage(profile, boss.defeatDamage, damageDate)
+      applyDamage(boss.defeatDamage, damageDate, `boss:${current.id}:defeat`)
       if (boss.defeatCurse && !profile.dead) {
         const curses = addCurse(
           profile.curses,

@@ -90,8 +90,11 @@ export interface ItemEvent {
   quantityGoal?: number
   quantityDone?: number
   damage?: number
-  /** Fallo absorbido por escudo o congelación: se registra sin daño. */
-  protectedBy?: 'shield' | 'freeze'
+  /** Fallo absorbido por escudo, congelación consumible o pasiva. */
+  protectedBy?: 'shield' | 'freeze' | 'soul'
+  soulPassiveId?: SoulPassiveId
+  soulPassiveRank?: SoulRank
+  deathSaved?: boolean
   xpEarned?: number
   coinsEarned?: number
   postponedUntil?: string
@@ -157,6 +160,8 @@ export interface DaySnapshot {
   maxHp: number
   /** Almas fijadas para ese día, usadas al corregirlo sin aplicar el loadout actual. */
   soulLoadout?: SoulId[]
+  /** Rangos persistidos al cerrar ese día, para reproducir efectos históricos. */
+  soulRanks?: Partial<Record<SoulId, SoulRank>>
 }
 
 /** Subida de nivel pendiente de celebrar: del nivel anterior al actual, con sus mejoras. */
@@ -175,6 +180,13 @@ export interface PenaltyCheckpoint {
   shieldEnabled: boolean
   shieldReadyOn?: string
   runStartedAt?: string
+  soulLoadout?: SoulId[]
+  soulRanks?: Partial<Record<SoulId, SoulRank>>
+  deathSavesUsed?: number
+  deathRank?: SoulRank
+  deathHp?: number
+  medusaRank?: SoulRank
+  medusaReadyOn?: string
 }
 
 /** Pendiente sin fecha: idea para convertir en tarea más adelante. No se completa ni aplica daño o EXP. */
@@ -185,7 +197,8 @@ export interface Reminder {
   createdAt: string
 }
 
-export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus' | 'death' | 'medusa'
+export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus' | 'death' | 'medusa' | 'cerberus'
+export type BossCategory = 'obligations' | 'scrolls' | 'sideQuests'
 export type DeathStakePercent = 0 | 10 | 25
 export type SoulId = BossId
 export type SoulRank = 1 | 2 | 3
@@ -198,6 +211,7 @@ export type SoulPassiveId =
   | 'dailyPotion'
   | 'secondChance'
   | 'weeklyFreeze'
+  | 'damageReduction'
 export type RelicId = 'rosary' | 'silverMirror' | 'heart' | 'ancientAmulet'
 
 export interface SoulProgress {
@@ -243,6 +257,7 @@ export type CurseId =
   | 'shadow'
   | 'stitches'
   | 'deathScythe'
+  | 'tripleBite'
   | 'petrification'
   | 'amnesia'
   | 'chains'
@@ -285,6 +300,8 @@ export interface BossEncounter {
   stakeCoins?: number
   /** Zonas que forman las piezas de un boss de objetivo `pieces`. */
   zones?: string[]
+  /** Metas fijadas al activar las cabezas de Cerbero. */
+  headGoals?: Partial<Record<BossCategory, number>>
   resolvedOn?: string
   /** Día en que podrá activarse la siguiente aparición, fijado al resolver. */
   nextActivationOn?: string

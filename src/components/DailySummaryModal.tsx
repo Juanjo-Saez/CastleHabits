@@ -228,9 +228,13 @@ function SummaryContent({ summary, onClose, onReplay }: Readonly<{
                   {summary.missed.map((miss) => (
                     <li key={miss.id} className="flex items-baseline justify-between gap-2 font-body text-silver-100">
                       <span className="min-w-0 truncate">{miss.title}</span>
-                      {miss.protectedBy ? (
+                      {miss.protectedBy || miss.deathSaved ? (
                         <span className="shrink-0 font-pixel text-base text-night-400">
-                          Protegido · {miss.protectedBy === 'shield' ? 'escudo' : 'congelación'}
+                          {miss.deathSaved
+                            ? `Death evitó la muerte${miss.damage > 0 ? ` · −${miss.damage} PV` : ''}`
+                            : `Protegido · ${miss.protectedBy === 'shield'
+                              ? 'escudo'
+                              : miss.protectedBy === 'soul' ? 'congelación de Medusa' : 'congelación'}`}
                         </span>
                       ) : (
                         <span className="shrink-0 font-pixel text-base text-blood-400">Daño: −{miss.damage} PV</span>

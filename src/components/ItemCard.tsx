@@ -85,7 +85,9 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
         ? { amount: bossObjective.damage[item.difficulty], kind: 'damage' as const }
         : bossObjective.kind === 'lifeSteal'
           ? { amount: bossObjective.recovery[item.difficulty], kind: 'recovery' as const }
-          : { amount: 0, kind: 'damage' as const }
+            : bossObjective.kind === 'heads'
+              ? { amount: 1, kind: 'damage' as const }
+            : { amount: 0, kind: 'damage' as const }
   const [popup, setPopup] = useState<RewardPopup | null>(null)
   const popupSeq = useRef(0)
   const [busy, setBusy] = useState(false)

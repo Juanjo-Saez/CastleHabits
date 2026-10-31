@@ -34,6 +34,7 @@ function CorrectionRow({
   const goal = item.quantityGoal ?? 1
   const damage = failureEvents?.reduce((total, event) => total + (event.damage ?? 0), 0) ?? 0
   const protections = [...new Set(failureEvents?.map((event) => event.protectedBy).filter(Boolean))]
+  const deathSaved = failureEvents?.some((event) => event.deathSaved)
 
   return (
     <li className="border-t border-gold-600/20 py-2">
@@ -41,8 +42,10 @@ function CorrectionRow({
       {failureEvents && (
         <p className="font-body text-xs text-blood-300">
           {damage > 0
-            ? `Daño recibido: ${damage} vida`
-            : `Sin daño · protegido por ${protections.map((protection) => protection === 'shield' ? 'escudo' : 'congelación').join(' y ')}`}
+            ? `Daño recibido: ${damage} vida${deathSaved ? ' · Death evitó la muerte' : ''}`
+            : `Sin daño · protegido por ${protections.map((protection) =>
+              protection === 'shield' ? 'escudo' : protection === 'soul' ? 'congelación de Medusa' : 'congelación',
+            ).join(' y ')}`}
         </p>
       )}
       {otherDay ? (

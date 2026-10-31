@@ -7,10 +7,9 @@ producen efectos cuando están equipadas en la expedición actual; su rango se
 lee desde la colección persistente y no se duplica ni se convierte en un
 contador paralelo.
 
-Esta primera fase define el catálogo tipado y el selector de pasivas equipadas.
-Las pasivas que necesitan consumir recursos o registrar hitos diarios se
-implementarán sobre este contrato en fases posteriores, cada una con sus
-pruebas de idempotencia y corrección de ayer.
+El catálogo tipado, el loadout diario bloqueado y el registro idempotente dan
+soporte a las pasivas runtime. Las pasivas consumibles se reconcilian desde sus
+registros fuente para que reintentos y correcciones de ayer no dupliquen usos.
 
 ## Reglas confirmadas
 
@@ -36,12 +35,12 @@ pruebas de idempotencia y corrección de ayer.
 | Legion | Las tareas triviales dan +1 moneda |
 | Frankenstein | La primera tarea de cada zona cada día da +20 % de EXP (rango 1), +30 % (rango 2) o +40 % (rango 3) |
 | Succubus | La primera poción del día cura el doble (rango 1) |
-| Death | Segunda oportunidad una vez por expedición |
-| Medusa | Una congelación de racha gratis cada 7 días |
+| Death | Evita 1/2/3 impactos mortales por expedición según rango |
+| Medusa | Una congelación gratis cada 7/5/3 días según rango |
+| Cerbero | Reduce el daño por fallo un 10/15/20 % según rango |
 
-Los rangos superiores refuerzan cada pasiva y se concretan en la sección de
-implementación de cada efecto. La primera integración implementada es Legion;
-Frankenstein fija explícitamente la escala +20/+30/+40 % en la tabla anterior.
+Los rangos superiores refuerzan cada pasiva según la sección de implementación
+de cada efecto. Frankenstein fija explícitamente la escala +20/+30/+40 %.
 
 ## Alcance de esta fase
 
@@ -54,7 +53,7 @@ Frankenstein fija explícitamente la escala +20/+30/+40 % en la tabla anterior.
   conservando fecha, Alma, rango y pasiva para reintentos y correcciones.
 - Cubrir la selección con tests.
 - Integrar cada efecto con su punto runtime, registro idempotente y pruebas de
-  corrección antes de darlo por completado.
+  corrección.
 
 ## Registro de activaciones
 
@@ -133,10 +132,40 @@ Frankenstein fija explícitamente la escala +20/+30/+40 % en la tabla anterior.
   nunca el loadout actual.
 - Las correcciones de días cerrados usan el loadout guardado en su snapshot.
 
+### Death
+
+- Puede evitar impactos que reducirían la vida a cero y deja al personaje con
+  **1 PV**.
+- El límite por expedición es **1/2/3** impactos en rangos **1/2/3**. Se cuenta
+  el registro persistido de activaciones, no un contador duplicado en el perfil.
+- Se aplica tanto al daño por penalizaciones como al daño de bosses.
+- Usa el loadout y rango fijados para la fecha del impacto, incluidos los
+  snapshots al reproducir una corrección.
+- Cada impacto salvado queda asociado a su evento o encuentro fuente y se
+  reconcilia al corregir/recalcular.
+
+### Medusa
+
+- Puede absorber un fallo después del escudo y antes de gastar una congelación
+  consumible.
+- El enfriamiento móvil es de **7/5/3 días** según el rango fijado el día de la
+  activación. El enfriamiento sigue avanzando si se desequipa.
+- La protección queda identificada como pasiva de alma en el historial y en el
+  resumen; no reduce las congelaciones del inventario.
+- La fecha disponible se reconstruye desde las activaciones persistidas y se
+  conserva/recalcula al corregir ayer.
+
+### Cerbero
+
+- Reduce el daño por fallo un **10/15/20 %** según el rango 1/2/3 del alma
+  equipado en el loadout bloqueado para esa fecha.
+- Se aplica junto con el entorno del boss, las estatuas de Medusa, las
+  maldiciones y el eclipse, sin reemplazar sus multiplicadores.
+- Settlement y corrección de ayer usan la carga del día correspondiente; las
+  correcciones históricas usan el loadout y el rango guardados en el snapshot.
+
 ## Fuera de alcance
 
-- Completar las pasivas de Death (segunda oportunidad) y Medusa (congelación
-  gratuita), incluidas sus reglas de replay y corrección.
 - Crear contadores manuales por pasiva.
 - Cambiar la persistencia de Almas, su piedad, sus fragmentos o las casillas.
 - Activar pasivas de Almas no pertenecientes a bosses implementados.

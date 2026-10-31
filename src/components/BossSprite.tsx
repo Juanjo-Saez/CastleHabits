@@ -1,5 +1,7 @@
 import type { BossId } from '../types'
 import {
+  CERBERUS,
+  CERBERUS_PALETTE,
   GAIBON,
   GAIBON_PALETTE,
   FRANKENSTEIN,
@@ -42,6 +44,9 @@ function BossSprite({ bossId, scale = 3, className = '' }: Readonly<{ bossId: Bo
   }
   if (bossId === 'medusa') {
     return <PixelArt rows={MEDUSA} palette={MEDUSA_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
+  }
+  if (bossId === 'cerberus') {
+    return <PixelArt rows={CERBERUS} palette={CERBERUS_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
   }
   return <PixelArt rows={GIANT_BAT} palette={GIANT_BAT_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
 }

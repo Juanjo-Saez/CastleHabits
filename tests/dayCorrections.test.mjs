@@ -347,6 +347,110 @@ test('corregir ayer recalcula el daño de una estatua sin duplicar el evento', (
   assert.equal(undone.profile.hp, 48)
 })
 
+test('corregir ayer reproduce Death y Medusa sin duplicar ni gastar defensas', () => {
+  const deathItem = activity({ id: 'death', createdAt: `${yesterday}T12:00:00` })
+  const deathState = fixture({ items: [deathItem] })
+  deathState.profile = {
+    ...deathState.profile,
+    hp: 1,
+    souls: { death: { rank: 2, fragments: 0 } },
+    equippedSouls: ['death'],
+    penaltyCheckpoint: {
+      ...deathState.profile.penaltyCheckpoint,
+      runStartedAt: deathState.profile.runStartedAt,
+      soulLoadout: ['death'],
+      soulRanks: { death: 2 },
+      deathRank: 2,
+      deathHp: 1,
+      deathSavesUsed: 0,
+    },
+  }
+  deathState.events = computeMissedPenalties(
+    [deathItem], {}, undefined, 0, { enabled: false }, yesterday, () => 1, true, () => true,
+    { date: yesterday, deathRank: 2, deathHp: 1, deathSavesUsed: 0 },
+  ).missedEvents.map((event) => ({
+    ...event,
+    id: `${event.id}:${deathState.profile.runStartedAt}`,
+    runStartedAt: deathState.profile.runStartedAt,
+  }))
+
+  const deathCorrected = correct(deathState, 1, { itemId: 'death' })
+  assert.equal(deathCorrected.events.filter((event) => event.kind === 'missed').length, 0)
+  const deathUndone = correct(deathCorrected, 0, { itemId: 'death' })
+  const deathMiss = deathUndone.events.find((event) => event.kind === 'missed')
+  assert.equal(deathMiss.deathSaved, true)
+  assert.equal(deathMiss.soulPassiveRank, 2)
+  assert.equal(deathUndone.profile.hp, 1)
+  const deathRepeated = correct(deathUndone, 0, { itemId: 'death' })
+  assert.deepEqual(deathRepeated.events, deathUndone.events)
+  assert.equal(deathRepeated.profile.hp, deathUndone.profile.hp)
+
+  const medusaItem = activity({ id: 'medusa', createdAt: `${yesterday}T12:00:00` })
+  const medusaState = fixture({ items: [medusaItem], freezes: 1 })
+  medusaState.profile = {
+    ...medusaState.profile,
+    streakFreezes: 1,
+    souls: { medusa: { rank: 2, fragments: 0 } },
+    equippedSouls: ['medusa'],
+    penaltyCheckpoint: {
+      ...medusaState.profile.penaltyCheckpoint,
+      runStartedAt: medusaState.profile.runStartedAt,
+      soulLoadout: ['medusa'],
+      soulRanks: { medusa: 2 },
+      medusaRank: 2,
+    },
+  }
+  medusaState.events = computeMissedPenalties(
+    [medusaItem], {}, undefined, 1, { enabled: false }, yesterday, () => 1, true, () => true,
+    { date: yesterday, medusaRank: 2 },
+  ).missedEvents.map((event) => ({
+    ...event,
+    id: `${event.id}:${medusaState.profile.runStartedAt}`,
+    runStartedAt: medusaState.profile.runStartedAt,
+  }))
+
+  const medusaCorrected = correct(medusaState, 1, { itemId: 'medusa' })
+  assert.equal(medusaCorrected.profile.streakFreezes, 1)
+  const medusaUndone = correct(medusaCorrected, 0, { itemId: 'medusa' })
+  const medusaMiss = medusaUndone.events.find((event) => event.kind === 'missed')
+  assert.equal(medusaMiss.protectedBy, 'soul')
+  assert.equal(medusaMiss.soulPassiveRank, 2)
+  assert.equal(medusaUndone.profile.streakFreezes, 1)
+  const medusaRepeated = correct(medusaUndone, 0, { itemId: 'medusa' })
+  assert.deepEqual(medusaRepeated.events, medusaUndone.events)
+  assert.equal(medusaRepeated.profile.hp, medusaUndone.profile.hp)
+  assert.equal(medusaRepeated.profile.streakFreezes, medusaUndone.profile.streakFreezes)
+})
+
+test('corregir ayer reproduce la reducción de daño de Cerbero según el rango fijado en el snapshot', () => {
+  const item = activity({ createdAt: '2026-10-01T12:00:00' })
+  const expectedDamage = [23, 22, 20]
+
+  for (const [index, rank] of [1, 2, 3].entries()) {
+    const state = fixture({ items: [item] })
+    state.profile = {
+      ...state.profile,
+      souls: { cerberus: { rank, fragments: 0 } },
+      equippedSouls: [],
+      penaltyCheckpoint: {
+        ...state.profile.penaltyCheckpoint,
+        runStartedAt: state.profile.runStartedAt,
+        soulLoadout: ['cerberus'],
+        soulRanks: { cerberus: rank },
+      },
+    }
+
+    const completed = correct(state, 1)
+    const corrected = correct(completed, 0)
+    const missed = corrected.events.find((event) => event.kind === 'missed')
+    assert.equal(missed.damage, expectedDamage[index])
+    assert.equal(corrected.profile.hp, 50 - expectedDamage[index])
+    const repeated = correct(corrected, 0)
+    assert.deepEqual(repeated.events, corrected.events)
+    assert.equal(repeated.profile.hp, corrected.profile.hp)
+  }
+})
+
 test('no permite retirar oro gastado ni modifica las entradas al fallar', () => {
   const state = correct(fixture(), 1)
   state.profile.coins = 0

@@ -3,18 +3,36 @@ import { activityDateKey, logicalNow } from './date'
 import { buildItemEvent, itemEventId } from './itemEvents'
 import { isObligation, isWindowClosingOn, isWindowCompleted, windowDaysOf } from './recurrence'
 import { SHIELD_RECHARGE_DAYS } from './routes'
-import type { Completion, Item, ItemEvent } from '../types'
+import { soulPassiveCooldownDays } from './soulPassiveLedger'
+import { resolvePlayerDamage } from './soulDamage'
+import type { Completion, Item, ItemEvent, SoulRank } from '../types'
 
 interface Protection {
   freezes: number
   shieldEnabled: boolean
   shieldReadyOn?: string
   freezesEnabled: boolean
+  medusaDate?: string
+  medusaRank?: SoulRank
+  medusaReadyOn?: string
+  deathDate?: string
+  deathRank?: SoulRank
+  deathSavesUsed: number
+  deathHp?: number
 }
 
 type MissProtection = NonNullable<ItemEvent['protectedBy']>
 
-/** Consume el escudo (si está listo) o una congelación para absorber un fallo. */
+export interface SoulPenaltyProtection {
+  date: string
+  medusaRank?: SoulRank
+  medusaReadyOn?: string
+  deathRank?: SoulRank
+  deathSavesUsed?: number
+  deathHp?: number
+}
+
+/** Consume primero el escudo, luego la pasiva de Medusa y por último una congelación. */
 function absorbMiss(protection: Protection, dateKey: string): MissProtection | null {
   const shieldReady = !protection.shieldReadyOn || protection.shieldReadyOn <= dateKey
   if (protection.shieldEnabled && shieldReady) {
@@ -23,6 +41,18 @@ function absorbMiss(protection: Protection, dateKey: string): MissProtection | n
       'yyyy-MM-dd',
     )
     return 'shield'
+  }
+  if (
+    protection.freezesEnabled &&
+    protection.medusaDate === dateKey &&
+    protection.medusaRank &&
+    (!protection.medusaReadyOn || protection.medusaReadyOn <= dateKey)
+  ) {
+    protection.medusaReadyOn = format(
+      addDays(parseISO(dateKey), soulPassiveCooldownDays(protection.medusaRank)),
+      'yyyy-MM-dd',
+    )
+    return 'soul'
   }
   if (protection.freezesEnabled && protection.freezes > 0) {
     protection.freezes -= 1
@@ -79,12 +109,16 @@ export function computeMissedPenalties(
   damageMultiplierForDay: (dateKey: string, item: Item) => number = () => 1,
   freezesEnabled = true,
   shieldEnabledForDay: (dateKey: string) => boolean = () => true,
+  soulProtection?: SoulPenaltyProtection,
 ): {
   totalDamage: number
   newLastChecked: string
   missedEvents: ItemEvent[]
   freezesUsed: number
   shieldReadyOn?: string
+  medusaReadyOn?: string
+  deathSavesUsed: number
+  deathSavedEvents: ItemEvent[]
 } {
   const yesterday = parseISO(throughDate)
   let cursor = lastCheckedDate ? addDays(parseISO(lastCheckedDate), 1) : yesterday
@@ -94,6 +128,13 @@ export function computeMissedPenalties(
     shieldEnabled: shield.enabled,
     shieldReadyOn: shield.readyOn,
     freezesEnabled,
+    medusaDate: soulProtection?.date,
+    medusaRank: soulProtection?.medusaRank,
+    medusaReadyOn: soulProtection?.medusaReadyOn,
+    deathDate: soulProtection?.date,
+    deathRank: soulProtection?.deathRank,
+    deathSavesUsed: soulProtection?.deathSavesUsed ?? 0,
+    deathHp: soulProtection?.deathHp,
   }
 
   let totalDamage = 0
@@ -121,15 +162,47 @@ export function computeMissedPenalties(
       const protectedBy = absorbMiss(protection, key)
       protection.shieldEnabled = shieldEnabled
       if (protectedBy) {
-        missedEvents.push(buildItemEvent(item, 'missed', scheduledKey, { damage: 0, protectedBy, activityDate: key }, eventId))
+        missedEvents.push(buildItemEvent(item, 'missed', scheduledKey, {
+          damage: 0,
+          protectedBy,
+          activityDate: key,
+          ...(protectedBy === 'soul' && protection.medusaRank ? {
+            soulPassiveId: 'weeklyFreeze',
+            soulPassiveRank: protection.medusaRank,
+          } : {}),
+        }, eventId))
         continue
       }
 
       const streak = (streaks.get(item.id) ?? 0) + 1
       streaks.set(item.id, streak)
-      const damage = Math.ceil(damageForMissedStreak(streak) * damageMultiplierForDay(key, item))
+      const incomingDamage = Math.ceil(damageForMissedStreak(streak) * damageMultiplierForDay(key, item))
+      const deathRank = protection.deathRank
+      const deathHp = protection.deathHp
+      const deathEligible = protection.deathDate === key && deathRank !== undefined && deathHp !== undefined
+      const resolution = deathEligible && deathRank !== undefined && deathHp !== undefined
+        ? resolvePlayerDamage(
+            deathHp,
+            incomingDamage,
+            deathRank,
+            protection.deathSavesUsed,
+          )
+        : { hp: 0, damageApplied: incomingDamage, deathSaved: false }
+      const damage = resolution.damageApplied
+      if (deathEligible) {
+        protection.deathHp = resolution.hp
+        if (resolution.deathSaved) protection.deathSavesUsed += 1
+      }
       totalDamage += damage
-      missedEvents.push(buildItemEvent(item, 'missed', scheduledKey, { damage, activityDate: key }, eventId))
+      missedEvents.push(buildItemEvent(item, 'missed', scheduledKey, {
+        damage,
+        activityDate: key,
+        ...(resolution.deathSaved ? {
+          deathSaved: true,
+          soulPassiveId: 'secondChance',
+          soulPassiveRank: deathRank,
+        } : {}),
+      }, eventId))
     }
     cursor = addDays(cursor, 1)
   }
@@ -140,5 +213,8 @@ export function computeMissedPenalties(
     missedEvents,
     freezesUsed: availableStreakFreezes - protection.freezes,
     shieldReadyOn: protection.shieldReadyOn,
+    medusaReadyOn: protection.medusaReadyOn,
+    deathSavesUsed: protection.deathSavesUsed,
+    deathSavedEvents: missedEvents.filter((event) => event.deathSaved),
   }
 }

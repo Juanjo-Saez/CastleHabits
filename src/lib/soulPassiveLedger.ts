@@ -7,7 +7,6 @@ import type {
   SoulPassiveActivation,
   SoulPassiveId,
 } from '../types'
-import { equippedSoulRank } from './souls'
 
 export interface SoulPassiveActivationInput {
   profile: Pick<PlayerProfile, 'souls' | 'equippedSouls' | 'dailySoulLoadout'>
@@ -15,7 +14,8 @@ export interface SoulPassiveActivationInput {
   date: string
   runStartedAt: string
   sourceId: string
-  snapshot?: DaySnapshot
+  snapshot?: Pick<DaySnapshot, 'date' | 'soulLoadout' | 'soulRanks'>
+  rankOverride?: SoulPassiveActivation['rank']
 }
 
 export function soulPassiveCooldownDays(rank: 1 | 2 | 3): number {
@@ -37,26 +37,33 @@ function activationId(runStartedAt: string, passiveId: SoulPassiveId, sourceId: 
   return [runStartedAt, passiveId, sourceId].map(encodeURIComponent).join(':')
 }
 
+export function soulPassiveRankOn(
+  profile: SoulPassiveActivationInput['profile'],
+  soulId: SoulId,
+  date: string,
+  snapshot?: Pick<DaySnapshot, 'date' | 'soulLoadout' | 'soulRanks'>,
+): SoulPassiveActivation['rank'] | 0 {
+  const loadout = snapshot?.date === date
+    ? snapshot.soulLoadout
+    : profile.dailySoulLoadout?.date === date
+      ? profile.dailySoulLoadout.souls
+      : undefined
+  const ownedRank = profile.souls?.[soulId]?.rank
+  if (!loadout?.includes(soulId) || !ownedRank) return 0
+  return snapshot?.date === date
+    ? snapshot.soulRanks?.[soulId] ?? ownedRank
+    : ownedRank
+}
+
 /** Builds an activation only when the soul was owned and equipped on that activity date. */
 export function createSoulPassiveActivation(
   input: SoulPassiveActivationInput,
 ): SoulPassiveActivation | null {
   if (!input.runStartedAt || !input.sourceId) return null
 
-  const loadout = input.snapshot?.date === input.date
-    ? input.snapshot.soulLoadout
-    : input.profile.dailySoulLoadout?.date === input.date
-      ? input.profile.dailySoulLoadout.souls
-      : undefined
-  if (!loadout?.includes(input.soulId)) return null
-
-  const profileForDate = {
-    ...input.profile,
-    equippedSouls: loadout,
-    dailySoulLoadout: { date: input.date, souls: loadout },
-  }
-  const rank = equippedSoulRank(profileForDate, input.soulId, input.date)
+  const rank = soulPassiveRankOn(input.profile, input.soulId, input.date, input.snapshot)
   if (!rank) return null
+  const actualRank = input.rankOverride ?? rank
 
   const passiveId = ({
     'giant-bat': 'dailyXp',
@@ -66,6 +73,7 @@ export function createSoulPassiveActivation(
     succubus: 'dailyPotion',
     death: 'secondChance',
     medusa: 'weeklyFreeze',
+    cerberus: 'damageReduction',
   } as const)[input.soulId]
   if (!passiveId) return null
 
@@ -73,7 +81,7 @@ export function createSoulPassiveActivation(
     id: activationId(input.runStartedAt, passiveId, input.sourceId),
     soulId: input.soulId,
     passiveId,
-    rank,
+    rank: actualRank,
     date: input.date,
     runStartedAt: input.runStartedAt,
     sourceId: input.sourceId,

@@ -2,7 +2,7 @@ import type { ActiveCurse, BossEncounter, CurseId, Difficulty, PlayerProfile, Re
 import { activeCursesOn, CURSES } from './curses'
 import { hasRelic } from './relics'
 import { effectPercent, effectPercentForItem } from './bosses'
-import { equippedSoulRank } from './souls'
+import { cerberusFailureDamageMultiplier, equippedSoulRank } from './souls'
 import { eclipseMultiplierForDay } from './weather'
 
 /** Lo que altera las reglas normales en un día: el boss activo y las maldiciones en curso. */
@@ -62,7 +62,10 @@ export function potionRecovery(base: number, ctx: ModifierContext, dateKey: stri
 export function modifyDamage(damage: number, ctx: ModifierContext, dateKey: string): number {
   const percent = effectPercentForItem(ctx.boss, 'damagePercent', dateKey, ctx.zone)
   const cursePercentValue = cursePercent(ctx, dateKey, (c) => c.damagePercent)
-  const totalPercent = (percent * cursePercentValue) / 100
+  const cerberusRank = ctx.soulProfile
+    ? equippedSoulRank(ctx.soulProfile, 'cerberus', ctx.soulDate)
+    : 0
+  const totalPercent = (percent * cursePercentValue * cerberusFailureDamageMultiplier(cerberusRank)) / 100
   const modified = totalPercent === 100 ? damage : Math.ceil((damage * totalPercent) / 100)
   return Math.ceil(modified * eclipseMultiplierForDay(dateKey))
 }

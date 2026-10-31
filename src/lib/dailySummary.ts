@@ -20,7 +20,8 @@ export interface SummaryMiss {
   id: string
   title: string
   damage: number
-  protectedBy?: 'shield' | 'freeze'
+  protectedBy?: 'shield' | 'freeze' | 'soul'
+  deathSaved?: boolean
 }
 
 export interface SummaryStreak {
@@ -157,6 +158,7 @@ export function buildDailySummary(input: SummaryInput): DailySummary | null {
       title: event.itemTitle,
       damage: event.damage ?? 0,
       protectedBy: event.protectedBy,
+      deathSaved: event.deathSaved,
     }))
 
   const xpGained = done.reduce((sum, entry) => sum + entry.xp, 0)
