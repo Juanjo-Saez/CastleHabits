@@ -24,6 +24,7 @@ import {
   effectPercentOn,
   evaluateBossDay,
   hitProgress,
+  hydraProgress,
   initialLifeStolen,
   isMedusaStatueOn,
   isBossDueOn,
@@ -70,6 +71,7 @@ import {
   collectSoul,
   equippedSoulPassives,
   equippedSoulRank,
+  hydraDawnHeal,
   isFirstZoneCompletionOn,
   soulChanceWithPity,
   soulSlotsForLevel,
@@ -86,6 +88,113 @@ import {
 beforeEach(() => {
   resetWeatherSeedForTests()
   weatherSeed({ getItem: () => 'stable-test-841', setItem: () => {} })
+})
+
+test('Hidra se activa por tres fallos recientes en una zona, incluidos los protegidos', () => {
+  const trigger = BOSSES['hydra-scylla'].trigger
+  const items = ['a', 'b', 'c'].map((id) => chore(id, { zone: 'Alchemy Laboratory' }))
+  const base = {
+    today: '2026-10-20', profile: profile(), items, completionsByItem: {}, encounters: [],
+  }
+
+  assert.equal(trigger({ ...base, events: [
+    missed('a', '2026-10-11'),
+    missed('b', '2026-10-12', { protectedBy: 'shield' }),
+    missed('c', '2026-10-20', { protectedBy: 'soul' }),
+  ] }), true)
+  assert.equal(trigger({ ...base, events: [
+    missed('a', '2026-10-10'),
+    missed('b', '2026-10-12'),
+    missed('c', '2026-10-20'),
+  ] }), false)
+  assert.equal(trigger({ ...base, events: [
+    missed('a', '2026-10-12'),
+    missed('b', '2026-10-13'),
+    missed('c', '2026-10-20', { itemId: 'outside-zone' }),
+  ] }), false)
+})
+
+test('Hidra corta cabezas por completados y solo las obligaciones fallidas las hacen crecer al cierre', () => {
+  const encounter = hydraBoss()
+  const tasks = [chore('a'), chore('b'), chore('c')]
+  const completed = byItem(tasks.map((item) => done(item.id, '2026-10-10')))
+
+  const beforeClose = hydraProgress(encounter, tasks, completed, [], '2026-10-10')
+  assert.deepEqual(beforeClose, { heads: 0, cut: 3, grown: 0, reachedOn: undefined })
+
+  const protectedMiss = missed('a', '2026-10-10', { protectedBy: 'freeze' })
+  const closed = hydraProgress(encounter, tasks, completed, [protectedMiss], '2026-10-11')
+  assert.deepEqual(closed, { heads: 1, cut: 3, grown: 1, reachedOn: undefined })
+
+  const victory = hydraProgress(encounter, tasks, completed, [], '2026-10-11')
+  assert.deepEqual(victory, { heads: 0, cut: 3, grown: 0, reachedOn: '2026-10-10' })
+})
+
+test('Hidra confirma la victoria al día siguiente del cierre y aplica Veneno de hidra al perder', () => {
+  const encounter = hydraBoss()
+  const tasks = [chore('a'), chore('b'), chore('c')]
+  const completionsByItem = byItem(tasks.map((item) => done(item.id, '2026-10-10')))
+  const stillActive = planBossSync({
+    today: '2026-10-10', profile: profile(), items: tasks, completionsByItem, encounters: [encounter],
+    random: () => 0,
+  })
+  assert.equal(stillActive.encounters.find((entry) => entry.id === encounter.id)?.status, 'active')
+
+  const victory = planBossSync({
+    today: '2026-10-11', profile: profile(), items: tasks, completionsByItem, encounters: [encounter],
+    random: () => 0,
+  })
+  assert.equal(victory.encounters.find((entry) => entry.id === encounter.id)?.status, 'victory')
+  assert.equal(victory.encounters.find((entry) => entry.id === encounter.id)?.resolvedOn, '2026-10-10')
+
+  const defeat = planBossSync({
+    today: '2026-10-15', profile: profile(), items: [], completionsByItem: {}, encounters: [encounter],
+    random: () => 0,
+  })
+  assert.equal(defeat.encounters.find((entry) => entry.id === encounter.id)?.status, 'defeat')
+  assert.equal(defeat.profile.curses[0].id, 'hydraPoison')
+  assert.equal(CURSES.hydraPoison.drainPerDay, 1)
+  assert.match(CURSES.hydraPoison.description, /poción de vigor/i)
+  assert.equal(potionRecovery(10, { boss: hydraBoss(), curses: [] }, '2026-10-10'), 5)
+  const poison = addCurse([], 'hydraPoison', 'hydra-scylla', '2026-10-10', 5)
+  assert.equal(tickCurses(poison, 10, '2026-10-10').hp, 9)
+})
+
+test('el alma de Hidra cura 2/4/6 PV al amanecer solo tras un día sin fallos', () => {
+  const runStartedAt = '2026-10-01T02:00:00'
+  const soulProfile = profile({
+    hp: 10,
+    souls: { 'hydra-scylla': { rank: 2, fragments: 0 } },
+    dailySoulLoadout: { date: '2026-10-10', souls: ['hydra-scylla'] },
+  })
+  const daySnapshots = [{
+    date: '2026-10-10', runStartedAt, level: 1, xp: 0, hp: 10, maxHp: 50,
+    soulLoadout: ['hydra-scylla'], soulRanks: { 'hydra-scylla': 2 },
+  }]
+  const healed = planBossSync({
+    today: '2026-10-11', profile: soulProfile, items: [], completionsByItem: {}, encounters: [],
+    events: [], daySnapshots, random: () => 0,
+  })
+  assert.equal(hydraDawnHeal(1), 2)
+  assert.equal(hydraDawnHeal(2), 4)
+  assert.equal(hydraDawnHeal(3), 6)
+  assert.equal(healed.profile.hp, 14)
+  assert.equal(healed.dailyPassiveActivations[0].passiveId, 'hydraDawnHeal')
+  const retried = planBossSync({
+    today: '2026-10-11', profile: healed.profile, items: [], completionsByItem: {},
+    encounters: healed.encounters, events: [], daySnapshots,
+    soulPassiveActivations: healed.dailyPassiveActivations, random: () => 0,
+  })
+  assert.equal(retried.profile.hp, 14)
+  assert.equal(retried.dailyPassiveActivations.length, 0)
+
+  const failed = planBossSync({
+    today: '2026-10-11', profile: soulProfile, items: [], completionsByItem: {}, encounters: [],
+    events: [missed('old-task', '2026-10-10', { protectedBy: 'shield' })],
+    daySnapshots, random: () => 0,
+  })
+  assert.equal(failed.profile.hp, 10)
+  assert.equal(failed.dailyPassiveActivations.length, 0)
 })
 
 const BAT = BOSSES['giant-bat']
@@ -284,6 +393,22 @@ function chore(id, changes = {}) {
   return {
     id, title: id, type: 'chore', difficulty: 'easy', trackingType: 'boolean',
     archived: false, createdAt: '2026-10-01T12:00:00', ...changes,
+  }
+}
+
+function hydraBoss(windowStart = '2026-10-10', changes = {}) {
+  return {
+    id: 'enc:hydra', bossId: 'hydra-scylla', sequence: 1, status: 'active', scheduledFor: windowStart,
+    windowStart, windowEnd: shiftKey(windowStart, 4), goal: 3,
+    rewardGranted: false, damageApplied: false, createdAt: '2026-10-01T00:00:00.000Z', ...changes,
+  }
+}
+
+function missed(itemId, date, changes = {}) {
+  return {
+    id: `missed:${itemId}:${date}`, itemId, itemTitle: itemId, itemType: 'chore',
+    kind: 'missed', scheduledDate: date, activityDate: date, occurredAt: `${date}T02:00:00.000Z`,
+    runStartedAt: '2026-10-01T02:00:00', ...changes,
   }
 }
 
@@ -1334,8 +1459,8 @@ test('la mecánica describe el objetivo de cada boss con sus unidades', () => {
 
 test('el siguiente boss no repite el último y respeta el sorteo ponderado', () => {
   assert.equal(pickBoss('giant-bat', () => 0), 'slogra-gaibon')
-  assert.equal(pickBoss('slogra-gaibon', () => 0.99), 'cerberus')
-  assert.deepEqual(new Set([pickBoss(undefined, () => 0), pickBoss(undefined, () => 0.99)]), new Set(['giant-bat', 'cerberus']))
+  assert.equal(pickBoss('slogra-gaibon', () => 0.99), 'hydra-scylla')
+  assert.deepEqual(new Set([pickBoss(undefined, () => 0), pickBoss(undefined, () => 0.99)]), new Set(['giant-bat', 'hydra-scylla']))
 })
 
 test('un disparador reactivo se impone al sorteo al acabar el enfriamiento', () => {

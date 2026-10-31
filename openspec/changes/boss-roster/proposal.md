@@ -18,7 +18,7 @@ Diseño de los siguientes encuentros tras el Murciélago gigante. Es un document
 
 | Pieza | Estado |
 |---|---|
-| Motor con objetivos `days`, `hits`, `pieces`, `statues` y `heads`, metas fijadas al activarse y zonas persistidas cuando hace falta | Hecho |
+| Motor con objetivos `days`, `hits`, `pieces`, `statues`, `heads` y `growingHeads`, metas fijadas al activarse y zonas persistidas cuando hace falta | Hecho |
 | Premios: sorteo independiente por objeto, consuelo y multiplicador por nivel | Hecho |
 | Consumibles nuevos: agua bendita (cura una maldición) y bolsa de oro (en el motor, sin boss que la suelte aún) | Hecho |
 | Persistencia: los encuentros resueltos sobreviven a jubilarse y los pendientes se reprograman | Hecho |
@@ -27,7 +27,7 @@ Diseño de los siguientes encuentros tras el Murciélago gigante. Es un document
 | Siete maldiciones leves con sus modificadores (EXP, oro, pociones, aplazar y daño diario) | Hecho |
 | Curas: agua bendita y sacerdotisa (`30 + 10 × nivel`) en el Perfil | Hecho |
 | Boss Slogra y Gaibon (sprites, barras de vida, golpe visual en la tarjeta y en la tarea) | Hecho |
-| Selección: sorteo ponderado sin repetir el último y gancho para disparadores reactivos | Hecho; Medusa tiene un disparador implementado y faltan disparadores específicos |
+| Selección: sorteo ponderado sin repetir el último y gancho para disparadores reactivos | Hecho; Medusa, Cerbero e Hidra/Escila tienen disparadores implementados y quedan otros por añadir |
 | Bestiario: datos (`bestiaryOf`) | Hecho |
 | Bestiario: pantalla en el Perfil con desbloqueos por victorias | Hecho |
 | Almas, reliquias y maldiciones graves | Hecho en `boss-almas-reliquias` y `boss-maldiciones-graves` |
@@ -36,11 +36,12 @@ Diseño de los siguientes encuentros tras el Murciélago gigante. Es un document
 | Death | Hecho en `boss-death` |
 | Medusa | Hecho en `boss-medusa` |
 | Cerbero | Hecho en `boss-cerberus` |
-| Resto de bosses (Doppelgänger, Hidra/Escila, Drácula, Sukamon) | Pendiente; un change por boss |
+| Hidra / Escila | Hecho en `boss-hydra-scylla` |
+| Resto de bosses (Doppelgänger, Drácula, Sukamon) | Pendiente; un change por boss |
 
 ### Modelo de datos
 
-- **`BossDefinition`** (`lib/bosses.ts`): id, partes, nombre gramatical, ventana, objetivo (`days`, `hits`, `pieces` o `lifeSteal`), efectos, daño y maldición de derrota, premio base, tabla de objetos, enfriamiento, peso y disparador opcional.
+- **`BossDefinition`** (`lib/bosses.ts`): id, partes, nombre gramatical, ventana, objetivo (`days`, `hits`, `pieces`, `lifeSteal`, `statues`, `heads` o `growingHeads`), efectos, daño y maldición de derrota, premio base, tabla de objetos, enfriamiento, peso y disparador opcional.
 - **`BossEncounter`**: una aparición. El id es `enc:<sequence>` (los anteriores conservan `giant-bat:<n>`). `bossId` es provisional mientras está pendiente y un disparador puede cambiarlo al activarse. Guarda `goal` (meta fijada al activarse), `zones` cuando el boss fija zonas, `rewards` (EXP, oro y objetos concedidos) y `curse` (maldición aplicada al perder).
 - **Perfil:** `holyWater` y `curses` (máximo 2, con `startedOn`, `expiresOn` y `lastTickOn`). Se reinician al jubilarse.
 - **Golpes:** sin restricción por fecha de creación; el único límite es un completado por tarea y día.
@@ -134,9 +135,10 @@ Dos días con todas las obligaciones cumplidas. Entorno: EXP −30 %. Derrota: 2
 - **Primera victoria de la expedición:** reliquia *Espejo de plata* (revela las estadísticas históricas hasta jubilarte).
 
 ### 10. Hidra / Escila — *Cabezas que crecen*
-- **Combate:** empieza con 3 cabezas. Cada tarea cumplida corta una. Cada noche, por cada obligación sin cumplir, **crece otra cabeza**. Se vence con 0 cabezas al cierre de un día.
+- **Combate:** empieza con 3 cabezas. Cada tarea cumplida corta una. Al cierre operativo, cada obligación que termina sin completar —también si su fallo quedó protegido— hace crecer otra cabeza. Se vence con 0 cabezas al cierre de un día.
 - **Entorno:** *Aguas turbias*: las pociones curan la mitad.
 - **Derrota:** la maldición *Veneno de hidra* (−1 HP al día durante 5 días; se cura con una poción de vigor).
+- **Alma:** cura 2/4/6 PV al amanecer si el día anterior cerró sin fallos, según rango; los fallos protegidos también cancelan la cura.
 
 ### 11. Drácula — *Jefe final de tres fases*
 Ventana total de 12 días, tres fases de 4:
@@ -239,7 +241,7 @@ Sello de aplazamiento, poción de vigor, congelación de racha *(ya existen)*, *
 | Medusa | Una congelación de racha gratis cada 7 días |
 | Cerbero | El daño por fallo baja un 10 % |
 | Doppelgänger | **Reflejo:** una vez por semana, el daño de un fallo se reduce a la mitad |
-| Hidra | +1 HP al amanecer si ayer no hubo fallos |
+| Hidra / Escila | Cura 2/4/6 PV al amanecer si ayer no hubo fallos, según rango |
 | Drácula | Vida máxima +10 % y aura de la Corona |
 
 **Las almas persisten entre expediciones.** Las casillas equipadas dependen del nivel de la expedición actual: 1 al nivel 5, 2 al nivel 10 y 3 al nivel 20, para que una expedición nueva no parta con todo el poder acumulado.
@@ -300,7 +302,7 @@ Este documento es el diseño compartido. Los changes derivados y su estado actua
    - [x] **[boss-death](../boss-death/proposal.md)**: apuesta y Hoz de Death.
    - [x] **[boss-medusa](../boss-medusa/proposal.md)**: estatuas y Amnesia.
    - [x] **[boss-cerberus](../boss-cerberus/proposal.md)**: tres cabezas, Aliento infernal y Triple mordisco.
-   - [ ] Hidra/Escila.
+   - [x] **[boss-hydra-scylla](../boss-hydra-scylla/proposal.md)**: cabezas crecientes, Veneno de hidra y cura del alma.
    - [ ] Doppelgänger.
    - [ ] Sukamon: minijefe.
    - [ ] Drácula: boss final.

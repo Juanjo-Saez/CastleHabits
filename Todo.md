@@ -14,7 +14,7 @@ OpenSpecs enlazados.
 - **Rutas y oficios:** ya existen Cazavampiros, Tecnomancer y Fortaleza Interior,
   con misiones iniciales, progreso por tramos y oficios equipables.
 - **Bosses:** están implementados el Murciélago gigante, Slogra y Gaibon,
-  Legion, Frankenstein, Succubus, Death, Medusa y Cerbero. Hay Bestiario, almas,
+  Legion, Frankenstein, Succubus, Death, Medusa, Cerbero e Hidra/Escila. Hay Bestiario, almas,
   reliquias, maldiciones y un motor común; algunos premios, pasivas y encuentros
   todavía están pendientes.
 - **Castillo:** escena pixel-art, luna independiente, climas y estados de boss.
@@ -49,15 +49,16 @@ deben acordarse al concretar el OpenSpec.
 
 ### Bosses, almas y premios
 
-- Completar los encuentros pendientes: Hidra/Escila, Doppelgänger, Sukamon y
-  Drácula; Medusa y Cerbero ya están implementados.
+- Completar los encuentros pendientes: Doppelgänger, Sukamon y Drácula;
+  Medusa, Cerbero e Hidra/Escila ya están implementados.
 - Añadir y validar los disparadores reactivos específicos que todavía faltan.
   El sorteo ponderado y el mecanismo de disparadores ya existen.
 - Pasivas runtime de las almas equipadas completadas: Death salva 1/2/3 golpes
   mortales por expedición, Medusa concede congelaciones gratuitas con
-  enfriamiento móvil de 7/5/3 días y Cerbero reduce el daño por fallo un
-  10/15/20 % según rango. El registro idempotente cubre liquidación, bosses y
-  correcciones de ayer. Falta la validación visual del panel de Almas; ver
+  enfriamiento móvil de 7/5/3 días, Cerbero reduce el daño por fallo un
+  10/15/20 % e Hidra/Escila cura 2/4/6 PV al amanecer si ayer no hubo fallos.
+  El registro idempotente cubre liquidación, bosses y correcciones de ayer.
+  Falta la validación visual del panel de Almas; ver
   [soul-passives](./openspec/changes/soul-passives/).
 - Implementar versión élite, látigo, títulos y cosméticos según
   [boss-premios-elite](./openspec/changes/boss-premios-elite/).

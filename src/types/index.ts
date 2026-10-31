@@ -197,7 +197,7 @@ export interface Reminder {
   createdAt: string
 }
 
-export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus' | 'death' | 'medusa' | 'cerberus'
+export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus' | 'death' | 'medusa' | 'cerberus' | 'hydra-scylla'
 export type BossCategory = 'obligations' | 'scrolls' | 'sideQuests'
 export type DeathStakePercent = 0 | 10 | 25
 export type SoulId = BossId
@@ -212,6 +212,7 @@ export type SoulPassiveId =
   | 'secondChance'
   | 'weeklyFreeze'
   | 'damageReduction'
+  | 'hydraDawnHeal'
 export type RelicId = 'rosary' | 'silverMirror' | 'heart' | 'ancientAmulet'
 
 export interface SoulProgress {
@@ -253,6 +254,7 @@ export type CurseId =
   | 'avarice'
   | 'silence'
   | 'poison'
+  | 'hydraPoison'
   | 'charm'
   | 'shadow'
   | 'stitches'

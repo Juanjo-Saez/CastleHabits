@@ -33,6 +33,7 @@ import {
 import { sortTasks, type TaskSortKey } from '../lib/taskSort'
 import { useBossStore } from '../store/useBossStore'
 import { useItemsStore } from '../store/useItemsStore'
+import { usePlayerStore } from '../store/usePlayerStore'
 import { useSkyViewStore } from '../store/useSkyViewStore'
 
 function prefersReducedMotion(): boolean {
@@ -44,6 +45,8 @@ function ChoresPage() {
   const completionsByItem = useItemsStore((s) => s.completionsByItem)
   const loading = useItemsStore((s) => s.loading)
   const encounters = useBossStore((s) => s.encounters)
+  const bossEvents = useBossStore((s) => s.events)
+  const runStartedAt = usePlayerStore((s) => s.profile?.runStartedAt)
   const [showForm, setShowForm] = useState(false)
   const [sortKey, setSortKey] = useState<TaskSortKey>('difficulty')
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
@@ -218,7 +221,9 @@ function ChoresPage() {
   )
 
   const bossEncounter = activeEncounter(encounters)
-  const bossSummary = bossEncounter ? summarizeBoss(bossEncounter, items, completionsByItem, key) : null
+  const bossSummary = bossEncounter
+    ? summarizeBoss(bossEncounter, items, completionsByItem, key, bossEvents, runStartedAt)
+    : null
   const activeBossToken = bossEncounter ? bossEntranceToken(bossEncounter) : null
 
   useEffect(() => {

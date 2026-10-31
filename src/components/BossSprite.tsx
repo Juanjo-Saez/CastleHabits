@@ -8,6 +8,8 @@ import {
   FRANKENSTEIN_PALETTE,
   GIANT_BAT,
   GIANT_BAT_PALETTE,
+  HYDRA,
+  HYDRA_PALETTE,
   LEGION,
   LEGION_PALETTE,
   MEDUSA,
@@ -47,6 +49,9 @@ function BossSprite({ bossId, scale = 3, className = '' }: Readonly<{ bossId: Bo
   }
   if (bossId === 'cerberus') {
     return <PixelArt rows={CERBERUS} palette={CERBERUS_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
+  }
+  if (bossId === 'hydra-scylla') {
+    return <PixelArt rows={HYDRA} palette={HYDRA_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
   }
   return <PixelArt rows={GIANT_BAT} palette={GIANT_BAT_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
 }

@@ -10,6 +10,7 @@ import type {
   DaySnapshot,
   Difficulty,
   Item,
+  ItemEvent,
   PlayerProfile,
   RelicId,
   SoulPassiveActivation,
@@ -18,10 +19,10 @@ import type {
 import { addCurse, removeCurse, tickCurses } from './curses'
 import { activityDateKey, shiftDateKey } from './date'
 import { HP_PER_LEVEL, levelUpRecovery, xpToNextLevel } from './gamification'
-import { collectSoul } from './souls'
+import { collectSoul, hydraDawnHeal } from './souls'
 import { createSoulPassiveActivation, soulPassiveRankOn } from './soulPassiveLedger'
 import { resolvePlayerDamage } from './soulDamage'
-import { isItemDueOn, isMetCompletion, isObligation, isWindowCompleted } from './recurrence'
+import { isItemDueOn, isMetCompletion, isObligation, isWindowCompleted, windowDaysOf } from './recurrence'
 import { effectiveMaxHp } from './routes'
 import { streakEndingOn } from './streak'
 import { eclipseMultiplierForDay } from './weather'
@@ -57,6 +58,7 @@ export type BossObjective =
     load: { factor: number; min: number; max: number }
     categories: BossCategory[]
   }
+  | { kind: 'growingHeads'; initialHeads: number }
 
 /** Efectos de entorno: rigen mientras el boss está activo. */
 export type EnvEffect =
@@ -117,6 +119,7 @@ export interface BossTriggerContext {
   items: Item[]
   completionsByItem: Record<string, Completion[]>
   encounters: BossEncounter[]
+  events?: ItemEvent[]
 }
 
 export const BOSSES: Record<BossId, BossDefinition> = {
@@ -356,6 +359,53 @@ export const BOSSES: Record<BossId, BossDefinition> = {
     maxDelay: 15,
     weight: 1,
   },
+  'hydra-scylla': {
+    id: 'hydra-scylla',
+    name: 'Hidra / Escila',
+    parts: ['Cabezas'],
+    grammar: { subject: 'La Hidra / Escila', object: 'a la Hidra / Escila', plural: false },
+    mechanic: 'Cabezas que crecen',
+    description: 'Una criatura de múltiples cabezas que vuelve a crecer con cada obligación incumplida.',
+    lore: 'En las aguas turbias del castillo, cada deuda alimenta a la Hidra. Solo una jornada cerrada sin cabezas permite abatirla; las tareas cumplidas cortan sus cuellos, pero las obligaciones que vencen sin cumplirse hacen que vuelva a crecer.',
+    soulChance: 0.03,
+    windowDays: 5,
+    objective: { kind: 'growingHeads', initialHeads: 3 },
+    effects: [{ kind: 'potionPercent', percent: 50 }],
+    defeatDamage: 0,
+    defeatCurse: { id: 'hydraPoison', days: 5 },
+    defeatText: 'Pierdes 1 de vida al día durante cinco días; una poción de vigor cura el veneno.',
+    reward: { xp: 130, coins: 70 },
+    drops: [
+      { item: 'vitalityPotion', chance: 0.55, min: 1, max: 1 },
+      { item: 'postponeToken', chance: 0.3, min: 1, max: 1 },
+      { item: 'holyWater', chance: 0.2, min: 1, max: 1 },
+      { item: 'streakFreeze', chance: 0.2, min: 1, max: 1 },
+    ],
+    trigger: ({ today, items, events = [], profile }) => {
+      const cutoff = shiftKey(today, -9)
+      const itemsById = new Map(items.map((item) => [item.id, item]))
+      const counts = new Map<string, number>()
+      for (const event of events) {
+        const item = itemsById.get(event.itemId)
+        const type = item?.type ?? event.itemType
+        const commitment = item?.commitment ?? event.commitment
+        if (event.kind !== 'missed' || type === 'habit' || commitment === 'sideQuest') continue
+        if (profile.runStartedAt && (event.runStartedAt
+          ? event.runStartedAt !== profile.runStartedAt
+          : new Date(event.occurredAt) < new Date(profile.runStartedAt))) continue
+        const zone = item?.zone
+        if (!zone) continue
+        const date = event.activityDate
+          ?? shiftKey(event.scheduledDate, item ? windowDaysOf(item) - 1 : 0)
+        if (date < cutoff || date > today) continue
+        counts.set(zone, (counts.get(zone) ?? 0) + 1)
+      }
+      return [...counts.values()].some((misses) => misses >= 3)
+    },
+    minDelay: 10,
+    maxDelay: 15,
+    weight: 1,
+  },
 }
 
 export const BOSS_IDS = Object.keys(BOSSES) as BossId[]
@@ -580,6 +630,7 @@ export function bossGoal(boss: BossDefinition, items: Item[], today: string): nu
   if (boss.objective.kind === 'heads') {
     return Object.values(cerberusHeadGoals(items, today)).reduce((total, goal) => total + (goal ?? 0), 0)
   }
+  if (boss.objective.kind === 'growingHeads') return boss.objective.initialHeads
   if (boss.objective.kind === 'statues') {
     const { days, factor, min, max } = boss.objective.load
     return clamp(Math.round(dailyLoad(items, today) * days * factor), min, max)
@@ -692,6 +743,84 @@ export interface CerberusProgress {
   goal: number
   bars: BossBar[]
   reachedOn?: string
+}
+
+export interface HydraProgress {
+  heads: number
+  cut: number
+  grown: number
+  reachedOn?: string
+}
+
+function eventDate(event: ItemEvent, itemsById: Map<string, Item>): string {
+  if (event.activityDate) return event.activityDate
+  const item = itemsById.get(event.itemId)
+  return shiftKey(event.scheduledDate, item ? windowDaysOf(item) - 1 : 0)
+}
+
+function eventBelongsToRun(event: ItemEvent, runStartedAt?: string): boolean {
+  if (!runStartedAt) return true
+  return event.runStartedAt
+    ? event.runStartedAt === runStartedAt
+    : new Date(event.occurredAt) >= new Date(runStartedAt)
+}
+
+/** Hidra: cada completado corta una cabeza y cada obligación fallida al cerrar crece otra. */
+export function hydraProgress(
+  encounter: BossEncounter,
+  items: Item[],
+  completionsByItem: Record<string, Completion[]>,
+  events: ItemEvent[],
+  today: string,
+  runStartedAt?: string,
+): HydraProgress {
+  const boss = BOSSES['hydra-scylla']
+  if (boss.objective.kind !== 'growingHeads' || !encounter.windowStart || !encounter.windowEnd) {
+    return { heads: 0, cut: 0, grown: 0 }
+  }
+  const initialHeads = encounter.goal ?? boss.objective.initialHeads
+  const last = encounter.status === 'victory' && encounter.resolvedOn
+    ? encounter.resolvedOn
+    : encounter.windowEnd < today ? encounter.windowEnd : today
+  const itemsById = new Map(items.map((item) => [item.id, item]))
+  const missesByDate = new Map<string, number>()
+  for (const event of events) {
+    const item = itemsById.get(event.itemId)
+    const type = item?.type ?? event.itemType
+    const commitment = item?.commitment ?? event.commitment
+    if (event.kind !== 'missed' || type === 'habit' || commitment === 'sideQuest'
+      || !eventBelongsToRun(event, runStartedAt)) continue
+    const date = eventDate(event, itemsById)
+    if (date < encounter.windowStart || date > encounter.windowEnd) continue
+    missesByDate.set(date, (missesByDate.get(date) ?? 0) + 1)
+  }
+
+  let heads = initialHeads
+  let cut = 0
+  let grown = 0
+  let reachedOn: string | undefined
+  for (let date = encounter.windowStart; date <= last; date = shiftKey(date, 1)) {
+    const completedToday = new Set<string>()
+    for (const item of items) {
+      const completion = (completionsByItem[item.id] ?? []).find((candidate) =>
+        candidate.date === date && isMetCompletion(item, candidate),
+      )
+      if (completion) completedToday.add(item.id)
+    }
+    const cutToday = Math.min(heads, completedToday.size)
+    heads -= cutToday
+    cut += cutToday
+    if (date < today) {
+      const grownToday = missesByDate.get(date) ?? 0
+      heads += grownToday
+      grown += grownToday
+      if (heads === 0) {
+        reachedOn = date
+        break
+      }
+    }
+  }
+  return { heads, cut, grown, reachedOn }
 }
 
 export function cerberusProgress(
@@ -1013,6 +1142,9 @@ export interface BossSummary {
   guardHits: number
   scythes: number
   headsDown: number
+  headsRemaining: number
+  headsCut: number
+  headsGrown: number
   statuesBroken: number
   statuesMissed: number
   /** Días que quedan de la ventana, contando hoy; 0 si no está activo. */
@@ -1025,6 +1157,8 @@ export function summarizeBoss(
   items: Item[],
   completionsByItem: Record<string, Completion[]>,
   today: string,
+  events: ItemEvent[] = [],
+  runStartedAt?: string,
 ): BossSummary {
   const definition = BOSSES[encounter.bossId]
   const active = encounter.status === 'active'
@@ -1035,6 +1169,7 @@ export function summarizeBoss(
       : definition.objective.kind === 'heads'
         ? Object.values(cerberusHeadGoals(items, encounter.windowStart ?? today))
           .reduce((total, headGoal) => total + (headGoal ?? 0), 0)
+      : definition.objective.kind === 'growingHeads' ? definition.objective.initialHeads
       : definition.objective.kind === 'statues' ? 0
       : 0
   )
@@ -1044,6 +1179,9 @@ export function summarizeBoss(
   const scythes = kind === 'scythes' && active ? scytheProgress(encounter, items, completionsByItem, today) : null
   const statues = kind === 'statues' && active ? statueProgress(encounter, items, completionsByItem, today) : null
   const heads = kind === 'heads' ? cerberusProgress(encounter, items, completionsByItem, today) : null
+  const hydra = kind === 'growingHeads'
+    ? hydraProgress(encounter, items, completionsByItem, events, today, runStartedAt)
+    : null
   const pieces = kind === 'pieces' && active
     ? pieceProgress(encounter, items, completionsByItem, today)
     : { disabledZones: encounter.status === 'victory' ? encounter.zones ?? [] : [] }
@@ -1054,6 +1192,7 @@ export function summarizeBoss(
         : kind === 'scythes' ? (active ? scythes?.scythes ?? 0 : (encounter.status === 'defeat' ? 5 : 0))
           : kind === 'statues' ? (active ? statues?.net ?? 0 : (encounter.status === 'victory' ? goal : 0))
             : kind === 'heads' ? (heads?.progress ?? 0)
+              : kind === 'growingHeads' ? (hydra?.heads ?? 0)
               : 0
   const guardHits = kind === 'hits' && definition.objective.kind === 'hits' && definition.objective.guard
     ? (active ? (progress?.guardHits ?? 0)
@@ -1078,10 +1217,18 @@ export function summarizeBoss(
         : kind === 'lifeSteal' ? lifeBars(definition, goal, damage)
           : kind === 'scythes' ? [{ name: 'Hozes', max: 5, hp: damage }]
               : kind === 'statues' ? [{ name: 'Estatuas', max: goal, hp: Math.max(0, goal - damage) }]
-                : kind === 'heads' ? heads?.bars ?? [] : [],
+                : kind === 'heads' ? heads?.bars ?? []
+                  : kind === 'growingHeads' ? [{
+                    name: 'Cabezas',
+                    max: Math.max(definition.objective.kind === 'growingHeads' ? definition.objective.initialHeads : 1, hydra?.heads ?? 0),
+                    hp: hydra?.heads ?? 0,
+                  }] : [],
     guardHits,
     scythes: damage,
     headsDown: heads?.headsDown ?? (encounter.status === 'victory' && kind === 'heads' ? 3 : 0),
+    headsRemaining: hydra?.heads ?? (encounter.status === 'victory' && kind === 'growingHeads' ? 0 : 0),
+    headsCut: hydra?.cut ?? 0,
+    headsGrown: hydra?.grown ?? 0,
     statuesBroken: statues?.broken ?? (encounter.status === 'victory' && kind === 'statues' ? goal : 0),
     statuesMissed: statues?.missed ?? 0,
     daysLeft: active && encounter.windowEnd
@@ -1099,6 +1246,7 @@ export function bossCountsFor(item: Item, encounter: BossEncounter | null, dateK
     const category = cerberusCategory(item)
     return category !== null && cerberusCategoryDueOn(item, category, dateKey)
   }
+  if (objective.kind === 'growingHeads') return !item.archived
   return objective.kind === 'hits'
     ? !item.archived
     : objective.kind === 'pieces'
@@ -1148,6 +1296,7 @@ export function encounterSummaryLine(summary: BossSummary): string {
   if (summary.kind === 'scythes') return `${summary.damage}/${summary.goal} hoces`
   if (summary.kind === 'statues') return `${summary.damage}/${summary.goal} estatuas`
   if (summary.kind === 'heads') return `${summary.headsDown}/3 cabezas derrotadas`
+  if (summary.kind === 'growingHeads') return `${summary.headsRemaining} cabezas restantes`
   return `${summary.completedDates.length}/${summary.target} días`
 }
 
@@ -1211,6 +1360,9 @@ export function bestiaryMechanic(boss: BossDefinition): string {
   }
   if (boss.objective.kind === 'heads') {
     return 'Cada cabeza vigila una categoría y pierde un punto por cada tarea completada; si un día no completas nada de su categoría, recupera un punto. Derriba las tres dentro de la ventana.'
+  }
+  if (boss.objective.kind === 'growingHeads') {
+    return `Empieza con ${boss.objective.initialHeads} cabezas. Cada tarea cumplida corta una; cada obligación que termina sin completar hace crecer otra.`
   }
   if (boss.objective.kind === 'hits' && boss.objective.guard) {
     const labels: Record<Difficulty, string> = {
@@ -1404,6 +1556,7 @@ export interface BossSyncInput {
   items: Item[]
   completionsByItem: Record<string, Completion[]>
   encounters: BossEncounter[]
+  events?: ItemEvent[]
   daySnapshots?: DaySnapshot[]
   soulPassiveActivations?: SoulPassiveActivation[]
   random?: Random
@@ -1418,6 +1571,7 @@ export interface BossSyncResult {
   leveledUp: boolean
   passiveActivationSources: string[]
   passiveActivations: SoulPassiveActivation[]
+  dailyPassiveActivations: SoulPassiveActivation[]
 }
 
 interface Verdict {
@@ -1430,7 +1584,9 @@ function verdictOf(
   encounter: BossEncounter,
   items: Item[],
   completionsByItem: Record<string, Completion[]>,
+  events: ItemEvent[],
   today: string,
+  runStartedAt?: string,
 ): Verdict {
   const boss = BOSSES[encounter.bossId]
   if (boss.objective.kind === 'days') {
@@ -1464,6 +1620,10 @@ function verdictOf(
     const progress = cerberusProgress(encounter, items, completionsByItem, today)
     return { won: Boolean(progress.reachedOn), resolvedOn: progress.reachedOn }
   }
+  if (boss.objective.kind === 'growingHeads') {
+    const progress = hydraProgress(encounter, items, completionsByItem, events, today, runStartedAt)
+    return { won: Boolean(progress.reachedOn), resolvedOn: progress.reachedOn }
+  }
   const progress = hitProgress(encounter, items, completionsByItem, today)
   if (boss.objective.guard && (progress.guardHits ?? 0) < boss.objective.guard.hits) {
     return { won: false }
@@ -1477,10 +1637,12 @@ function verdictOf(
  */
 export function planBossSync(input: BossSyncInput): BossSyncResult {
   const { today, items, completionsByItem } = input
+  const events = input.events ?? []
   const random = input.random ?? Math.random
   const changed = new Map<string, BossEncounter>()
   const records = new Map<string, BossEncounter>()
   const passiveActivationSources = new Set<string>()
+  const dailyPassiveActivations: SoulPassiveActivation[] = []
   for (const encounter of input.encounters) {
     const migrated = migrateEncounter(encounter)
     records.set(migrated.id, migrated)
@@ -1549,6 +1711,7 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
     leveledUp,
     passiveActivationSources: [...passiveActivationSources],
     passiveActivations,
+    dailyPassiveActivations,
   })
   if (profile.dead) return {
     encounters: input.encounters,
@@ -1557,10 +1720,47 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
     leveledUp: false,
     passiveActivationSources: [],
     passiveActivations: [],
+    dailyPassiveActivations: [],
   }
 
   const tick = tickCurses(profile.curses, profile.hp, today, eclipseMultiplierForDay)
   if (tick.changed) profile = { ...profile, curses: tick.curses, hp: tick.hp }
+  if (profile.runStartedAt) {
+    const healedDate = shiftKey(today, -1)
+    const sourceId = `hydra-dawn:${healedDate}`
+    const snapshot = input.daySnapshots?.find((candidate) =>
+      candidate.date === healedDate && candidate.runStartedAt === profile.runStartedAt,
+    )
+    const rank = soulPassiveRankOn(profile, 'hydra-scylla', healedDate, snapshot)
+    const alreadyGranted = (input.soulPassiveActivations ?? []).some((activation) =>
+      activation.runStartedAt === profile.runStartedAt
+      && activation.passiveId === 'hydraDawnHeal'
+      && activation.sourceId === sourceId,
+    )
+    const itemsById = new Map(items.map((item) => [item.id, item]))
+    const hadMiss = events.some((event) =>
+      event.kind === 'missed'
+      && eventDate(event, itemsById) === healedDate
+      && eventBelongsToRun(event, profile.runStartedAt),
+    )
+    if (rank && !alreadyGranted && !hadMiss) {
+      const activation = createSoulPassiveActivation({
+        profile,
+        soulId: 'hydra-scylla',
+        date: healedDate,
+        runStartedAt: profile.runStartedAt,
+        sourceId,
+        snapshot,
+      })
+      if (activation) {
+        profile = {
+          ...profile,
+          hp: Math.min(effectiveMaxHp(profile, today), profile.hp + hydraDawnHeal(rank)),
+        }
+        dailyPassiveActivations.push(activation)
+      }
+    }
+  }
 
   let current = latestEncounter([...records.values()])
   // Sin encuentros, o con el último ya resuelto y sin sucesor (p. ej. tras renacer), se programa otro.
@@ -1576,7 +1776,7 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
   for (let step = 0; step < 4 && current; step += 1) {
     if (isPending(current)) {
       if (today < current.scheduledFor) break
-      const chosen = reactiveBoss({ today, profile, items, completionsByItem, encounters: [...records.values()] })
+      const chosen = reactiveBoss({ today, profile, items, completionsByItem, encounters: [...records.values()], events })
         ?? current.bossId
       const boss = BOSSES[chosen]
       const goal = boss.objective.kind === 'lifeSteal'
@@ -1602,7 +1802,7 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
     if (current.status !== 'active') break
 
     const boss = BOSSES[current.bossId]
-    const verdict = verdictOf(current, items, completionsByItem, today)
+    const verdict = verdictOf(current, items, completionsByItem, events, today, profile.runStartedAt)
     let resolved: BossEncounter | null = null
     if (verdict.won) {
       const baseRewards = rollRewards(boss, profile.level, random)

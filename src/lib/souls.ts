@@ -29,6 +29,7 @@ const SOUL_NAMES: Partial<Record<SoulId, string>> = {
   death: 'Alma de Death',
   medusa: 'Alma de Medusa',
   cerberus: 'Alma de Cerbero',
+  'hydra-scylla': 'Alma de Hidra / Escila',
 }
 
 const SOUL_PASSIVES: Partial<Record<SoulId, SoulPassiveId>> = {
@@ -40,6 +41,7 @@ const SOUL_PASSIVES: Partial<Record<SoulId, SoulPassiveId>> = {
   death: 'secondChance',
   medusa: 'weeklyFreeze',
   cerberus: 'damageReduction',
+  'hydra-scylla': 'hydraDawnHeal',
 }
 
 const SOUL_EFFECTS: Partial<Record<SoulId, string>> = {
@@ -51,6 +53,7 @@ const SOUL_EFFECTS: Partial<Record<SoulId, string>> = {
   death: 'Segunda oportunidad: sobrevives a 1/2/3 golpes mortales por expedición con 1 PV según el rango.',
   medusa: 'Una congelación de racha gratis cada 7/5/3 días según el rango.',
   cerberus: 'Reduce el daño por fallo un 10/15/20 % según el rango.',
+  'hydra-scylla': 'Si ayer no hubo fallos, recuperas 2/4/6 PV al amanecer según el rango.',
 }
 
 export const SOULS: Partial<Record<SoulId, SoulDefinition>> = Object.fromEntries(
@@ -85,6 +88,10 @@ export function dailyPotionMultiplier(rank: SoulRank | 0): number {
 
 export function cerberusFailureDamageMultiplier(rank: SoulRank | 0): number {
   return rank === 0 ? 1 : 1 - ([0, 10, 15, 20][rank] / 100)
+}
+
+export function hydraDawnHeal(rank: SoulRank | 0): number {
+  return rank === 0 ? 0 : rank * 2
 }
 
 /** Devuelve el rango runtime de un Alma: solo existe mientras está equipada y obtenida. */

@@ -71,8 +71,11 @@ function RewardsShop() {
   const handleUseVitalityPotion = async () => {
     const ok = await consumeVitalityPotion()
     let failure = 'No puedes usar una poción ahora.'
-    if (hasCurse(profile, 'charm')) failure = 'Una maldición impide que la poción te cure.'
-    setMessage(ok ? 'La poción restaura tu vitalidad.' : failure)
+    const curesHydraPoison = hasCurse(profile, 'hydraPoison')
+    if (hasCurse(profile, 'charm') && !curesHydraPoison) failure = 'Una maldición impide que la poción te cure.'
+    setMessage(ok
+      ? curesHydraPoison ? 'La poción cura el Veneno de hidra y restaura tu vitalidad.' : 'La poción restaura tu vitalidad.'
+      : failure)
   }
 
   const handleBuyStreakFreeze = async () => {
@@ -186,7 +189,7 @@ function RewardsShop() {
             </button>
             <button
               type="button"
-              disabled={vitalityPotions <= 0 || hp >= maxHp}
+              disabled={vitalityPotions <= 0 || (hp >= maxHp && !hasCurse(profile, 'hydraPoison'))}
               onClick={() => void handleUseVitalityPotion()}
               className="cv-btn cv-btn--gold flex-1 px-1 py-1 text-sm"
             >

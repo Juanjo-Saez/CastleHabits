@@ -433,6 +433,31 @@ export const CERBERUS_PALETTE: Palette = {
   P: '#2a1638',
 }
 
+/** Hidra: tres cabezas serpenteantes emergen de un cuerpo enroscado. */
+export const HYDRA = [
+  '....OOO.....OOO.....OOO....',
+  '...OgggO...OgggO...OgggO...',
+  '...OgLLgO..OgLLgO..OgLLgO..',
+  '....OggO....OggO....OggO...',
+  '......OOO...OOO...OOO......',
+  '.....OgggOOOgggOOOgggO......',
+  '....OgggggggggggggggggO.....',
+  '...OggGGggggGGggggGGgggO....',
+  '...OggGGggggGGggggGGgggO....',
+  '....OgggggggggggggggggO.....',
+  '.....OOgggggggggggggOO.......',
+  '.......OOgggggggggOO..........',
+  '........OgggggggggO...........',
+  '........OOO.....OOO............',
+]
+
+export const HYDRA_PALETTE: Palette = {
+  O: '#071318',
+  g: '#356d5a',
+  G: '#68a77a',
+  L: '#f3e3a8',
+}
+
 export const DIAMOND = ['..G..', '.GLG.', 'GLRLG', '.GLG.', '..G..']
 
 export const ORNAMENT = [

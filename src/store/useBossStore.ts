@@ -4,11 +4,12 @@ import { todayKey } from '../lib/date'
 import { activeEncounter, planBossSync } from '../lib/bosses'
 import { modifyCoins, modifyXp, type ModifierContext } from '../lib/modifiers'
 import { reconcileSoulPassiveActivations } from '../lib/soulPassiveLedger'
-import type { BossEncounter, Completion, DeathStakePercent, Item } from '../types'
+import type { BossEncounter, Completion, DeathStakePercent, Item, ItemEvent } from '../types'
 import { mergeLevelUp, usePlayerStore } from './usePlayerStore'
 
 interface BossState {
   encounters: BossEncounter[]
+  events: ItemEvent[]
   loaded: boolean
   /** Avanza el ciclo del boss hasta hoy y aplica, una sola vez, recompensa o daño. */
   sync: () => Promise<void>
@@ -20,16 +21,17 @@ async function runSync(): Promise<void> {
     'rw',
     [
       db.profile, db.items, db.completions, db.bossEncounters, db.daySnapshots,
-      db.soulPassiveActivations,
+      db.itemEvents, db.soulPassiveActivations,
     ],
     async () => {
       const profile = await db.profile.get(1)
       if (!profile) return null
-      const [items, completions, encounters, daySnapshots, soulPassiveActivations] = await Promise.all([
+      const [items, completions, encounters, daySnapshots, events, soulPassiveActivations] = await Promise.all([
         db.items.toArray(),
         db.completions.toArray(),
         db.bossEncounters.toArray(),
         db.daySnapshots.toArray(),
+        db.itemEvents.toArray(),
         db.soulPassiveActivations.toArray(),
       ])
       const completionsByItem: Record<string, Completion[]> = {}
@@ -40,10 +42,14 @@ async function runSync(): Promise<void> {
         items,
         completionsByItem,
         encounters,
+        events,
         daySnapshots,
         soulPassiveActivations,
       })
       if (plan.changed.length > 0) await db.bossEncounters.bulkPut(plan.changed)
+      if (plan.dailyPassiveActivations.length > 0) {
+        await db.soulPassiveActivations.bulkPut(plan.dailyPassiveActivations)
+      }
       if (profile.runStartedAt) {
         await reconcileSoulPassiveActivations(
           profile.runStartedAt,
@@ -53,13 +59,13 @@ async function runSync(): Promise<void> {
       }
       const profileChanged = plan.profile !== profile
       if (profileChanged) await db.profile.put(plan.profile)
-      return { plan, profileChanged }
+      return { plan, profileChanged, events }
     },
   )
   if (!result) return
 
-  const { plan, profileChanged } = result
-  useBossStore.setState({ encounters: plan.encounters, loaded: true })
+  const { plan, profileChanged, events } = result
+  useBossStore.setState({ encounters: plan.encounters, events, loaded: true })
   if (profileChanged) {
     await usePlayerStore.getState().load()
     const after = usePlayerStore.getState().profile
@@ -74,6 +80,7 @@ let queue: Promise<void> = Promise.resolve()
 
 export const useBossStore = create<BossState>(() => ({
   encounters: [],
+  events: [],
   loaded: false,
   sync: () => {
     const next = queue.then(runSync, runSync)

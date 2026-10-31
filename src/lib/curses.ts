@@ -45,6 +45,10 @@ export const CURSES: Record<CurseId, CurseDefinition> = {
     id: 'poison', name: 'Veneno', severity: 'leve', drainPerDay: 1,
     description: 'Pierdes 1 de vida al día, sin llegar a morir.',
   },
+  hydraPoison: {
+    id: 'hydraPoison', name: 'Veneno de hidra', severity: 'leve', drainPerDay: 1,
+    description: 'Pierdes 1 de vida al día, sin llegar a morir. Una poción de vigor lo cura.',
+  },
   charm: {
     id: 'charm', name: 'Encanto', severity: 'leve', potionPercent: 0,
     description: 'Las pociones de vigor no curan.',

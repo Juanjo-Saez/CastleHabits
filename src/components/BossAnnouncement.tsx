@@ -20,9 +20,11 @@ function BossAnnouncement({
   onResultPendingChange?: (pending: boolean) => void
 }>) {
   const encounters = useBossStore((s) => s.encounters)
+  const bossEvents = useBossStore((s) => s.events)
   const items = useItemsStore((s) => s.items)
   const completionsByItem = useItemsStore((s) => s.completionsByItem)
   const dead = usePlayerStore((s) => s.profile?.dead ?? false)
+  const runStartedAt = usePlayerStore((s) => s.profile?.runStartedAt)
   const summaryOpen = useDailySummaryStore((s) => s.open)
   const [dismissed, setDismissed] = useState<string[]>([])
 
@@ -43,7 +45,7 @@ function BossAnnouncement({
   return (
     <BossDialog
       key={token}
-      summary={summarizeBoss(pending.encounter, items, completionsByItem, todayKey())}
+      summary={summarizeBoss(pending.encounter, items, completionsByItem, todayKey(), bossEvents, runStartedAt)}
       mode={pending.mode}
       onDeathStake={chooseDeathStake}
       onClose={() => {

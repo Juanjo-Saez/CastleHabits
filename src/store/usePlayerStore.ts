@@ -226,14 +226,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           db.bossEncounters.toArray(),
         ])
         const maxHp = current ? effectiveMaxHp(current) : 0
-        if (!current || current.dead || current.vitalityPotions <= 0 || current.hp >= maxHp) return
+        const curesHydraPoison = current?.curses?.some((curse) => curse.id === 'hydraPoison') ?? false
+        if (!current || current.dead || current.vitalityPotions <= 0
+          || (current.hp >= maxHp && !curesHydraPoison)) return
 
         const boss = activeEncounter(encounters)
         const recovery = potionRecovery(
           SYSTEM_RESOURCES.vitalityPotion.recovery, { boss, curses: current.curses }, date,
         )
         // Una maldición que anula la curación no gasta la poción ni consume la pasiva.
-        if (recovery <= 0) return
+        if (recovery <= 0 && !curesHydraPoison) return
 
         const rank = equippedSoulRank(current, 'succubus', date)
         const priorUses = rank > 0 && current.runStartedAt
@@ -242,12 +244,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
             .equals([current.runStartedAt, 'dailyPotion', date])
             .toArray()
           : []
-        const usePassive = rank > 0 && current.runStartedAt && priorUses.length === 0
+        const usePassive = recovery > 0 && rank > 0 && current.runStartedAt && priorUses.length === 0
         const finalRecovery = Math.floor(recovery * (usePassive ? dailyPotionMultiplier(rank) : 1))
         const next: PlayerProfile = {
           ...current,
           hp: Math.min(maxHp, current.hp + finalRecovery),
           vitalityPotions: current.vitalityPotions - 1,
+          ...(curesHydraPoison ? {
+            curses: removeCurse(current.curses, 'hydraPoison'),
+            penanceProgress: { ...(current.penanceProgress ?? {}), hydraPoison: 0 },
+          } : {}),
         }
         await db.profile.put(next)
 

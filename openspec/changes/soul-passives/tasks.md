@@ -31,6 +31,8 @@
       rango, antes de consumir congelaciones del inventario.
 - [x] Cerbero: reducción de daño por fallo del 10/15/20 % según rango, aplicada
       en liquidación y correcciones con el snapshot diario.
+- [x] Hidra / Escila: curación diaria de 2/4/6 PV según rango, cancelada por
+      cualquier fallo y registrada de forma idempotente.
 
 ## Persistencia y correcciones
 
@@ -46,5 +48,6 @@
 - [x] Tests del catálogo, equipamiento, rangos y entradas obsoletas.
 - [x] Tests unitarios de Death, Medusa y Cerbero por rango.
 - [x] Tests de idempotencia y corrección de ayer para Death, Medusa y Cerbero.
+- [x] Tests de curación por rango e interrupción por fallos protegidos de Hidra.
 - [ ] Validación visual del panel de Almas con descripciones reales.
 - [x] Ejecutar tests, TypeScript, build y lint dirigido a los archivos modificados.

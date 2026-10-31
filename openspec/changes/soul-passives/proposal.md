@@ -38,6 +38,7 @@ registros fuente para que reintentos y correcciones de ayer no dupliquen usos.
 | Death | Evita 1/2/3 impactos mortales por expedición según rango |
 | Medusa | Una congelación gratis cada 7/5/3 días según rango |
 | Cerbero | Reduce el daño por fallo un 10/15/20 % según rango |
+| Hidra / Escila | Cura 2/4/6 PV al amanecer si el día anterior cerró sin fallos |
 
 Los rangos superiores refuerzan cada pasiva según la sección de implementación
 de cada efecto. Frankenstein fija explícitamente la escala +20/+30/+40 %.
@@ -163,6 +164,14 @@ de cada efecto. Frankenstein fija explícitamente la escala +20/+30/+40 %.
   maldiciones y el eclipse, sin reemplazar sus multiplicadores.
 - Settlement y corrección de ayer usan la carga del día correspondiente; las
   correcciones históricas usan el loadout y el rango guardados en el snapshot.
+
+### Hidra / Escila
+
+- Cura **2/4/6 PV** al amanecer según el rango 1/2/3 si el día anterior cerró
+  sin eventos de fallo.
+- Un fallo protegido por escudo, congelación o pasiva también cancela la cura.
+- La fecha operativa, el loadout y el rango se leen del snapshot diario; un
+  registro idempotente evita volver a conceder la misma cura tras sincronizar.
 
 ## Fuera de alcance
 
