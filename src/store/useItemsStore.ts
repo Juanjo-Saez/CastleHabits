@@ -5,11 +5,15 @@ import { db } from '../db/database'
 import { logicalNow, todayKey } from '../lib/date'
 import { isCorrectionDay, saveDayCorrection, type DayCorrection } from '../lib/dayCorrections'
 import { DIFFICULTY_COINS, DIFFICULTY_XP } from '../lib/gamification'
-import { itemEventId, recordItemEvent } from '../lib/itemEvents'
+import { buildItemEvent, itemEventId, recordItemEvent } from '../lib/itemEvents'
 import { canPostpone } from '../lib/modifiers'
 import { completionInWindow, isItemDueOn, isObligation, marginDaysOf, scheduledDateFor } from '../lib/recurrence'
 import { xpWithBonus } from '../lib/routes'
-import { isFirstZoneCompletionOn } from '../lib/souls'
+import { isFirstZoneCompletionOn, equippedSoulRank } from '../lib/souls'
+import {
+  createSoulPassiveActivation,
+  soulPassiveCooldownReady,
+} from '../lib/soulPassiveLedger'
 import { useAchievementsStore } from './useAchievementsStore'
 import { coinsAfterModifiers, currentModifiers, useBossStore, xpAfterModifiers } from './useBossStore'
 import { usePlayerStore, mergeLevelUp } from './usePlayerStore'
@@ -349,31 +353,80 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
   },
 
   postponeItem: async (itemId) => {
-    const item = get().items.find((candidate) => candidate.id === itemId)
     const today = todayKey()
-    if (
-      !item ||
-      !isObligation(item) ||
-      get().completionsToday[itemId] ||
-      item.postponedUntil === today ||
-      marginDaysOf(item) > 1 ||
-      !isItemDueOn(item, logicalNow()) ||
-      !canPostpone(currentModifiers(), today)
-    ) return false
+    if (!canPostpone(currentModifiers(), today)) return false
 
-    const spent = await usePlayerStore.getState().spendPostponeToken()
-    if (!spent) return false
-
+    let updatedItem: Item | null = null
+    let updatedProfile: ReturnType<typeof usePlayerStore.getState>['profile'] = null
     const postponedUntil = format(addDays(logicalNow(), 1), 'yyyy-MM-dd')
-    await db.items.update(itemId, { postponedFrom: today, postponedUntil })
+    await db.transaction(
+      'rw',
+      [db.items, db.completions, db.profile, db.itemEvents, db.soulPassiveActivations],
+      async () => {
+        const [item, profile, history] = await Promise.all([
+          db.items.get(itemId),
+          db.profile.get(1),
+          db.completions.where('itemId').equals(itemId).toArray(),
+        ])
+        if (
+          !item ||
+          !profile ||
+          profile.dead ||
+          !isObligation(item) ||
+          completionInWindow(item, history, today) ||
+          item.postponedUntil === today ||
+          marginDaysOf(item) > 1 ||
+          !isItemDueOn(item, logicalNow())
+        ) return
+
+        const rank = equippedSoulRank(profile, 'slogra-gaibon', today)
+        const previousUses = profile.runStartedAt
+          ? await db.soulPassiveActivations
+            .where('runStartedAt')
+            .equals(profile.runStartedAt)
+            .filter((activation) => activation.passiveId === 'weeklyPostpone')
+            .toArray()
+          : []
+        const useFreePostpone = rank > 0
+          && profile.runStartedAt
+          && soulPassiveCooldownReady(previousUses, today)
+        if (!useFreePostpone && profile.postponeTokens <= 0) return
+
+        const eventId = itemEventId(item.id, today, 'postponed')
+        if (await db.itemEvents.get(eventId)) return
+
+        const nextItem = { ...item, postponedFrom: today, postponedUntil }
+        let nextProfile = profile
+        await db.items.put(nextItem)
+        if (useFreePostpone && profile.runStartedAt) {
+          const activation = createSoulPassiveActivation({
+            profile,
+            soulId: 'slogra-gaibon',
+            date: today,
+            runStartedAt: profile.runStartedAt,
+            sourceId: eventId,
+          })
+          if (!activation) throw new Error('No se pudo registrar la pasiva de Gaibon.')
+          await db.soulPassiveActivations.add(activation)
+        } else {
+          nextProfile = { ...profile, postponeTokens: profile.postponeTokens - 1 }
+          await db.profile.put(nextProfile)
+        }
+        await db.itemEvents.put(buildItemEvent(item, 'postponed', today, {
+          postponedUntil,
+          runStartedAt: profile.runStartedAt,
+        }, eventId))
+        updatedItem = nextItem
+        updatedProfile = nextProfile
+      },
+    )
+    const committedItem = updatedItem
+    if (!committedItem) return false
+
+    if (updatedProfile) usePlayerStore.setState({ profile: updatedProfile })
     useItemsStore.setState({
-      items: get().items.map((candidate) =>
-        candidate.id === itemId
-          ? { ...candidate, postponedFrom: today, postponedUntil }
-          : candidate,
-      ),
+      items: get().items.map((candidate) => candidate.id === itemId ? committedItem : candidate),
     })
-    await recordItemEvent(item, 'postponed', today, { postponedUntil })
     await useBossStore.getState().sync()
     return true
   },

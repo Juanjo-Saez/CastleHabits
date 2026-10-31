@@ -5,22 +5,13 @@ import type {
   PlayerProfile,
   SoulAward,
   SoulId,
+  SoulPassiveId,
   SoulProgress,
   SoulRank,
 } from '../types'
 import { isWindowCompleted } from './recurrence'
 
 export const MAX_SOUL_PITY = 20
-
-export type SoulPassiveId =
-  | 'dailyXp'
-  | 'dailyCoins'
-  | 'weeklyPostpone'
-  | 'trivialCoins'
-  | 'zoneXp'
-  | 'dailyPotion'
-  | 'secondChance'
-  | 'weeklyFreeze'
 
 export interface SoulDefinition {
   id: SoulId
@@ -83,6 +74,10 @@ export interface EquippedSoulPassive {
   id: SoulId
   passiveId: SoulPassiveId
   rank: SoulRank
+}
+
+export function dailyPotionMultiplier(rank: SoulRank | 0): number {
+  return rank === 0 ? 1 : rank + 1
 }
 
 /** Devuelve el rango runtime de un Alma: solo existe mientras está equipada y obtenida. */

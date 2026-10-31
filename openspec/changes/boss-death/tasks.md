@@ -13,7 +13,7 @@
 
 - [x] Añadir Hoz de Death con reducción permanente del 10 % de vida máxima.
 - [x] Conservar la maldición y su reducción al recalcular fechas e iniciar la aplicación.
-- [ ] Integrar la versión general de maldiciones graves en `boss-maldiciones-graves`.
+- [x] Integrar la versión general de maldiciones graves en `boss-maldiciones-graves`.
 
 ## Interfaz
 

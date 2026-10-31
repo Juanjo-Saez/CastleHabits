@@ -3,10 +3,12 @@ import { beforeEach, test } from 'node:test'
 import { addDays, format, parseISO } from 'date-fns'
 import {
   planDayCorrection,
+  reconcileDailySoulCorrection,
   CorrectionDeathError,
   groupCorrectionCandidates,
   isCorrectionDay,
 } from '../src/lib/dayCorrections.ts'
+import { reconcileDailySoulRewards } from '../src/lib/dailySoulRewards.ts'
 import { BOSSES } from '../src/lib/bosses.ts'
 import { computeMissedPenalties } from '../src/lib/penalties.ts'
 import { defaultRoutes } from '../src/lib/routes.ts'
@@ -73,6 +75,167 @@ test('registrar ayer devuelve daño y registra la actividad en ayer, no como rec
   assert.equal(next.events.filter((event) => event.kind === 'missed').length, 0)
   assert.equal(next.events[0].kind, 'completed')
   assert.equal(next.events[0].activityDate, yesterday)
+})
+
+test('revocar el bono de Murciélago deshace su cruce de nivel en perfil y snapshot', () => {
+  const state = fixture()
+  state.profile.level = 2
+  state.profile.xp = 5
+  state.profile.maxHp = 15
+  state.profile.hp = 15
+  const snapshot = {
+    date: yesterday,
+    runStartedAt: state.profile.runStartedAt,
+    level: 2,
+    xp: 5,
+    hp: 15,
+    maxHp: 15,
+  }
+  const original = completion('trigger', yesterday, {
+    xpEarned: 15,
+    dailySoulBonusXp: 10,
+  })
+  const corrected = completion('trigger', yesterday, { xpEarned: 5 })
+  const result = reconcileDailySoulCorrection({
+    profile: state.profile,
+    completions: [original],
+    events: [],
+    snapshot,
+    leveledUp: false,
+  }, state.profile, {
+    completions: [corrected],
+    activations: [],
+    xpBonus: 0,
+    coinsBonus: 0,
+  }, yesterday, [original])
+
+  assert.equal(result.profile.level, 1)
+  assert.equal(result.profile.xp, 70)
+  assert.equal(result.profile.maxHp, 10)
+  assert.equal(result.snapshot.level, 1)
+  assert.equal(result.snapshot.xp, 70)
+  assert.equal(result.snapshot.maxHp, 10)
+})
+
+test('desmarcar el propio cumplimiento activador retira su bono después del cálculo base', () => {
+  const state = fixture({ completions: [completion('clean', yesterday, {
+    xpEarned: 15,
+    dailySoulBonusXp: 10,
+  })] })
+  state.profile.level = 2
+  state.profile.xp = 5
+  state.profile.maxHp = 15
+  state.profile.hp = 15
+  state.profile.coins = 2
+  const snapshot = {
+    date: yesterday,
+    runStartedAt: state.profile.runStartedAt,
+    level: 2,
+    xp: 5,
+    hp: 15,
+    maxHp: 15,
+  }
+  const plan = planDayCorrection(
+    { itemId: 'clean', date: yesterday, quantity: 0 },
+    state.profile,
+    state.items,
+    state.completions,
+    state.events,
+    undefined,
+    snapshot,
+  )
+  const rewards = reconcileDailySoulRewards(
+    state.profile, state.items, plan.completions, yesterday, snapshot,
+  )
+  const result = reconcileDailySoulCorrection(
+    plan, state.profile, rewards, yesterday, state.completions,
+  )
+
+  assert.equal(result.profile.level, 1)
+  assert.equal(result.profile.xp, 65)
+  assert.equal(result.profile.maxHp, 10)
+  assert.equal(result.snapshot.level, 1)
+  assert.equal(result.snapshot.xp, 65)
+  assert.equal(result.snapshot.maxHp, 10)
+  assert.equal(result.completions.length, 0)
+})
+
+test('retirar la quinta recompensa de Slogra falla si sus monedas ya se gastaron', () => {
+  const state = fixture()
+  state.profile.coins = 0
+  const fourRemaining = Array.from({ length: 4 }, (_, index) =>
+    completion(`task-${index}`, yesterday, {
+      coinsEarned: index === 3 ? 12 : 2,
+      ...(index === 3 ? { dailySoulBonusCoins: 10 } : {}),
+    }),
+  )
+
+  assert.throws(() => reconcileDailySoulCorrection({
+    profile: { ...state.profile, coins: 0 },
+    completions: fourRemaining,
+    events: [],
+    leveledUp: false,
+  }, state.profile, {
+    completions: fourRemaining.map((entry) => ({
+      id: entry.id,
+      itemId: entry.itemId,
+      date: entry.date,
+      xpEarned: entry.xpEarned,
+      coinsEarned: entry.coinsEarned - (entry.dailySoulBonusCoins ?? 0),
+      createdAt: entry.createdAt,
+    })),
+    activations: [],
+    xpBonus: 0,
+    coinsBonus: 0,
+  }, yesterday, fourRemaining), /oro ya gastado/)
+})
+
+test('desmarcar el cumplimiento que llevaba el bono Slogra lo descuenta exactamente una vez', () => {
+  const items = [
+    activity({ id: 'clean' }),
+    ...Array.from({ length: 4 }, (_, index) => activity({ id: `task-${index}` })),
+  ]
+  const completions = [
+    ...items.slice(1).map((item, index) => completion(item.id, yesterday, {
+      createdAt: `${yesterday}T12:0${index}:00`,
+    })),
+    completion('clean', yesterday, {
+      coinsEarned: 12,
+      dailySoulBonusCoins: 10,
+      createdAt: `${yesterday}T12:10:00`,
+    }),
+  ]
+  const state = fixture({ items, completions })
+  state.profile.coins = 20
+  state.profile.souls = { 'slogra-gaibon': { rank: 2, fragments: 0 } }
+  const snapshot = {
+    date: yesterday,
+    runStartedAt: state.profile.runStartedAt,
+    level: state.profile.level,
+    xp: state.profile.xp,
+    hp: state.profile.hp,
+    maxHp: state.profile.maxHp,
+    soulLoadout: ['slogra-gaibon'],
+  }
+  const plan = planDayCorrection(
+    { itemId: 'clean', date: yesterday, quantity: 0 },
+    state.profile,
+    items,
+    completions,
+    state.events,
+    undefined,
+    snapshot,
+  )
+  const rewards = reconcileDailySoulRewards(
+    state.profile, items, plan.completions, yesterday, snapshot,
+  )
+  const result = reconcileDailySoulCorrection(
+    plan, state.profile, rewards, yesterday, completions,
+  )
+
+  assert.equal(result.profile.coins, 8)
+  assert.equal(result.completions.length, 4)
+  assert.equal(result.completions.reduce((total, entry) => total + entry.coinsEarned, 0), 8)
 })
 
 test('una corrección histórica usa el Alma de Frankenstein fijada para ese día y no el loadout actual', () => {

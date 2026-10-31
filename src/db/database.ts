@@ -12,6 +12,7 @@ import type {
   PlayerProfile,
   Reminder,
   Reward,
+  SoulPassiveActivation,
 } from '../types'
 
 const PLAYER_PROFILE_ID = 1
@@ -26,6 +27,7 @@ export class AppDatabase extends Dexie {
   reminders!: Table<Reminder, string>
   daySnapshots!: Table<DaySnapshot, string>
   bossEncounters!: Table<BossEncounter, string>
+  soulPassiveActivations!: Table<SoulPassiveActivation, string>
 
   constructor() {
     super('habitos-db')
@@ -113,6 +115,18 @@ export class AppDatabase extends Dexie {
           profile.penanceProgress ??= {}
         })
       })
+    this.version(8).stores({
+      items: 'id, type',
+      completions: 'id, itemId, date, [itemId+date]',
+      itemEvents: 'id, itemId, kind, scheduledDate, [itemId+scheduledDate+kind]',
+      profile: 'id',
+      achievements: 'id',
+      rewards: 'id',
+      reminders: 'id',
+      daySnapshots: 'date',
+      bossEncounters: 'id, bossId, status, scheduledFor',
+      soulPassiveActivations: 'id, date, runStartedAt, passiveId, soulId, [runStartedAt+passiveId+date]',
+    })
   }
 }
 

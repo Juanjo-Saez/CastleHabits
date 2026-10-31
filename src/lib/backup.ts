@@ -8,10 +8,11 @@ import type {
   PlayerProfile,
   Reminder,
   Reward,
+  SoulPassiveActivation,
 } from '../types'
 
 interface BackupData {
-  version: 1 | 2 | 3 | 4
+  version: 1 | 2 | 3 | 4 | 5
   exportedAt: string
   items: Item[]
   completions: Completion[]
@@ -21,10 +22,11 @@ interface BackupData {
   rewards: Reward[]
   reminders?: Reminder[]
   bossEncounters?: BossEncounter[]
+  soulPassiveActivations?: SoulPassiveActivation[]
 }
 
 export async function exportBackup(): Promise<void> {
-  const [items, completions, itemEvents, profile, achievements, rewards, reminders, bossEncounters] =
+  const [items, completions, itemEvents, profile, achievements, rewards, reminders, bossEncounters, soulPassiveActivations] =
     await Promise.all([
       db.items.toArray(),
       db.completions.toArray(),
@@ -34,10 +36,11 @@ export async function exportBackup(): Promise<void> {
       db.rewards.toArray(),
       db.reminders.toArray(),
       db.bossEncounters.toArray(),
+      db.soulPassiveActivations.toArray(),
     ])
 
   const data: BackupData = {
-    version: 4,
+    version: 5,
     exportedAt: new Date().toISOString(),
     items,
     completions,
@@ -47,6 +50,7 @@ export async function exportBackup(): Promise<void> {
     rewards,
     reminders,
     bossEncounters,
+    soulPassiveActivations,
   }
 
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -62,7 +66,7 @@ export async function exportBackup(): Promise<void> {
 export async function importBackup(file: File): Promise<void> {
   const text = await file.text()
   const data = JSON.parse(text) as BackupData
-  if (data.version !== 1 && data.version !== 2 && data.version !== 3 && data.version !== 4) {
+  if (data.version !== 1 && data.version !== 2 && data.version !== 3 && data.version !== 4 && data.version !== 5) {
     throw new Error('Versión de backup no soportada')
   }
 
@@ -71,6 +75,7 @@ export async function importBackup(file: File): Promise<void> {
   const itemEvents = data.itemEvents ?? []
   const reminders = data.reminders ?? []
   const bossEncounters = data.bossEncounters ?? []
+  const soulPassiveActivations = data.soulPassiveActivations ?? []
 
   await db.transaction(
     'rw',
@@ -84,6 +89,7 @@ export async function importBackup(file: File): Promise<void> {
       db.reminders,
       db.daySnapshots,
       db.bossEncounters,
+      db.soulPassiveActivations,
     ],
     async () => {
       // Los snapshots del resumen no viajan en el backup: se descartan los del estado anterior.
@@ -97,6 +103,7 @@ export async function importBackup(file: File): Promise<void> {
         db.reminders.clear(),
         db.daySnapshots.clear(),
         db.bossEncounters.clear(),
+        db.soulPassiveActivations.clear(),
       ])
       await Promise.all([
         db.items.bulkAdd(data.items),
@@ -107,6 +114,7 @@ export async function importBackup(file: File): Promise<void> {
         db.rewards.bulkAdd(data.rewards),
         db.reminders.bulkAdd(reminders),
         db.bossEncounters.bulkAdd(bossEncounters),
+        db.soulPassiveActivations.bulkAdd(soulPassiveActivations),
       ])
     },
   )

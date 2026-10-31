@@ -189,6 +189,15 @@ export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' |
 export type DeathStakePercent = 0 | 10 | 25
 export type SoulId = BossId
 export type SoulRank = 1 | 2 | 3
+export type SoulPassiveId =
+  | 'dailyXp'
+  | 'dailyCoins'
+  | 'weeklyPostpone'
+  | 'trivialCoins'
+  | 'zoneXp'
+  | 'dailyPotion'
+  | 'secondChance'
+  | 'weeklyFreeze'
 export type RelicId = 'rosary' | 'silverMirror' | 'heart' | 'ancientAmulet'
 
 export interface SoulProgress {
@@ -199,6 +208,16 @@ export interface SoulProgress {
 export interface DailySoulLoadout {
   date: string
   souls: SoulId[]
+}
+
+export interface SoulPassiveActivation {
+  id: string
+  soulId: SoulId
+  passiveId: SoulPassiveId
+  rank: SoulRank
+  date: string
+  runStartedAt: string
+  sourceId: string
 }
 
 export interface SoulAward {

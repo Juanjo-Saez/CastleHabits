@@ -27,13 +27,15 @@ Diseño de los siguientes encuentros tras el Murciélago gigante. Es un document
 | Siete maldiciones leves con sus modificadores (EXP, oro, pociones, aplazar y daño diario) | Hecho |
 | Curas: agua bendita y sacerdotisa (`30 + 10 × nivel`) en el Perfil | Hecho |
 | Boss Slogra y Gaibon (sprites, barras de vida, golpe visual en la tarjeta y en la tarea) | Hecho |
-| Selección: sorteo ponderado sin repetir el último y gancho para disparadores reactivos | Hecho; ningún boss implementado tiene disparador en el diseño |
+| Selección: sorteo ponderado sin repetir el último y gancho para disparadores reactivos | Hecho; Medusa tiene un disparador implementado y faltan disparadores específicos |
 | Bestiario: datos (`bestiaryOf`) | Hecho |
 | Bestiario: pantalla en el Perfil con desbloqueos por victorias | Hecho |
-| Almas, reliquias, élite, látigo y maldiciones graves | Pendiente; se implementa en `boss-almas-reliquias`, `boss-premios-elite` y `boss-maldiciones-graves` |
+| Almas, reliquias y maldiciones graves | Hecho en `boss-almas-reliquias` y `boss-maldiciones-graves` |
+| Élite, látigo, títulos y cosméticos | Pendiente en `boss-premios-elite` |
 | Succubus | Hecho en `boss-succubus` |
 | Death | Hecho en `boss-death` |
-| Resto de bosses (Medusa, Cerbero, Doppelgänger, Hidra, Drácula, Sukamon) | Pendiente; un change por boss |
+| Medusa | Hecho en `boss-medusa` |
+| Resto de bosses (Cerbero, Doppelgänger, Hidra/Escila, Drácula, Sukamon) | Pendiente; un change por boss |
 
 ### Modelo de datos
 
@@ -262,13 +264,12 @@ Las **reliquias no persisten**: se pierden al jubilarte o renacer, como el resto
 ## Cosméticos
 Títulos por hitos (1, 5, 20 victorias), marcos y auras del Cazador desde almas y élites, y la Corona de la noche.
 
-## Qué hay que cambiar en lo ya hecho
+## Estado de implementación
 
-- **Persistencia:** hoy `restartRun` borra todos los encuentros. El **bestiario** y las **almas** deben sobrevivir a jubilarse, así que al reiniciar solo se limpian el encuentro pendiente o activo; los resueltos se conservan. Las **reliquias** sí se reinician.
-- **Recompensa:** hoy el Murciélago da un único recurso al azar. Pasa a sorteo independiente por ítem con la tabla de arriba.
-- **Motor:** generalizar `BOSSES` con un tipo de objetivo (`days`, `hits`, `pool`, `pieces`, `heads`, `swarm`, `duel`, `clock`, `phases`), una lista de efectos y maldiciones, y una tabla de premios.
-- **Efectos:** el modificador de EXP actual (`bossXp`) pasa a una función general de modificadores que también cubra oro, daño por fallo, aplazamiento y curas.
-- **Datos nuevos:** tablas de almas (persistentes), maldiciones activas y reliquias (por expedición); el bestiario se calcula desde los encuentros resueltos.
+Las Fases 1–3 de esta propuesta están completas. Se retiró la lista original de
+cambios porque describía como pendientes comportamientos que ya se
+implementaron; el estado vigente está en la tabla superior y en los changes
+derivados de abajo.
 
 ## Decisiones tomadas
 
@@ -286,21 +287,21 @@ Títulos por hitos (1, 5, 20 victorias), marcos y auras del Cazador desde almas 
 
 ## Changes derivados
 
-Este documento es el diseño compartido. El trabajo pendiente se implementa en changes propios, en este orden:
+Este documento es el diseño compartido. Los changes derivados y su estado actual:
 
-1. **[boss-almas-reliquias](../boss-almas-reliquias/proposal.md)**: almas persistentes, piedad, reliquias y contador de piedad del bestiario. Va antes que los bosses que dan almas.
-2. **[boss-premios-elite](../boss-premios-elite/proposal.md)**: élite, látigo y títulos por hitos.
-3. **[boss-maldiciones-graves](../boss-maldiciones-graves/proposal.md)**: petrificación, amnesia, cadenas, penitencia y revancha.
-4. **Un change por boss**, cuando toque implementarlo. Orden sugerido:
-   - **[boss-legion](../boss-legion/proposal.md)**: hecho; da la bolsa de oro y usa la cáscara antes del núcleo.
-   - **[boss-frankenstein](../boss-frankenstein/proposal.md)**: hecho; piezas por zona, Relámpagos y Costuras.
-   - Succubus: robo de vida.
-   - Death: apuesta y segunda oportunidad; necesita almas y su Hoz.
-   - Medusa: necesita almas y Amnesia.
-   - Cerbero.
-   - Hidra/Escila.
-   - Doppelgänger: necesita almas.
-   - Sukamon: minijefe.
-   - Drácula: el último; necesita revancha, Marca, almas y élite.
+1. **[boss-almas-reliquias](../boss-almas-reliquias/proposal.md)**: almas persistentes, piedad, reliquias y contador de piedad del bestiario. Hecho.
+2. **[boss-premios-elite](../boss-premios-elite/proposal.md)**: élite, látigo y títulos por hitos. Pendiente.
+3. **[boss-maldiciones-graves](../boss-maldiciones-graves/proposal.md)**: petrificación, amnesia, cadenas, penitencia y revancha. Hecho.
+4. **Un change por boss**:
+   - [x] **[boss-legion](../boss-legion/proposal.md)**: bolsa de oro y cáscara antes del núcleo.
+   - [x] **[boss-frankenstein](../boss-frankenstein/proposal.md)**: piezas por zona, remiendos de Igor, Relámpagos y Costuras.
+   - [x] **[boss-succubus](../boss-succubus/proposal.md)**: robo de vida.
+   - [x] **[boss-death](../boss-death/proposal.md)**: apuesta y Hoz de Death.
+   - [x] **[boss-medusa](../boss-medusa/proposal.md)**: estatuas y Amnesia.
+   - [ ] Cerbero.
+   - [ ] Hidra/Escila.
+   - [ ] Doppelgänger.
+   - [ ] Sukamon: minijefe.
+   - [ ] Drácula: boss final.
 
 Este change queda cerrado con las Fases 1–3 completadas.

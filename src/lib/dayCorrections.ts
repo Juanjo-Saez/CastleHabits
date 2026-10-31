@@ -29,6 +29,13 @@ import {
 } from './recurrence'
 import { effectiveMaxHp, hasShield, recomputeRoute, ROUTE_IDS, xpWithBonus } from './routes'
 import { isFirstZoneCompletionOn } from './souls'
+import {
+  dailySoulBonusTotals,
+  reconcileDailySoulRewards,
+  type DailySoulBonusCompletion,
+  type DailySoulRewardResult,
+} from './dailySoulRewards'
+import { reconcileSoulPassiveActivations } from './soulPassiveLedger'
 import { eclipseMultiplierForDay } from './weather'
 
 export interface DayCorrection {
@@ -379,6 +386,79 @@ export function reconcileSnapshot(snapshot: DaySnapshot, xpDelta: number, damage
   return { ...snapshot, ...next, maxHp, hp: Math.max(0, Math.min(maxHp, health - damageDelta)) }
 }
 
+function reconcileSnapshotDailyBonus(snapshot: DaySnapshot, xpDelta: number): DaySnapshot {
+  if (xpDelta >= 0) return reconcileSnapshot(snapshot, xpDelta, 0)
+  const next = rewindXp(snapshot.level, snapshot.xp, -xpDelta)
+  const levelsLost = snapshot.level - next.level
+  const maxHp = Math.max(1, snapshot.maxHp - levelsLost * HP_PER_LEVEL)
+  return { ...snapshot, ...next, maxHp, hp: Math.min(snapshot.hp, maxHp) }
+}
+
+/** Applies a day's recalculated soul rewards to its correction plan without retaining stale awards. */
+export function reconcileDailySoulCorrection(
+  plan: CorrectionPlan,
+  profile: PlayerProfile,
+  rewards: DailySoulRewardResult,
+  date: string,
+  previousCompletions: Completion[],
+): CorrectionPlan {
+  const previousBonus = dailySoulBonusTotals(previousCompletions, date)
+  const xpDelta = rewards.xpBonus - previousBonus.xp
+  const coinsDelta = rewards.coinsBonus - previousBonus.coins
+  let nextProfile = plan.profile
+  if (xpDelta > 0) {
+    const nextXp = addXp(nextProfile.level, nextProfile.xp, xpDelta)
+    const levelsGained = nextXp.level - nextProfile.level
+    if (levelsGained > 0) {
+      const maxHp = nextProfile.maxHp + levelsGained * HP_PER_LEVEL
+      nextProfile = {
+        ...nextProfile,
+        ...nextXp,
+        maxHp,
+        hp: Math.min(maxHp, nextProfile.hp + levelUpRecovery(maxHp)),
+      }
+    } else {
+      nextProfile = { ...nextProfile, ...nextXp }
+    }
+  } else if (xpDelta < 0) {
+    const rewound = rewindXp(nextProfile.level, nextProfile.xp, -xpDelta)
+    const levelsLost = nextProfile.level - rewound.level
+    const maxHp = Math.max(1, nextProfile.maxHp - levelsLost * HP_PER_LEVEL)
+    nextProfile = {
+      ...nextProfile,
+      ...rewound,
+      maxHp,
+      hp: Math.min(nextProfile.hp, maxHp),
+    }
+  }
+  nextProfile = { ...nextProfile, coins: nextProfile.coins + coinsDelta }
+  if (nextProfile.coins < 0) {
+    throw new Error(`No puedes retirar oro ya gastado. Necesitas ${-nextProfile.coins} de oro más para guardar esta corrección.`)
+  }
+
+  const updatedEvents = plan.events.map((event) => {
+    if ((event.kind !== 'completed' && event.kind !== 'lateRecovery')
+      || (event.activityDate ?? activityDateKey(event.occurredAt)) !== date) return event
+    const completion = rewards.completions.find((entry) =>
+      entry.itemId === event.itemId && entry.date === date,
+    )
+    return completion
+      ? { ...event, xpEarned: completion.xpEarned, coinsEarned: completion.coinsEarned }
+      : event
+  })
+  const nextSnapshot = plan.snapshot
+    ? reconcileSnapshotDailyBonus(plan.snapshot, xpDelta)
+    : undefined
+  return {
+    ...plan,
+    profile: nextProfile,
+    completions: rewards.completions,
+    events: updatedEvents,
+    snapshot: nextSnapshot,
+    leveledUp: nextProfile.level > profile.level,
+  }
+}
+
 /** Cálculo puro: toda validación ocurre antes de escribir ninguno de los cambios. */
 export function planDayCorrection(
   input: DayCorrection,
@@ -439,13 +519,19 @@ export function planDayCorrection(
     soulDate: correctionSoulLoadout ? input.date : undefined,
     soulFirstZone: complete && isFirstZoneCompletionOn(item, items, history, input.date),
   }
+  const existingBaseXp = existing
+    ? existing.xpEarned - ((existing as DailySoulBonusCompletion).dailySoulBonusXp ?? 0)
+    : 0
+  const existingBaseCoins = existing
+    ? existing.coinsEarned - ((existing as DailySoulBonusCompletion).dailySoulBonusCoins ?? 0)
+    : 0
   const xp = complete
-    ? (existing?.xpEarned || modifyXp(xpWithBonus(DIFFICULTY_XP[item.difficulty], profile), modifiers, input.date))
+    ? (existingBaseXp || modifyXp(xpWithBonus(DIFFICULTY_XP[item.difficulty], profile), modifiers, input.date))
     : 0
   const coins = complete
-    ? (existing?.coinsEarned || modifyCoins(DIFFICULTY_COINS[item.difficulty], modifiers, input.date))
+    ? (existingBaseCoins || modifyCoins(DIFFICULTY_COINS[item.difficulty], modifiers, input.date))
     : 0
-  const coinDelta = coins - (existing?.coinsEarned ?? 0)
+  const coinDelta = coins - existingBaseCoins
   if (profile.coins + coinDelta < 0) {
     throw new Error(`No puedes retirar oro ya gastado. Necesitas ${-(profile.coins + coinDelta)} de oro más para guardar esta corrección.`)
   }
@@ -476,7 +562,7 @@ export function planDayCorrection(
   }, `${itemEventId(item.id, scheduledDate, kind)}:${profile.runStartedAt}`))
 
   let nextProfile = { ...profile, coins: profile.coins + coinDelta }
-  let xpRemaining = Math.max(0, profile.xp + xp - (existing?.xpEarned ?? 0))
+  let xpRemaining = Math.max(0, profile.xp + xp - existingBaseXp)
   let level = profile.level
   let maxHp = profile.maxHp
   while (xpRemaining >= xpToNextLevel(level)) {
@@ -536,7 +622,7 @@ export function planDayCorrection(
     ? { ...currentItem, postponedFrom: undefined, postponedUntil: undefined }
     : undefined
   const nextSnapshot = snapshot?.date === input.date && snapshot.runStartedAt === profile.runStartedAt
-    ? reconcileSnapshot(snapshot, xp - (existing?.xpEarned ?? 0), damageDelta)
+    ? reconcileSnapshot(snapshot, xp - existingBaseXp, damageDelta)
     : undefined
   return {
     profile: nextProfile, completions: nextCompletions, events: nextEvents, leveledUp, itemUpdate,
@@ -546,7 +632,10 @@ export function planDayCorrection(
 
 export async function saveDayCorrection(input: DayCorrection, confirmedDamage?: number): Promise<CorrectionPlan> {
   await settleDayPenalties()
-  return db.transaction('rw', [db.items, db.profile, db.completions, db.itemEvents, db.daySnapshots, db.bossEncounters], async () => {
+  return db.transaction('rw', [
+    db.items, db.profile, db.completions, db.itemEvents, db.daySnapshots, db.bossEncounters,
+    db.soulPassiveActivations,
+  ], async () => {
     const profile = await db.profile.get(1)
     if (!profile) throw new Error('No se ha encontrado el perfil del jugador.')
     const items = await db.items.toArray()
@@ -554,7 +643,27 @@ export async function saveDayCorrection(input: DayCorrection, confirmedDamage?: 
     const events = await db.itemEvents.toArray()
     const snapshot = await db.daySnapshots.get(input.date)
     const boss = activeEncounter(await db.bossEncounters.toArray())
-    const plan = planDayCorrection(input, profile, items, completions, events, confirmedDamage, snapshot, boss)
+    const initialPlan = planDayCorrection(input, profile, items, completions, events, confirmedDamage, snapshot, boss)
+    let plan = initialPlan
+    if (initialPlan.completions !== completions) {
+      const reconciledRewards = reconcileDailySoulRewards(
+        profile,
+        items,
+        initialPlan.completions,
+        input.date,
+        snapshot,
+      )
+      plan = reconcileDailySoulCorrection(initialPlan, profile, reconciledRewards, input.date, completions)
+
+      const sourceIds = [...new Set([
+        ...completions.filter((completion) => completion.date === input.date).map((completion) => completion.id),
+        ...plan.completions.filter((completion) => completion.date === input.date).map((completion) => completion.id),
+      ])]
+      const expected = reconciledRewards.activations.filter((activation) =>
+        sourceIds.includes(activation.sourceId),
+      )
+      await reconcileSoulPassiveActivations(profile.runStartedAt!, sourceIds, expected)
+    }
     const completionIds = new Set(plan.completions.map((completion) => completion.id))
     const eventIds = new Set(plan.events.map((event) => event.id))
     const originalCompletions = new Set(completions)

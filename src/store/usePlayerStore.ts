@@ -8,7 +8,8 @@ import { canPurchaseAncientAmulet } from '../lib/relics'
 import { potionRecovery } from '../lib/modifiers'
 import { HP_PER_LEVEL, levelUpRecovery, xpToNextLevel } from '../lib/gamification'
 import { defaultRoutes, effectiveMaxHp, evaluateRoute, ROUTE_IDS, ROUTES } from '../lib/routes'
-import { soulSlotsForLevel } from '../lib/souls'
+import { dailyPotionMultiplier, equippedSoulRank, soulSlotsForLevel } from '../lib/souls'
+import { createSoulPassiveActivation } from '../lib/soulPassiveLedger'
 import { eclipseMultiplierForDay } from '../lib/weather'
 import type { Completion, CurseId, Item, LevelUpInfo, PlayerProfile, RouteId, SoulId } from '../types'
 
@@ -214,23 +215,57 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   consumeVitalityPotion: async () => {
-    const current = get().profile
-    const maxHp = current ? effectiveMaxHp(current) : 0
-    if (!current || current.dead || current.vitalityPotions <= 0 || current.hp >= maxHp) return false
+    const date = todayKey()
+    let updated: PlayerProfile | null = null
+    await db.transaction(
+      'rw',
+      [db.profile, db.bossEncounters, db.soulPassiveActivations],
+      async () => {
+        const [current, encounters] = await Promise.all([
+          db.profile.get(1),
+          db.bossEncounters.toArray(),
+        ])
+        const maxHp = current ? effectiveMaxHp(current) : 0
+        if (!current || current.dead || current.vitalityPotions <= 0 || current.hp >= maxHp) return
 
-    const boss = activeEncounter(await db.bossEncounters.toArray())
-    const recovery = potionRecovery(
-      SYSTEM_RESOURCES.vitalityPotion.recovery, { boss, curses: current.curses }, todayKey(),
+        const boss = activeEncounter(encounters)
+        const recovery = potionRecovery(
+          SYSTEM_RESOURCES.vitalityPotion.recovery, { boss, curses: current.curses }, date,
+        )
+        // Una maldición que anula la curación no gasta la poción ni consume la pasiva.
+        if (recovery <= 0) return
+
+        const rank = equippedSoulRank(current, 'succubus', date)
+        const priorUses = rank > 0 && current.runStartedAt
+          ? await db.soulPassiveActivations
+            .where('[runStartedAt+passiveId+date]')
+            .equals([current.runStartedAt, 'dailyPotion', date])
+            .toArray()
+          : []
+        const usePassive = rank > 0 && current.runStartedAt && priorUses.length === 0
+        const finalRecovery = Math.floor(recovery * (usePassive ? dailyPotionMultiplier(rank) : 1))
+        const next: PlayerProfile = {
+          ...current,
+          hp: Math.min(maxHp, current.hp + finalRecovery),
+          vitalityPotions: current.vitalityPotions - 1,
+        }
+        await db.profile.put(next)
+
+        if (usePassive && current.runStartedAt) {
+          const activation = createSoulPassiveActivation({
+            profile: current,
+            soulId: 'succubus',
+            date,
+            runStartedAt: current.runStartedAt,
+            sourceId: `potion:${date}`,
+          })
+          if (!activation) throw new Error('No se pudo registrar la pasiva de Succubus.')
+          await db.soulPassiveActivations.add(activation)
+        }
+        updated = next
+      },
     )
-    // Una maldición que anula la curación no gasta la poción.
-    if (recovery <= 0) return false
-
-    const updated: PlayerProfile = {
-      ...current,
-      hp: Math.min(maxHp, current.hp + recovery),
-      vitalityPotions: current.vitalityPotions - 1,
-    }
-    await db.profile.put(updated)
+    if (!updated) return false
     set({ profile: updated })
     return true
   },

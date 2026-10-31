@@ -52,11 +52,11 @@
 
 Lo que queda se reparte en changes propios, listados en [proposal.md](./proposal.md#changes-derivados):
 
-- [ ] `boss-almas-reliquias`: almas, piedad, reliquias y contador de piedad del bestiario.
+- [x] `boss-almas-reliquias`: almas, piedad, reliquias y contador de piedad del bestiario.
 - [ ] `boss-premios-elite`: élite, látigo y títulos.
-- [ ] `boss-maldiciones-graves`: petrificación, amnesia, cadenas, penitencia y revancha.
+- [x] `boss-maldiciones-graves`: petrificación, amnesia, cadenas, penitencia y revancha.
 - [x] [boss-legion](../boss-legion/tasks.md): cáscara, núcleo, bolsa de oro y daño por fallo ×1,5.
 - [x] [boss-frankenstein](../boss-frankenstein/tasks.md): piezas por zona, remiendos de Igor, Relámpagos y Costuras.
 - [x] [boss-succubus](../boss-succubus/tasks.md): robo inicial de vida, recuperación por tareas, Niebla de rosas y Encanto.
 - [x] [boss-death](../boss-death/tasks.md): hoces por incumplimientos, apuesta, Cielo sin luna y Hoz de Death.
-- [ ] Un change por boss pendiente, en el orden del proposal: Medusa, Cerbero, Hidra/Escila, Doppelgänger, Sukamon y Drácula.
+- [ ] Un change por boss pendiente, en el orden del proposal: Cerbero, Hidra/Escila, Doppelgänger, Sukamon y Drácula.

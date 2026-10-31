@@ -33,7 +33,11 @@ Las tareas son independientes. Se quieren metas de largo plazo agrupadas por tem
 - El descuento de tienda redondea a favor del jugador (hacia abajo) con un mínimo de 1 moneda.
 - El escudo se recarga 15 días después del fallo que absorbió y actúa antes que las congelaciones de racha.
 
-## Pendiente de definir
+## Posibles seguimientos (fuera del change original)
+
+La base descrita en este change está implementada. Si se retoman estos temas,
+deben diseñarse en un nuevo OpenSpec y priorizarse en
+[Todo.md](../../../Todo.md):
 
 - Recompensas extra (monedas/EXP) al completar un tramo.
 - Qué hacer cuando una ruta llega al nivel 5 (por ejemplo, tramos de mantenimiento).
