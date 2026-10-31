@@ -774,38 +774,62 @@ select.cv-input {
 }
 
 .cv-moon {
-  border-radius: 9999px;
-  background:
-    radial-gradient(circle at 62% 38%, rgb(0 0 0 / 0.08) 0 9%, transparent 10%),
-    radial-gradient(circle at 38% 64%, rgb(0 0 0 / 0.07) 0 12%, transparent 13%),
-    radial-gradient(circle at 70% 70%, rgb(0 0 0 / 0.06) 0 6%, transparent 7%),
-    radial-gradient(circle at 35% 32%, #fffbea 0%, #ece5c6 55%, #b9ae84 100%);
-  box-shadow:
-    0 0 40px 10px rgb(236 229 198 / 0.22),
-    0 0 120px 40px rgb(236 229 198 / 0.08);
-  transition:
-    background 2s,
-    box-shadow 2s;
+  display: block;
+  overflow: visible;
+  image-rendering: pixelated;
+  --moon-outline: #463b33;
+  --moon-surface: #d8cba7;
+  --moon-shade: #aa9b76;
+  --moon-crater: #847453;
+  --moon-highlight: #f5eac9;
+  --moon-engraving: #625339;
+  --moon-glow: rgb(230 214 169 / 0.2);
+  filter: drop-shadow(0 0 5px var(--moon-glow));
+  transition: filter 700ms ease;
+}
+
+.cv-moon__outline {
+  fill: var(--moon-outline);
+}
+
+.cv-moon__surface {
+  fill: var(--moon-surface);
+}
+
+.cv-moon__shade {
+  fill: var(--moon-shade);
+}
+
+.cv-moon__crater {
+  fill: var(--moon-crater);
+}
+
+.cv-moon__highlight {
+  fill: var(--moon-highlight);
+}
+
+.cv-moon__engraving {
+  fill: var(--moon-engraving);
 }
 
 .cv-moon--blood {
-  background:
-    radial-gradient(circle at 62% 38%, rgb(0 0 0 / 0.15) 0 9%, transparent 10%),
-    radial-gradient(circle at 38% 64%, rgb(0 0 0 / 0.12) 0 12%, transparent 13%),
-    radial-gradient(circle at 35% 32%, #ffb0a0 0%, #c0283a 55%, #5a0a14 100%);
-  box-shadow:
-    0 0 40px 10px rgb(216 40 63 / 0.3),
-    0 0 120px 40px rgb(216 40 63 / 0.12);
+  --moon-outline: #43121d;
+  --moon-surface: #bd3446;
+  --moon-shade: #771f32;
+  --moon-crater: #521926;
+  --moon-highlight: #f39b87;
+  --moon-engraving: #591624;
+  --moon-glow: rgb(181 42 57 / 0.28);
 }
 
 .cv-moon--eclipse {
-  background:
-    radial-gradient(circle at 62% 38%, rgb(255 235 220 / 0.08) 0 9%, transparent 10%),
-    radial-gradient(circle at 38% 64%, rgb(255 235 220 / 0.07) 0 12%, transparent 13%),
-    radial-gradient(circle at 35% 32%, #766782 0%, #2d243e 58%, #110d1d 100%);
-  box-shadow:
-    0 0 26px 8px rgb(120 91 147 / 0.22),
-    0 0 100px 34px rgb(77 53 101 / 0.12);
+  --moon-outline: #291f39;
+  --moon-surface: #564565;
+  --moon-shade: #34283f;
+  --moon-crater: #211927;
+  --moon-highlight: #a895be;
+  --moon-engraving: #d2ae6c;
+  --moon-glow: rgb(101 66 137 / 0.24);
 }
 
 .cv-fog {

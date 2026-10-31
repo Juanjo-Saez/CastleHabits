@@ -3,10 +3,12 @@ import { activeEncounter } from '../lib/bosses'
 import { todayKey } from '../lib/date'
 import { BAT_A, BAT_B, BAT_PALETTE } from '../lib/pixelArt'
 import { effectiveMaxHp } from '../lib/routes'
+import { moonAppearance } from '../lib/moon'
 import { weatherForDay } from '../lib/weather'
 import { useBossStore } from '../store/useBossStore'
 import { usePlayerStore } from '../store/usePlayerStore'
 import CastleSilhouette from './CastleSilhouette'
+import Moon from './Moon'
 import PixelArt from './PixelArt'
 
 const BATS = [
@@ -22,7 +24,7 @@ function Backdrop() {
   const hpRatio = usePlayerStore((s) =>
     s.profile ? s.profile.hp / effectiveMaxHp(s.profile) : 1,
   )
-  const bloodMoon = hpRatio < 0.3 || bossActive
+  const appearance = moonAppearance(hpRatio, bossActive, dailyWeather)
 
   return (
     <div
@@ -34,10 +36,9 @@ function Backdrop() {
       <div className="cv-cloud-layer absolute inset-0" />
       {/* La luna se ancla a la columna de la app para que el boss del Castillo coincida con ella. */}
       <div className="absolute inset-0 mx-auto max-w-md">
-        <div
-          className={`cv-moon cv-moon-spot cv-backdrop-moon absolute h-28 w-28 ${
-            bloodMoon ? 'cv-moon--blood' : dailyWeather === 'eclipse' ? 'cv-moon--eclipse' : ''
-          }`}
+        <Moon
+          appearance={appearance}
+          className="cv-moon-spot cv-backdrop-moon absolute h-[72px] w-[72px]"
         />
       </div>
 

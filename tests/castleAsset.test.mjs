@@ -23,26 +23,37 @@ test('la escena completa está optimizada y conserva las dimensiones de referenc
 test('la escena completa es decorativa y conserva la luna y el clima como capas independientes', () => {
   const component = readFileSync(join(root, 'src', 'components', 'CastleSilhouette.tsx'), 'utf8')
   const backdrop = readFileSync(join(root, 'src', 'components', 'Backdrop.tsx'), 'utf8')
+  const moon = readFileSync(join(root, 'src', 'components', 'Moon.tsx'), 'utf8')
+  const bossSky = readFileSync(join(root, 'src', 'components', 'BossSky.tsx'), 'utf8')
   const styles = readFileSync(join(root, 'src', 'index.css'), 'utf8')
 
   assert.match(component, /castle-scene\.webp/)
   assert.match(component, /aria-hidden/)
   assert.match(backdrop, /<CastleSilhouette className="absolute inset-0 z-0"/)
+  assert.match(backdrop, /<Moon/)
+  assert.match(backdrop, /h-\[72px\] w-\[72px\]/)
   assert.match(backdrop, /cv-cloud-layer/)
-  assert.match(backdrop, /cv-moon/)
   assert.match(backdrop, /cv-rain-layer/)
   assert.match(backdrop, /cv-weather-haze/)
+  assert.match(moon, /viewBox="0 0 24 24"/)
+  assert.match(moon, /shapeRendering="crispEdges"/)
+  assert.match(moon, /aria-hidden="true"/)
+  assert.match(bossSky, /h-\[72px\] w-\[72px\]/)
   assert.match(styles, /object-fit:\s*cover/)
   assert.match(styles, /object-position:\s*55% center/)
+  assert.match(styles, /\.cv-moon__engraving/)
+  assert.doesNotMatch(styles, /0 0 120px/)
 })
 
-test('el encabezado del diálogo usa la composición sin cubrir su luna independiente', () => {
+test('el encabezado del diálogo reutiliza la luna pixel-art sobre la composición', () => {
   const dialog = readFileSync(join(root, 'src', 'components', 'BossDialog.tsx'), 'utf8')
   const sceneIndex = dialog.indexOf('<CastleSilhouette className="absolute inset-0 opacity-95"')
-  const moonIndex = dialog.indexOf('<div className="cv-moon', sceneIndex)
+  const moonIndex = dialog.indexOf('<Moon', sceneIndex)
 
   assert.ok(sceneIndex >= 0)
   assert.ok(moonIndex > sceneIndex)
+  assert.match(dialog, /h-16 w-16 -translate-x-1\/2/)
+  assert.match(dialog, /appearance={appearance}/)
 })
 
 test('las referencias se conservan fuera de la carpeta pública', () => {

@@ -19,11 +19,16 @@ import {
   HEART,
   HEART_PALETTE,
 } from '../lib/pixelArt'
+import { todayKey } from '../lib/date'
+import { moonAppearance } from '../lib/moon'
+import { effectiveMaxHp } from '../lib/routes'
+import { weatherForDay } from '../lib/weather'
 import { usePlayerStore } from '../store/usePlayerStore'
 import type { BossResource, DeathStakePercent } from '../types'
 import BossSprite from './BossSprite'
 import Candle from './Candle'
 import CastleSilhouette from './CastleSilhouette'
+import Moon from './Moon'
 import Ornament from './Ornament'
 import PixelArt from './PixelArt'
 
@@ -113,8 +118,12 @@ function BossDialog({
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [stakePending, setStakePending] = useState(false)
   const level = usePlayerStore((s) => s.profile?.level ?? 1)
+  const hpRatio = usePlayerStore((s) =>
+    s.profile ? s.profile.hp / effectiveMaxHp(s.profile) : 1,
+  )
   const { definition, encounter, completedDates, target, today, kind, bars, damage, goal, statuesBroken, statuesMissed } = summary
   const active = encounter.status === 'active'
+  const appearance = moonAppearance(hpRatio, active, weatherForDay(todayKey()))
   const notice = headline(summary, mode)
   const multiplier = rewardMultiplier(level)
   const objective = definition.objective
@@ -137,7 +146,10 @@ function BossDialog({
       <section className={`cv-panel ${active ? 'cv-panel--blood' : 'cv-panel--gold'} max-h-[92dvh] overflow-y-auto p-0`}>
         <div className="cv-sky relative h-52 overflow-hidden border-b-2 border-gold-600/60">
           <CastleSilhouette className="absolute inset-0 opacity-95" />
-          <div className="cv-moon absolute top-5 left-1/2 h-24 w-24 -translate-x-1/2" />
+          <Moon
+            appearance={appearance}
+            className="absolute top-5 left-1/2 h-16 w-16 -translate-x-1/2"
+          />
           <div className="absolute inset-0 flex items-center justify-center pb-4">
             <BossSprite bossId={definition.id} scale={definition.id === 'giant-bat' ? 4 : 3} className="cv-boss-float" />
           </div>
