@@ -31,17 +31,19 @@ test('la escena completa es decorativa y conserva la luna y el clima como capas 
   assert.match(component, /aria-hidden/)
   assert.match(backdrop, /<CastleSilhouette className="absolute inset-0 z-0"/)
   assert.match(backdrop, /<Moon/)
-  assert.match(backdrop, /h-\[72px\] w-\[72px\]/)
+  assert.match(backdrop, /h-20 w-20/)
   assert.match(backdrop, /cv-cloud-layer/)
   assert.match(backdrop, /cv-rain-layer/)
   assert.match(backdrop, /cv-weather-haze/)
-  assert.match(moon, /viewBox="0 0 24 24"/)
-  assert.match(moon, /shapeRendering="crispEdges"/)
+  assert.match(moon, /from '..\/assets\/moon\.png'/)
+  assert.ok(moon.includes('width={320}'))
   assert.match(moon, /aria-hidden="true"/)
-  assert.match(bossSky, /h-\[72px\] w-\[72px\]/)
+  assert.match(bossSky, /h-20 w-20/)
+  assert.match(styles, /image-rendering:\s*pixelated/)
   assert.match(styles, /object-fit:\s*cover/)
   assert.match(styles, /object-position:\s*55% center/)
-  assert.match(styles, /\.cv-moon__engraving/)
+  assert.match(styles, /\.cv-moon--blood/)
+  assert.match(styles, /\.cv-moon--eclipse/)
   assert.doesNotMatch(styles, /0 0 120px/)
 })
 
@@ -52,12 +54,12 @@ test('el encabezado del diálogo reutiliza la luna pixel-art sobre la composici�
 
   assert.ok(sceneIndex >= 0)
   assert.ok(moonIndex > sceneIndex)
-  assert.match(dialog, /h-16 w-16 -translate-x-1\/2/)
+  assert.match(dialog, /h-\[72px\] w-\[72px\] -translate-x-1\/2/)
   assert.match(dialog, /appearance={appearance}/)
 })
 
 test('las referencias se conservan fuera de la carpeta pública', () => {
-  for (const name of ['castle-reference.png', 'castle-scene-reference.png', 'loading-reference.png']) {
+  for (const name of ['castle-reference.png', 'castle-scene-reference.png', 'loading-reference.png', 'moon-reference.png']) {
     assert.ok(existsSync(join(root, 'art', 'references', name)), name)
   }
   const published = readdirSync(join(root, 'public'), { recursive: true }).map(String)

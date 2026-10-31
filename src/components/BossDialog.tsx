@@ -148,7 +148,7 @@ function BossDialog({
           <CastleSilhouette className="absolute inset-0 opacity-95" />
           <Moon
             appearance={appearance}
-            className="absolute top-5 left-1/2 h-16 w-16 -translate-x-1/2"
+            className="absolute top-5 left-1/2 h-[72px] w-[72px] -translate-x-1/2"
           />
           <div className="absolute inset-0 flex items-center justify-center pb-4">
             <BossSprite bossId={definition.id} scale={definition.id === 'giant-bat' ? 4 : 3} className="cv-boss-float" />

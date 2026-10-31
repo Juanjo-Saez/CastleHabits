@@ -38,7 +38,7 @@ function Backdrop() {
       <div className="absolute inset-0 mx-auto max-w-md">
         <Moon
           appearance={appearance}
-          className="cv-moon-spot cv-backdrop-moon absolute h-[72px] w-[72px]"
+          className="cv-moon-spot cv-backdrop-moon absolute h-20 w-20"
         />
       </div>
 

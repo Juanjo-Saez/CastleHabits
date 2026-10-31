@@ -775,61 +775,26 @@ select.cv-input {
 
 .cv-moon {
   display: block;
-  overflow: visible;
+  object-fit: contain;
   image-rendering: pixelated;
-  --moon-outline: #463b33;
-  --moon-surface: #d8cba7;
-  --moon-shade: #aa9b76;
-  --moon-crater: #847453;
-  --moon-highlight: #f5eac9;
-  --moon-engraving: #625339;
-  --moon-glow: rgb(230 214 169 / 0.2);
-  filter: drop-shadow(0 0 5px var(--moon-glow));
+  filter: drop-shadow(0 0 6px rgb(150 112 205 / 0.28));
   transition: filter 700ms ease;
 }
 
-.cv-moon__outline {
-  fill: var(--moon-outline);
-}
-
-.cv-moon__surface {
-  fill: var(--moon-surface);
-}
-
-.cv-moon__shade {
-  fill: var(--moon-shade);
-}
-
-.cv-moon__crater {
-  fill: var(--moon-crater);
-}
-
-.cv-moon__highlight {
-  fill: var(--moon-highlight);
-}
-
-.cv-moon__engraving {
-  fill: var(--moon-engraving);
-}
-
 .cv-moon--blood {
-  --moon-outline: #43121d;
-  --moon-surface: #bd3446;
-  --moon-shade: #771f32;
-  --moon-crater: #521926;
-  --moon-highlight: #f39b87;
-  --moon-engraving: #591624;
-  --moon-glow: rgb(181 42 57 / 0.28);
+  filter:
+    hue-rotate(90deg)
+    saturate(1.4)
+    brightness(0.82)
+    drop-shadow(0 0 8px rgb(184 42 68 / 0.42));
 }
 
 .cv-moon--eclipse {
-  --moon-outline: #291f39;
-  --moon-surface: #564565;
-  --moon-shade: #34283f;
-  --moon-crater: #211927;
-  --moon-highlight: #a895be;
-  --moon-engraving: #d2ae6c;
-  --moon-glow: rgb(101 66 137 / 0.24);
+  filter:
+    brightness(0.55)
+    saturate(0.78)
+    hue-rotate(24deg)
+    drop-shadow(0 0 8px rgb(101 66 137 / 0.36));
 }
 
 .cv-fog {

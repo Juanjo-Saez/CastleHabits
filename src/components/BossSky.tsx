@@ -56,7 +56,7 @@ function BossSky({
 
       <div className="pointer-events-none absolute inset-0 mx-auto max-w-md">
         {bossId && (
-          <div className="cv-moon-spot pointer-events-none absolute flex h-[72px] w-[72px] items-center justify-center">
+          <div className="cv-moon-spot pointer-events-none absolute flex h-20 w-20 items-center justify-center">
             <button
               type="button"
               onClick={onOpenBoss}

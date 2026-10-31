@@ -6,7 +6,7 @@
 
 | Step | Status | Exit Code | Details |
 |---|---|---:|---|
-| Unit tests | PASS | 0 | `npm test`: 120 passed, 0 failed |
+| Unit tests | PASS | 0 | `npm test`: 121 passed, 0 failed |
 | TypeScript and production build | PASS | 0 | `npm run build` (`tsc -b` + Vite) |
 | Focused lint | PASS | 0 | ESLint on changed components and test |
 | Full lint | FAIL | 1 | Existing `react-hooks/set-state-in-effect` in `src/components/NumberField.tsx:27`, untouched by this change |
@@ -28,10 +28,12 @@
 - Viewports checked: `390×844`, `768×1024`, `1024×768`, `1440×900`.
 - The scene image fills each viewport; the page has no horizontal or vertical
   overflow at those sizes.
-- The application moon remains a separate `72×72 px` overlay; the boss dialog
-  uses the same design at `64×64 px`.
-- The moon is a shared `24×24` crisp-edge pixel-art SVG with restrained glow,
-  engraved Gothic detail, and normal, blood, and eclipse palettes.
+- The application moon remains a separate `80×80 px` overlay; the boss dialog
+  uses the same image at `72×72 px`.
+- The moon uses the user's supplied pixel-art image with a transparent crop;
+  normal, blood, and eclipse appearances remain available.
+- Original moon reference: `art/references/moon-reference.png`; the
+  runtime asset is `src/assets/moon.png`.
 - Desktop and mobile screenshots show the new full-scene composition, with the
   central tower prioritized by `object-position: 55% center`.
 - The boss dialog was not triggered in the browser; its full-scene background
