@@ -30,6 +30,7 @@ const SOUL_NAMES: Partial<Record<SoulId, string>> = {
   medusa: 'Alma de Medusa',
   cerberus: 'Alma de Cerbero',
   'hydra-scylla': 'Alma de Hidra / Escila',
+  doppelganger: 'Alma de Doppelgänger',
 }
 
 const SOUL_PASSIVES: Partial<Record<SoulId, SoulPassiveId>> = {
@@ -42,6 +43,7 @@ const SOUL_PASSIVES: Partial<Record<SoulId, SoulPassiveId>> = {
   medusa: 'weeklyFreeze',
   cerberus: 'damageReduction',
   'hydra-scylla': 'hydraDawnHeal',
+  doppelganger: 'weeklyReflection',
 }
 
 const SOUL_EFFECTS: Partial<Record<SoulId, string>> = {
@@ -54,6 +56,7 @@ const SOUL_EFFECTS: Partial<Record<SoulId, string>> = {
   medusa: 'Una congelación de racha gratis cada 7/5/3 días según el rango.',
   cerberus: 'Reduce el daño por fallo un 10/15/20 % según el rango.',
   'hydra-scylla': 'Si ayer no hubo fallos, recuperas 2/4/6 PV al amanecer según el rango.',
+  doppelganger: 'Reflejo reduce a la mitad el daño de un fallo cada 7/5/3 días según el rango.',
 }
 
 export const SOULS: Partial<Record<SoulId, SoulDefinition>> = Object.fromEntries(

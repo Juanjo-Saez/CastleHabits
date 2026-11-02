@@ -17,6 +17,7 @@ import {
   cerberusProgress,
   completeDatesOf,
   dailyLoad,
+  doppelgangerProgress,
   describeEffect,
   encounterSummaryLine,
   effectPercent,
@@ -112,6 +113,126 @@ test('Hidra se activa por tres fallos recientes en una zona, incluidos los prote
     missed('b', '2026-10-13'),
     missed('c', '2026-10-20', { itemId: 'outside-zone' }),
   ] }), false)
+})
+
+test('Doppelgänger compara cinco días, incluye fallos protegidos y espera al cierre', () => {
+  const encounter = doppelgangerBoss()
+  const tasks = [chore('a'), chore('b'), chore('c')]
+  const completions = []
+  for (let day = 5; day <= 9; day += 1) {
+    const date = `2026-10-${String(day).padStart(2, '0')}`
+    completions.push(done('a', date), done('b', date))
+  }
+  for (let day = 10; day <= 14; day += 1) {
+    const date = `2026-10-${String(day).padStart(2, '0')}`
+    completions.push(done('a', date), done('b', date))
+  }
+  completions.push(done('c', '2026-10-14'))
+  const events = [
+    missed('a', '2026-10-08', { protectedBy: 'shield' }),
+    missed('b', '2026-10-13', { protectedBy: 'soul' }),
+  ]
+
+  const beforeClose = doppelgangerProgress(
+    encounter, tasks, byItem(completions), events, '2026-10-14',
+  )
+  assert.deepEqual(beforeClose, {
+    previousCompletions: 10,
+    currentCompletions: 11,
+    targetCompletions: 11,
+    previousMisses: 1,
+    currentMisses: 1,
+    won: false,
+  })
+  const closed = doppelgangerProgress(
+    encounter, tasks, byItem(completions), events, '2026-10-15',
+  )
+  assert.equal(closed.won, true)
+  assert.equal(closed.resolvedOn, '2026-10-14')
+
+  const tooManyMisses = doppelgangerProgress(
+    encounter, tasks, byItem(completions), [...events, missed('c', '2026-10-14')],
+    '2026-10-15',
+  )
+  assert.equal(tooManyMisses.won, false)
+})
+
+test('Doppelgänger requiere un completado si el periodo base fue cero y omite cantidades incompletas', () => {
+  const encounter = doppelgangerBoss()
+  const task = chore('quantity', { trackingType: 'quantity', quantityGoal: 5 })
+  const incomplete = byItem([done('quantity', '2026-10-10', { quantityDone: 2 })])
+  const noWin = doppelgangerProgress(encounter, [task], incomplete, [], '2026-10-15')
+  assert.equal(noWin.targetCompletions, 1)
+  assert.equal(noWin.currentCompletions, 0)
+  assert.equal(noWin.won, false)
+
+  const met = byItem([done('quantity', '2026-10-10', { quantityDone: 5 })])
+  assert.equal(doppelgangerProgress(encounter, [task], met, [], '2026-10-15').won, true)
+})
+
+test('Doppelgänger prioriza el avance de ruta o el ritmo estable de 30 días', () => {
+  const trigger = BOSSES.doppelganger.trigger
+  const base = {
+    today: '2026-10-30',
+    profile: profile(),
+    items: [],
+    completionsByItem: {},
+    encounters: [],
+  }
+  const routeProfile = profile({
+    routes: {
+      ...defaultRoutes(),
+      'vampire-hunter': { level: 1, startedOn: '2026-10-01', windowStart: '2026-10-21' },
+    },
+  })
+  assert.equal(trigger({ ...base, profile: routeProfile }), true)
+  assert.equal(trigger({
+    ...base,
+    profile: routeProfile,
+    encounters: [{ bossId: 'doppelganger', status: 'victory', resolvedOn: '2026-10-20' }],
+  }), false)
+
+  const task = chore('steady')
+  const completions = []
+  for (let day = 1; day <= 7; day += 1) completions.push(done('steady', `2026-10-0${day}`))
+  for (let day = 24; day <= 30; day += 1) completions.push(done('steady', `2026-10-${day}`))
+  assert.equal(trigger({
+    ...base, items: [task], completionsByItem: byItem(completions),
+  }), true)
+  assert.equal(trigger({
+    ...base,
+    items: [task],
+    completionsByItem: byItem(completions.filter((completion) => completion.date !== '2026-10-30')),
+  }), false)
+})
+
+test('Doppelgänger resuelve el duelo al cerrar y concede el Espejo o Sombra', () => {
+  const encounter = doppelgangerBoss()
+  const tasks = [chore('a'), chore('b'), chore('c')]
+  const completions = []
+  for (let day = 5; day <= 9; day += 1) {
+    const date = `2026-10-${String(day).padStart(2, '0')}`
+    completions.push(done('a', date), done('b', date))
+  }
+  for (let day = 10; day <= 14; day += 1) {
+    const date = `2026-10-${String(day).padStart(2, '0')}`
+    completions.push(done('a', date), done('b', date))
+  }
+  completions.push(done('c', '2026-10-14'))
+
+  const victory = planBossSync({
+    today: '2026-10-15', profile: profile(), items: tasks,
+    completionsByItem: byItem(completions), encounters: [encounter], random: () => 0.99,
+  })
+  assert.equal(victory.encounters.find((entry) => entry.id === encounter.id)?.status, 'victory')
+  assert.ok(victory.profile.relics.includes('silverMirror'))
+
+  const defeat = planBossSync({
+    today: '2026-10-15', profile: profile(), items: tasks,
+    completionsByItem: {}, encounters: [encounter], random: () => 0.99,
+  })
+  assert.equal(defeat.encounters.find((entry) => entry.id === encounter.id)?.status, 'defeat')
+  assert.ok(defeat.profile.curses.some((curse) => curse.id === 'shadow'))
 })
 
 test('Hidra corta cabezas por completados y solo las obligaciones fallidas las hacen crecer al cierre', () => {
@@ -400,6 +521,14 @@ function hydraBoss(windowStart = '2026-10-10', changes = {}) {
   return {
     id: 'enc:hydra', bossId: 'hydra-scylla', sequence: 1, status: 'active', scheduledFor: windowStart,
     windowStart, windowEnd: shiftKey(windowStart, 4), goal: 3,
+    rewardGranted: false, damageApplied: false, createdAt: '2026-10-01T00:00:00.000Z', ...changes,
+  }
+}
+
+function doppelgangerBoss(windowStart = '2026-10-10', changes = {}) {
+  return {
+    id: 'enc:doppelganger', bossId: 'doppelganger', sequence: 1, status: 'active', scheduledFor: windowStart,
+    windowStart, windowEnd: shiftKey(windowStart, 4), goal: 0,
     rewardGranted: false, damageApplied: false, createdAt: '2026-10-01T00:00:00.000Z', ...changes,
   }
 }
@@ -1459,8 +1588,8 @@ test('la mecánica describe el objetivo de cada boss con sus unidades', () => {
 
 test('el siguiente boss no repite el último y respeta el sorteo ponderado', () => {
   assert.equal(pickBoss('giant-bat', () => 0), 'slogra-gaibon')
-  assert.equal(pickBoss('slogra-gaibon', () => 0.99), 'hydra-scylla')
-  assert.deepEqual(new Set([pickBoss(undefined, () => 0), pickBoss(undefined, () => 0.99)]), new Set(['giant-bat', 'hydra-scylla']))
+  assert.equal(pickBoss('slogra-gaibon', () => 0.99), 'doppelganger')
+  assert.deepEqual(new Set([pickBoss(undefined, () => 0), pickBoss(undefined, () => 0.99)]), new Set(['giant-bat', 'doppelganger']))
 })
 
 test('un disparador reactivo se impone al sorteo al acabar el enfriamiento', () => {

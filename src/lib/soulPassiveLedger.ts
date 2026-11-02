@@ -75,6 +75,7 @@ export function createSoulPassiveActivation(
     medusa: 'weeklyFreeze',
     cerberus: 'damageReduction',
     'hydra-scylla': 'hydraDawnHeal',
+    doppelganger: 'weeklyReflection',
   } as const)[input.soulId]
   if (!passiveId) return null
 

@@ -59,6 +59,7 @@ export type BossObjective =
     categories: BossCategory[]
   }
   | { kind: 'growingHeads'; initialHeads: number }
+  | { kind: 'duel' }
 
 /** Efectos de entorno: rigen mientras el boss está activo. */
 export type EnvEffect =
@@ -406,6 +407,33 @@ export const BOSSES: Record<BossId, BossDefinition> = {
     maxDelay: 15,
     weight: 1,
   },
+  doppelganger: {
+    id: 'doppelganger',
+    name: 'Doppelgänger',
+    parts: ['Espejo'],
+    grammar: { subject: 'El Doppelgänger', object: 'al Doppelgänger', plural: false },
+    mechanic: 'Duelo contigo',
+    description: 'Una copia exacta que solo cae cuando superas tu propio ritmo.',
+    lore: 'El espejo no miente: enfrenta cada avance con los días que lo precedieron. Su reflejo se agrieta cuando superas tu ritmo sin acumular más fallos.',
+    soulChance: 0.02,
+    windowDays: 5,
+    objective: { kind: 'duel' },
+    effects: [],
+    defeatDamage: 0,
+    defeatCurse: { id: 'shadow', days: 10 },
+    defeatText: 'Sombra reduce tu EXP un 10 % durante diez días.',
+    firstVictoryRelic: 'silverMirror',
+    reward: { xp: 160, coins: 80 },
+    drops: [
+      { item: 'postponeToken', chance: 0.3, min: 1, max: 1 },
+      { item: 'streakFreeze', chance: 0.3, min: 1, max: 1 },
+      { item: 'holyWater', chance: 0.2, min: 1, max: 1 },
+    ],
+    trigger: doppelgangerTrigger,
+    minDelay: 10,
+    maxDelay: 15,
+    weight: 1,
+  },
 }
 
 export const BOSS_IDS = Object.keys(BOSSES) as BossId[]
@@ -631,6 +659,7 @@ export function bossGoal(boss: BossDefinition, items: Item[], today: string): nu
     return Object.values(cerberusHeadGoals(items, today)).reduce((total, goal) => total + (goal ?? 0), 0)
   }
   if (boss.objective.kind === 'growingHeads') return boss.objective.initialHeads
+  if (boss.objective.kind === 'duel') return 0
   if (boss.objective.kind === 'statues') {
     const { days, factor, min, max } = boss.objective.load
     return clamp(Math.round(dailyLoad(items, today) * days * factor), min, max)
@@ -752,6 +781,16 @@ export interface HydraProgress {
   reachedOn?: string
 }
 
+export interface DoppelgangerProgress {
+  previousCompletions: number
+  currentCompletions: number
+  targetCompletions: number
+  previousMisses: number
+  currentMisses: number
+  won: boolean
+  resolvedOn?: string
+}
+
 function eventDate(event: ItemEvent, itemsById: Map<string, Item>): string {
   if (event.activityDate) return event.activityDate
   const item = itemsById.get(event.itemId)
@@ -763,6 +802,112 @@ function eventBelongsToRun(event: ItemEvent, runStartedAt?: string): boolean {
   return event.runStartedAt
     ? event.runStartedAt === runStartedAt
     : new Date(event.occurredAt) >= new Date(runStartedAt)
+}
+
+function completionCountInRange(
+  items: Item[],
+  completionsByItem: Record<string, Completion[]>,
+  start: string,
+  end: string,
+  runStartedAt?: string,
+): number {
+  const runStart = runStartedAt?.slice(0, 10)
+  let count = 0
+  for (const item of items) {
+    for (const completion of completionsByItem[item.id] ?? []) {
+      if (completion.date < start || completion.date > end
+        || (runStart && completion.date < runStart)
+        || !isMetCompletion(item, completion)) continue
+      count += 1
+    }
+  }
+  return count
+}
+
+/** Progreso del duelo: compara cinco días completos con los cinco anteriores. */
+export function doppelgangerProgress(
+  encounter: BossEncounter,
+  items: Item[],
+  completionsByItem: Record<string, Completion[]>,
+  events: ItemEvent[],
+  today: string,
+  runStartedAt?: string,
+): DoppelgangerProgress {
+  if (!encounter.windowStart || !encounter.windowEnd) {
+    return {
+      previousCompletions: 0,
+      currentCompletions: 0,
+      targetCompletions: 1,
+      previousMisses: 0,
+      currentMisses: 0,
+      won: false,
+    }
+  }
+  const currentEnd = encounter.windowEnd < today ? encounter.windowEnd : today
+  const previousStart = shiftKey(encounter.windowStart, -5)
+  const previousEnd = shiftKey(encounter.windowStart, -1)
+  const previousCompletions = completionCountInRange(
+    items, completionsByItem, previousStart, previousEnd, runStartedAt,
+  )
+  const currentCompletions = completionCountInRange(
+    items, completionsByItem, encounter.windowStart, currentEnd, runStartedAt,
+  )
+  const itemsById = new Map(items.map((item) => [item.id, item]))
+  const missedCounts = (start: string, end: string) => events.filter((event) => {
+    if (event.kind !== 'missed' || !eventBelongsToRun(event, runStartedAt)) return false
+    const date = eventDate(event, itemsById)
+    return date >= start && date <= end
+  }).length
+  const previousMisses = missedCounts(previousStart, previousEnd)
+  const currentMisses = missedCounts(encounter.windowStart, currentEnd)
+  const targetCompletions = Math.max(1, Math.ceil(previousCompletions * 1.1))
+  const closed = today > encounter.windowEnd
+  const won = closed
+    && currentCompletions >= targetCompletions
+    && currentMisses <= previousMisses
+  return {
+    previousCompletions,
+    currentCompletions,
+    targetCompletions,
+    previousMisses,
+    currentMisses,
+    won,
+    ...(won ? { resolvedOn: encounter.windowEnd } : {}),
+  }
+}
+
+function doppelgangerTrigger(context: BossTriggerContext): boolean {
+  const { today, profile, items, completionsByItem, encounters } = context
+  const priorDoppelganger = encounters
+    .filter((encounter) => encounter.bossId === 'doppelganger' && encounter.resolvedOn)
+    .map((encounter) => encounter.resolvedOn as string)
+    .sort()
+    .at(-1)
+  const routeAdvanced = Object.values(profile.routes).some((route) => {
+    if (route.level <= 0 || !route.windowStart) return false
+    const completedOn = shiftKey(route.windowStart, -1)
+    const since = priorDoppelganger
+      ?? profile.runStartedAt?.slice(0, 10)
+      ?? route.startedOn
+      ?? today
+    return (priorDoppelganger ? completedOn > since : completedOn >= since)
+      && completedOn <= today
+  })
+
+  const runStart = profile.runStartedAt?.slice(0, 10)
+  const firstRangeStart = shiftKey(today, -29)
+  const firstRangeEnd = shiftKey(today, -23)
+  const lastRangeStart = shiftKey(today, -6)
+  const firstAverage = completionCountInRange(
+    items, completionsByItem, firstRangeStart, firstRangeEnd, profile.runStartedAt,
+  ) / 7
+  const lastAverage = completionCountInRange(
+    items, completionsByItem, lastRangeStart, today, profile.runStartedAt,
+  ) / 7
+  const stableRhythm = firstAverage > 0
+    && lastAverage > 0
+    && Math.abs(lastAverage - firstAverage) / firstAverage <= 0.1
+  return routeAdvanced || (Boolean(runStart) && stableRhythm)
 }
 
 /** Hidra: cada completado corta una cabeza y cada obligación fallida al cerrar crece otra. */
@@ -1147,6 +1292,7 @@ export interface BossSummary {
   headsGrown: number
   statuesBroken: number
   statuesMissed: number
+  duel?: DoppelgangerProgress
   /** Días que quedan de la ventana, contando hoy; 0 si no está activo. */
   daysLeft: number
   today: BossDayStatus
@@ -1182,6 +1328,9 @@ export function summarizeBoss(
   const hydra = kind === 'growingHeads'
     ? hydraProgress(encounter, items, completionsByItem, events, today, runStartedAt)
     : null
+  const duel = kind === 'duel'
+    ? doppelgangerProgress(encounter, items, completionsByItem, events, today, runStartedAt)
+    : null
   const pieces = kind === 'pieces' && active
     ? pieceProgress(encounter, items, completionsByItem, today)
     : { disabledZones: encounter.status === 'victory' ? encounter.zones ?? [] : [] }
@@ -1193,7 +1342,8 @@ export function summarizeBoss(
           : kind === 'statues' ? (active ? statues?.net ?? 0 : (encounter.status === 'victory' ? goal : 0))
             : kind === 'heads' ? (heads?.progress ?? 0)
               : kind === 'growingHeads' ? (hydra?.heads ?? 0)
-              : 0
+                : kind === 'duel' ? (duel?.currentCompletions ?? 0)
+                  : 0
   const guardHits = kind === 'hits' && definition.objective.kind === 'hits' && definition.objective.guard
     ? (active ? (progress?.guardHits ?? 0)
       : (encounter.status === 'victory' ? definition.objective.guard.hits : 0))
@@ -1205,7 +1355,7 @@ export function summarizeBoss(
     completedDates,
     target: definition.objective.kind === 'days' ? definition.objective.targetDays : 0,
     damage,
-    goal,
+    goal: duel?.targetCompletions ?? goal,
     bars: kind === 'hits'
       ? splitBars(definition, goal, damage, guardHits)
       : kind === 'pieces'
@@ -1222,7 +1372,12 @@ export function summarizeBoss(
                     name: 'Cabezas',
                     max: Math.max(definition.objective.kind === 'growingHeads' ? definition.objective.initialHeads : 1, hydra?.heads ?? 0),
                     hp: hydra?.heads ?? 0,
-                  }] : [],
+                  }]
+                    : kind === 'duel' ? [{
+                      name: 'Completados',
+                      max: duel?.targetCompletions ?? 1,
+                      hp: Math.min(duel?.currentCompletions ?? 0, duel?.targetCompletions ?? 1),
+                    }] : [],
     guardHits,
     scythes: damage,
     headsDown: heads?.headsDown ?? (encounter.status === 'victory' && kind === 'heads' ? 3 : 0),
@@ -1231,6 +1386,7 @@ export function summarizeBoss(
     headsGrown: hydra?.grown ?? 0,
     statuesBroken: statues?.broken ?? (encounter.status === 'victory' && kind === 'statues' ? goal : 0),
     statuesMissed: statues?.missed ?? 0,
+    duel: duel ?? undefined,
     daysLeft: active && encounter.windowEnd
       ? Math.max(0, differenceInCalendarDays(parseISO(encounter.windowEnd), parseISO(today)) + 1)
       : 0,
@@ -1247,6 +1403,7 @@ export function bossCountsFor(item: Item, encounter: BossEncounter | null, dateK
     return category !== null && cerberusCategoryDueOn(item, category, dateKey)
   }
   if (objective.kind === 'growingHeads') return !item.archived
+  if (objective.kind === 'duel') return !item.archived
   return objective.kind === 'hits'
     ? !item.archived
     : objective.kind === 'pieces'
@@ -1297,6 +1454,9 @@ export function encounterSummaryLine(summary: BossSummary): string {
   if (summary.kind === 'statues') return `${summary.damage}/${summary.goal} estatuas`
   if (summary.kind === 'heads') return `${summary.headsDown}/3 cabezas derrotadas`
   if (summary.kind === 'growingHeads') return `${summary.headsRemaining} cabezas restantes`
+  if (summary.kind === 'duel' && summary.duel) {
+    return `${summary.duel.currentCompletions}/${summary.duel.targetCompletions} completados · ${summary.duel.currentMisses}/${summary.duel.previousMisses} fallos`
+  }
   return `${summary.completedDates.length}/${summary.target} días`
 }
 
@@ -1363,6 +1523,9 @@ export function bestiaryMechanic(boss: BossDefinition): string {
   }
   if (boss.objective.kind === 'growingHeads') {
     return `Empieza con ${boss.objective.initialHeads} cabezas. Cada tarea cumplida corta una; cada obligación que termina sin completar hace crecer otra.`
+  }
+  if (boss.objective.kind === 'duel') {
+    return 'Compara todos los completados de los cinco días del encuentro con los cinco anteriores: alcanza al menos un 10 % más (mínimo uno si antes no hubo completados) y no acumules más fallos.'
   }
   if (boss.objective.kind === 'hits' && boss.objective.guard) {
     const labels: Record<Difficulty, string> = {
@@ -1623,6 +1786,10 @@ function verdictOf(
   if (boss.objective.kind === 'growingHeads') {
     const progress = hydraProgress(encounter, items, completionsByItem, events, today, runStartedAt)
     return { won: Boolean(progress.reachedOn), resolvedOn: progress.reachedOn }
+  }
+  if (boss.objective.kind === 'duel') {
+    const progress = doppelgangerProgress(encounter, items, completionsByItem, events, today, runStartedAt)
+    return { won: progress.won, resolvedOn: progress.resolvedOn }
   }
   const progress = hitProgress(encounter, items, completionsByItem, today)
   if (boss.objective.guard && (progress.guardHits ?? 0) < boss.objective.guard.hits) {

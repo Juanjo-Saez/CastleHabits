@@ -15,6 +15,9 @@ interface Protection {
   medusaDate?: string
   medusaRank?: SoulRank
   medusaReadyOn?: string
+  doppelgangerDate?: string
+  doppelgangerRank?: SoulRank
+  doppelgangerReadyOn?: string
   deathDate?: string
   deathRank?: SoulRank
   deathSavesUsed: number
@@ -27,6 +30,8 @@ export interface SoulPenaltyProtection {
   date: string
   medusaRank?: SoulRank
   medusaReadyOn?: string
+  doppelgangerRank?: SoulRank
+  doppelgangerReadyOn?: string
   deathRank?: SoulRank
   deathSavesUsed?: number
   deathHp?: number
@@ -117,6 +122,7 @@ export function computeMissedPenalties(
   freezesUsed: number
   shieldReadyOn?: string
   medusaReadyOn?: string
+  doppelgangerReadyOn?: string
   deathSavesUsed: number
   deathSavedEvents: ItemEvent[]
 } {
@@ -131,6 +137,9 @@ export function computeMissedPenalties(
     medusaDate: soulProtection?.date,
     medusaRank: soulProtection?.medusaRank,
     medusaReadyOn: soulProtection?.medusaReadyOn,
+    doppelgangerDate: soulProtection?.date,
+    doppelgangerRank: soulProtection?.doppelgangerRank,
+    doppelgangerReadyOn: soulProtection?.doppelgangerReadyOn,
     deathDate: soulProtection?.date,
     deathRank: soulProtection?.deathRank,
     deathSavesUsed: soulProtection?.deathSavesUsed ?? 0,
@@ -177,17 +186,29 @@ export function computeMissedPenalties(
       const streak = (streaks.get(item.id) ?? 0) + 1
       streaks.set(item.id, streak)
       const incomingDamage = Math.ceil(damageForMissedStreak(streak) * damageMultiplierForDay(key, item))
+      const reflectedDamage = Math.ceil(incomingDamage / 2)
+      const reflectionUsed = incomingDamage > reflectedDamage
+        && protection.doppelgangerDate === key
+        && protection.doppelgangerRank !== undefined
+        && (!protection.doppelgangerReadyOn || protection.doppelgangerReadyOn <= key)
+      if (reflectionUsed && protection.doppelgangerRank) {
+        protection.doppelgangerReadyOn = format(
+          addDays(parseISO(key), soulPassiveCooldownDays(protection.doppelgangerRank)),
+          'yyyy-MM-dd',
+        )
+      }
+      const damageBeforeDeathSave = reflectionUsed ? reflectedDamage : incomingDamage
       const deathRank = protection.deathRank
       const deathHp = protection.deathHp
       const deathEligible = protection.deathDate === key && deathRank !== undefined && deathHp !== undefined
       const resolution = deathEligible && deathRank !== undefined && deathHp !== undefined
         ? resolvePlayerDamage(
             deathHp,
-            incomingDamage,
+            damageBeforeDeathSave,
             deathRank,
             protection.deathSavesUsed,
           )
-        : { hp: 0, damageApplied: incomingDamage, deathSaved: false }
+        : { hp: 0, damageApplied: damageBeforeDeathSave, deathSaved: false }
       const damage = resolution.damageApplied
       if (deathEligible) {
         protection.deathHp = resolution.hp
@@ -197,10 +218,16 @@ export function computeMissedPenalties(
       missedEvents.push(buildItemEvent(item, 'missed', scheduledKey, {
         damage,
         activityDate: key,
+        ...(reflectionUsed && protection.doppelgangerRank ? {
+          soulPassiveId: 'weeklyReflection',
+          soulPassiveRank: protection.doppelgangerRank,
+        } : {}),
         ...(resolution.deathSaved ? {
           deathSaved: true,
-          soulPassiveId: 'secondChance',
-          soulPassiveRank: deathRank,
+          ...(!reflectionUsed ? {
+            soulPassiveId: 'secondChance',
+            soulPassiveRank: deathRank,
+          } : {}),
         } : {}),
       }, eventId))
     }
@@ -214,6 +241,7 @@ export function computeMissedPenalties(
     freezesUsed: availableStreakFreezes - protection.freezes,
     shieldReadyOn: protection.shieldReadyOn,
     medusaReadyOn: protection.medusaReadyOn,
+    doppelgangerReadyOn: protection.doppelgangerReadyOn,
     deathSavesUsed: protection.deathSavesUsed,
     deathSavedEvents: missedEvents.filter((event) => event.deathSaved),
   }

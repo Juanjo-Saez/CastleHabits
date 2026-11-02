@@ -10,6 +10,7 @@ import type {
   PenaltyCheckpoint,
   PlayerProfile,
   SoulPassiveActivation,
+  SoulRank,
 } from '../types'
 import { activeEncounter, effectPercentForItemOn, isMedusaStatueOn, protectionsDisabledOn } from './bosses'
 import { activeCursesOn, CURSES, removeCurse } from './curses'
@@ -204,6 +205,8 @@ function replayPenalties(
       deathRank: checkpoint.deathRank,
       deathSavesUsed: checkpoint.deathSavesUsed,
       deathHp: checkpoint.deathHp,
+      doppelgangerRank: checkpoint.doppelgangerRank,
+      doppelgangerReadyOn: checkpoint.doppelgangerReadyOn,
     },
   )
   result.missedEvents = result.missedEvents.map((event) => ({
@@ -260,20 +263,30 @@ function passiveActivationsForMisses(
     soulRanks: checkpoint.soulRanks,
   }
   return events.flatMap((event) => {
-    const soulId = event.soulPassiveId === 'secondChance'
-      ? 'death'
-      : event.soulPassiveId === 'weeklyFreeze' ? 'medusa' : null
-    if (!soulId) return []
-    const activation = createSoulPassiveActivation({
-      profile,
-      soulId,
-      date: checkpoint.date,
-      runStartedAt,
-      sourceId: event.id,
-      snapshot,
-      rankOverride: event.soulPassiveRank,
+    const uses: { soulId: 'death' | 'medusa' | 'doppelganger'; rank?: SoulRank }[] = []
+    if (event.soulPassiveId === 'secondChance' || event.deathSaved) {
+      uses.push({ soulId: 'death', rank: event.soulPassiveId === 'secondChance'
+        ? event.soulPassiveRank
+        : checkpoint.deathRank })
+    }
+    if (event.soulPassiveId === 'weeklyFreeze') {
+      uses.push({ soulId: 'medusa', rank: event.soulPassiveRank })
+    }
+    if (event.soulPassiveId === 'weeklyReflection') {
+      uses.push({ soulId: 'doppelganger', rank: event.soulPassiveRank })
+    }
+    return uses.flatMap(({ soulId, rank }) => {
+      const activation = createSoulPassiveActivation({
+        profile,
+        soulId,
+        date: checkpoint.date,
+        runStartedAt,
+        sourceId: event.id,
+        snapshot,
+        rankOverride: rank,
+      })
+      return activation ? [activation] : []
     })
-    return activation ? [activation] : []
   })
 }
 
@@ -431,6 +444,7 @@ export async function settleDayPenalties(): Promise<void> {
       const soulLoadout = soulSnapshot?.soulLoadout
       const deathRank = soulPassiveRankOn(profile, 'death', yesterday, soulSnapshot) || undefined
       const medusaRank = soulPassiveRankOn(profile, 'medusa', yesterday, soulSnapshot) || undefined
+      const doppelgangerRank = soulPassiveRankOn(profile, 'doppelganger', yesterday, soulSnapshot) || undefined
       const priorActivations = profile.runStartedAt
         ? await db.soulPassiveActivations
           .where('runStartedAt')
@@ -440,6 +454,11 @@ export async function settleDayPenalties(): Promise<void> {
       const previousDeathSaves = deathSavesBeforePenalties(priorActivations, yesterday)
       const medusaReadyOn = priorActivations
         .filter((activation) => activation.passiveId === 'weeklyFreeze' && activation.date < yesterday)
+        .map(soulPassiveReadyOn)
+        .sort()
+        .at(-1)
+      const doppelgangerReadyOn = priorActivations
+        .filter((activation) => activation.passiveId === 'weeklyReflection' && activation.date < yesterday)
         .map(soulPassiveReadyOn)
         .sort()
         .at(-1)
@@ -454,6 +473,8 @@ export async function settleDayPenalties(): Promise<void> {
         deathHp: profile.hp,
         medusaRank,
         medusaReadyOn,
+        doppelgangerRank,
+        doppelgangerReadyOn,
       }
       const result = replayPenalties(checkpoint, history, damageMultiplierForDay, freezesEnabledForDay, shieldEnabledForDay)
       await db.itemEvents.bulkPut(result.missedEvents)

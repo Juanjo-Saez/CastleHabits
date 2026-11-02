@@ -2,6 +2,8 @@ import type { BossId } from '../types'
 import {
   CERBERUS,
   CERBERUS_PALETTE,
+  DOPPELGANGER,
+  DOPPELGANGER_PALETTE,
   GAIBON,
   GAIBON_PALETTE,
   FRANKENSTEIN,
@@ -52,6 +54,9 @@ function BossSprite({ bossId, scale = 3, className = '' }: Readonly<{ bossId: Bo
   }
   if (bossId === 'hydra-scylla') {
     return <PixelArt rows={HYDRA} palette={HYDRA_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
+  }
+  if (bossId === 'doppelganger') {
+    return <PixelArt rows={DOPPELGANGER} palette={DOPPELGANGER_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
   }
   return <PixelArt rows={GIANT_BAT} palette={GIANT_BAT_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
 }

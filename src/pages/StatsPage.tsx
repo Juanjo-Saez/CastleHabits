@@ -15,6 +15,7 @@ import { hasRelic } from '../lib/relics'
 import { usePlayerStore } from '../store/usePlayerStore'
 import { useDailySummaryStore } from '../store/useDailySummaryStore'
 import { useItemsStore } from '../store/useItemsStore'
+import { useBossStore } from '../store/useBossStore'
 import type { ItemEvent } from '../types'
 
 const STATUS_CLASS: Record<DayStatus, string> = {
@@ -29,6 +30,7 @@ function StatsPage() {
   const items = useItemsStore((s) => s.items)
   const completionsByItem = useItemsStore((s) => s.completionsByItem)
   const profile = usePlayerStore((s) => s.profile)
+  const activeBoss = useBossStore((s) => s.encounters.find((encounter) => encounter.status === 'active'))
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [missedEvents, setMissedEvents] = useState<ItemEvent[]>([])
   const [eventsError, setEventsError] = useState<string | null>(null)
@@ -45,6 +47,8 @@ function StatsPage() {
   }, [])
 
   const stats = buildDailyStats(items, completionsByItem, 35, missedEvents)
+  const mirrored = activeBoss?.bossId === 'doppelganger'
+  const visibleStats = mirrored ? [...stats].reverse() : stats
   const selectedStat = stats.find((day) => day.key === selectedDay)
   const activeDays = stats.filter((day) => day.ratio !== null)
   const completed = stats.reduce((sum, day) => sum + day.completions, 0)
@@ -104,8 +108,13 @@ function StatsPage() {
         {historyVisible && (
           <div className="cv-panel p-3">
             <SectionTitle>Mapa de constancia</SectionTitle>
+            {mirrored && (
+              <p className="mt-1 font-body text-sm text-silver-500 italic">
+                El Espejo invierte el orden cronológico; tus estadísticas no cambian.
+              </p>
+            )}
             <div className="mt-3 grid grid-cols-7 gap-1.5">
-              {stats.map((day) => {
+              {visibleStats.map((day) => {
                 const date = format(parseISO(day.key), 'dd/MM')
                 const label = day.due > 0 ? `${date}: ${day.obligationsDone} de ${day.due} obligaciones` : `${date}: sin obligaciones`
                 const border = selectedDay === day.key ? 'border-silver-100' : 'border-silver-700/40'
@@ -122,8 +131,8 @@ function StatsPage() {
               })}
             </div>
             <div className="mt-3 flex justify-between font-pixel text-sm text-silver-500">
-              <span>{format(subDays(logicalNow(), 34), 'dd/MM')}</span>
-              <span>Hoy</span>
+              <span>{mirrored ? 'Hoy' : format(subDays(logicalNow(), 34), 'dd/MM')}</span>
+              <span>{mirrored ? format(subDays(logicalNow(), 34), 'dd/MM') : 'Hoy'}</span>
             </div>
             {selectedDay && (
               <div className="mt-3 border-t border-gold-600/30 pt-3">

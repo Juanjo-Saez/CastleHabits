@@ -458,6 +458,32 @@ export const HYDRA_PALETTE: Palette = {
   L: '#f3e3a8',
 }
 
+/** Doppelgänger: dos reflejos enfrentados, unidos por un marco de espejo. */
+export const DOPPELGANGER = [
+  '....OO....OO....',
+  '...OrrO..ObbO...',
+  '..OrrrO..ObbbO..',
+  '..OrLrO..ObLbO..',
+  '...OrO....ObO...',
+  '....OO....OO....',
+  '.....OO..OO.....',
+  '....OrrOOrrO....',
+  '...OrrrOOrrrO...',
+  '...OrRrOObBrO...',
+  '....OrO..ObO....',
+  '.....OO..OO.....',
+  '....OO....OO....',
+]
+
+export const DOPPELGANGER_PALETTE: Palette = {
+  O: '#0a0412',
+  r: '#8f2f55',
+  R: '#d46b8e',
+  b: '#315b83',
+  B: '#72a9ce',
+  L: '#f3e3a8',
+}
+
 export const DIAMOND = ['..G..', '.GLG.', 'GLRLG', '.GLG.', '..G..']
 
 export const ORNAMENT = [

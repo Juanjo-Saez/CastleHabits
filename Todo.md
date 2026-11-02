@@ -49,14 +49,16 @@ deben acordarse al concretar el OpenSpec.
 
 ### Bosses, almas y premios
 
-- Completar los encuentros pendientes: Doppelgänger, Sukamon y Drácula;
+- Completar los encuentros pendientes: Sukamon y Drácula; Doppelgänger,
   Medusa, Cerbero e Hidra/Escila ya están implementados.
-- Añadir y validar los disparadores reactivos específicos que todavía faltan.
-  El sorteo ponderado y el mecanismo de disparadores ya existen.
+- Añadir y validar los disparadores reactivos específicos pendientes de Sukamon
+  y Drácula; Doppelgänger ya tiene disparadores por ruta y ritmo estable.
 - Pasivas runtime de las almas equipadas completadas: Death salva 1/2/3 golpes
   mortales por expedición, Medusa concede congelaciones gratuitas con
   enfriamiento móvil de 7/5/3 días, Cerbero reduce el daño por fallo un
-  10/15/20 % e Hidra/Escila cura 2/4/6 PV al amanecer si ayer no hubo fallos.
+  10/15/20 %, Doppelgänger reduce a la mitad el daño de un fallo una vez cada
+  7/5/3 días según rango e Hidra/Escila cura 2/4/6 PV al amanecer si ayer no
+  hubo fallos.
   El registro idempotente cubre liquidación, bosses y correcciones de ayer.
   Falta la validación visual del panel de Almas; ver
   [soul-passives](./openspec/changes/soul-passives/).
@@ -125,6 +127,10 @@ pendientes.
   causó cada muerte.
 - Explorar un sistema Nemesis que aproveche el historial de personajes y sus
   muertes.
+- Diseñar un boss cuyo encuentro sea un quiz de opción múltiple sobre las
+  estadísticas del personaje, usando tanto las de la expedición actual como su
+  historial completo según la pregunta. Definir qué implican las respuestas
+  antes de concretar el combate.
 - Mapa con zonas visitables, personajes y diálogos; transiciones entre zonas.
 - Traits heredables y promoción/prestigio para el endgame.
 - Funciones sociales, como prestar temporalmente un oficio cuando haya cuentas

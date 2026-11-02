@@ -116,6 +116,21 @@ test('Death y Medusa registran la pasiva y el rango fijados en su snapshot', () 
   assert.equal(medusa.passiveId, 'weeklyFreeze')
   assert.equal(medusa.rank, 1)
   assert.equal(soulPassiveReadyOn(medusa), '2026-11-07')
+
+  const reflection = createSoulPassiveActivation({
+    profile: profile({
+      souls: { doppelganger: { rank: 3, fragments: 0 } },
+      dailySoulLoadout: { date, souls: ['doppelganger'] },
+    }),
+    soulId: 'doppelganger',
+    date,
+    runStartedAt,
+    sourceId: 'miss-reflected',
+    snapshot: { date, soulLoadout: ['doppelganger'], soulRanks: { doppelganger: 2 } },
+  })
+  assert.equal(reflection.passiveId, 'weeklyReflection')
+  assert.equal(reflection.rank, 2)
+  assert.equal(soulPassiveReadyOn(reflection), '2026-11-05')
 })
 
 test('la reconciliación elimina solo activaciones obsoletas de las fuentes afectadas', () => {
@@ -210,6 +225,22 @@ test('Death y Medusa se aplican al daño de fallos con rango, prioridad y cooldo
   )
   assert.equal(cooldown.missedEvents[0].protectedBy, undefined)
   assert.equal(cooldown.totalDamage, 1)
+
+  const reflected = computeMissedPenalties(
+    [items[0]], {}, undefined, 0, { enabled: false }, date, () => 4, true, () => true,
+    { date, doppelgangerRank: 2 },
+  )
+  assert.equal(reflected.missedEvents[0].damage, 2)
+  assert.equal(reflected.missedEvents[0].soulPassiveId, 'weeklyReflection')
+  assert.equal(reflected.missedEvents[0].soulPassiveRank, 2)
+  assert.equal(reflected.doppelgangerReadyOn, '2026-11-05')
+
+  const reflectedCooldown = computeMissedPenalties(
+    [items[0]], {}, undefined, 0, { enabled: false }, date, () => 4, true, () => true,
+    { date, doppelgangerRank: 2, doppelgangerReadyOn: '2026-11-01' },
+  )
+  assert.equal(reflectedCooldown.missedEvents[0].soulPassiveId, undefined)
+  assert.equal(reflectedCooldown.totalDamage, 4)
 })
 
 test('Succubus refuerza la primera poción según el rango y deja las siguientes normales', () => {

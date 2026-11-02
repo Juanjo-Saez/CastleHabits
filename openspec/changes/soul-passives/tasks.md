@@ -33,6 +33,8 @@
       en liquidación y correcciones con el snapshot diario.
 - [x] Hidra / Escila: curación diaria de 2/4/6 PV según rango, cancelada por
       cualquier fallo y registrada de forma idempotente.
+- [x] Doppelgänger: Reflejo reduce a la mitad el daño de un fallo con
+      enfriamiento móvil de 7/5/3 días según rango.
 
 ## Persistencia y correcciones
 
@@ -46,8 +48,9 @@
 ## Verificación
 
 - [x] Tests del catálogo, equipamiento, rangos y entradas obsoletas.
-- [x] Tests unitarios de Death, Medusa y Cerbero por rango.
-- [x] Tests de idempotencia y corrección de ayer para Death, Medusa y Cerbero.
+- [x] Tests unitarios de Death, Medusa, Cerbero y Doppelgänger por rango.
+- [x] Tests de idempotencia y corrección de ayer para Death, Medusa, Cerbero y
+      Doppelgänger.
 - [x] Tests de curación por rango e interrupción por fallos protegidos de Hidra.
 - [ ] Validación visual del panel de Almas con descripciones reales.
 - [x] Ejecutar tests, TypeScript, build y lint dirigido a los archivos modificados.

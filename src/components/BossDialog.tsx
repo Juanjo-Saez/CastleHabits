@@ -123,7 +123,7 @@ function BossDialog({
   )
   const {
     definition, encounter, completedDates, target, today, kind, bars, damage, goal,
-    headsDown, headsRemaining, headsCut, headsGrown, statuesBroken, statuesMissed,
+    headsDown, headsRemaining, headsCut, headsGrown, statuesBroken, statuesMissed, duel,
   } = summary
   const active = encounter.status === 'active'
   const appearance = moonAppearance(hpRatio, active, weatherForDay(todayKey()))
@@ -185,7 +185,9 @@ function BossDialog({
                 <Plate label="Plazo" value={summary.daysLeft === 1 ? 'Hoy' : `${summary.daysLeft} días`} />
                 <Plate
                   label="Efecto"
-                  value={definition.effects[0] ? describeEffect(definition.effects[0]) : '—'}
+                  value={kind === 'duel'
+                    ? 'Espejo visual'
+                    : definition.effects[0] ? describeEffect(definition.effects[0]) : '—'}
                   tone="text-blood-400"
                 />
                 {kind === 'days' ? (
@@ -200,12 +202,16 @@ function BossDialog({
                           ? 'Hoces'
                           : kind === 'statues'
                             ? 'Estatuas'
+                              : kind === 'duel'
+                                ? 'Completados'
                                 : kind === 'heads' || kind === 'growingHeads'
-                                  ? 'Cabezas'
-                                  : 'Golpes'}
-                        value={kind === 'heads'
-                          ? `${headsDown}/3`
-                          : kind === 'growingHeads' ? `${headsRemaining} restantes` : `${damage}/${goal}`}
+                                        ? 'Cabezas'
+                                        : 'Golpes'}
+                              value={kind === 'duel'
+                                ? `${duel?.currentCompletions ?? 0}/${duel?.targetCompletions ?? 1}`
+                                : kind === 'heads'
+                                ? `${headsDown}/3`
+                                : kind === 'growingHeads' ? `${headsRemaining} restantes` : `${damage}/${goal}`}
                   />
                 )}
               </div>
@@ -241,9 +247,11 @@ function BossDialog({
                           ? 'Hoces acumuladas'
                             : kind === 'statues'
                               ? 'Estatuas de Medusa'
+                                : kind === 'duel'
+                                ? 'Progreso del duelo'
                                 : kind === 'heads' || kind === 'growingHeads'
-                                  ? `Cabezas de ${definition.name}`
-                                  : 'Vida del boss'
+                                      ? `Cabezas de ${definition.name}`
+                                      : 'Vida del boss'
                   }
                   className="flex flex-col gap-2"
                 >
@@ -265,9 +273,11 @@ function BossDialog({
                                 ? `Hoces acumuladas de ${bar.name}`
                                 : kind === 'statues'
                                   ? `Estatuas rotas de ${bar.name}`
+                                  : kind === 'duel'
+                                    ? 'Completados durante el encuentro'
                                   : kind === 'heads' || kind === 'growingHeads'
-                                    ? `Vida de la cabeza de ${bar.name}`
-                                    : `Vida de ${bar.name}`
+                                        ? `Vida de la cabeza de ${bar.name}`
+                                        : `Vida de ${bar.name}`
                         }
                         aria-valuemin={0}
                         aria-valuemax={bar.max}
@@ -302,6 +312,12 @@ function BossDialog({
                       Cabezas actuales: {headsRemaining} · cortadas: {headsCut} · crecidas: {headsGrown}. La victoria se confirma al cierre del día.
                     </p>
                   )}
+                  {objective.kind === 'duel' && duel && (
+                    <p className="mt-1 text-center font-pixel text-base leading-snug text-silver-500">
+                      Periodo anterior: {duel.previousCompletions} completados y {duel.previousMisses} fallos.
+                      {' '}Encuentro: {duel.currentCompletions} completados y {duel.currentMisses} fallos.
+                    </p>
+                  )}
                 </section>
               )}
             </>
@@ -333,6 +349,11 @@ function BossDialog({
           )}
 
           <ul className="flex flex-col gap-3">
+            {objective.kind === 'duel' && (
+              <Rule icon={<span className="font-pixel text-2xl text-silver-100">◈</span>} title="Espejo">
+                Mientras dure el encuentro, el mapa de constancia de Crónicas se muestra en orden cronológico inverso; los datos reales no cambian.
+              </Rule>
+            )}
             {definition.effects.length > 0 && (
               <Rule icon={<span className="font-pixel text-2xl text-blood-400">☾</span>} title="Entorno">
                 {definition.effects.map(describeEffectLong).join(' ')}
@@ -364,6 +385,10 @@ function BossDialog({
               ) : objective.kind === 'growingHeads' ? (
                 <>
                   {bestiaryMechanic(definition)} Debes llegar a cero y cerrar el día sin que queden obligaciones fallidas, dentro de {definition.windowDays} días.
+                </>
+              ) : objective.kind === 'duel' ? (
+                <>
+                  {bestiaryMechanic(definition)} El resultado se confirma cuando termina la ventana de {definition.windowDays} días.
                 </>
               ) : (
                 <>

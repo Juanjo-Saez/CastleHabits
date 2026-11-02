@@ -187,6 +187,8 @@ export interface PenaltyCheckpoint {
   deathHp?: number
   medusaRank?: SoulRank
   medusaReadyOn?: string
+  doppelgangerRank?: SoulRank
+  doppelgangerReadyOn?: string
 }
 
 /** Pendiente sin fecha: idea para convertir en tarea más adelante. No se completa ni aplica daño o EXP. */
@@ -197,7 +199,7 @@ export interface Reminder {
   createdAt: string
 }
 
-export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus' | 'death' | 'medusa' | 'cerberus' | 'hydra-scylla'
+export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus' | 'death' | 'medusa' | 'cerberus' | 'hydra-scylla' | 'doppelganger'
 export type BossCategory = 'obligations' | 'scrolls' | 'sideQuests'
 export type DeathStakePercent = 0 | 10 | 25
 export type SoulId = BossId
@@ -212,6 +214,7 @@ export type SoulPassiveId =
   | 'secondChance'
   | 'weeklyFreeze'
   | 'damageReduction'
+  | 'weeklyReflection'
   | 'hydraDawnHeal'
 export type RelicId = 'rosary' | 'silverMirror' | 'heart' | 'ancientAmulet'
 

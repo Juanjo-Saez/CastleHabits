@@ -38,6 +38,7 @@ registros fuente para que reintentos y correcciones de ayer no dupliquen usos.
 | Death | Evita 1/2/3 impactos mortales por expedición según rango |
 | Medusa | Una congelación gratis cada 7/5/3 días según rango |
 | Cerbero | Reduce el daño por fallo un 10/15/20 % según rango |
+| Doppelgänger | Reflejo reduce a la mitad el daño de un fallo una vez cada 7/5/3 días según rango |
 | Hidra / Escila | Cura 2/4/6 PV al amanecer si el día anterior cerró sin fallos |
 
 Los rangos superiores refuerzan cada pasiva según la sección de implementación
@@ -164,6 +165,14 @@ de cada efecto. Frankenstein fija explícitamente la escala +20/+30/+40 %.
   maldiciones y el eclipse, sin reemplazar sus multiplicadores.
 - Settlement y corrección de ayer usan la carga del día correspondiente; las
   correcciones históricas usan el loadout y el rango guardados en el snapshot.
+
+### Doppelgänger
+
+- Reflejo reduce a la mitad, redondeando hacia arriba, el daño de un fallo no
+  protegido una vez cada **7/5/3 días** según el rango 1/2/3.
+- El enfriamiento móvil continúa aunque el alma se desequipe; solo puede
+  activarse si está equipada en el loadout bloqueado del día del fallo.
+- Cada reducción se asocia al evento de fallo y se reconcilia al corregir ayer.
 
 ### Hidra / Escila
 

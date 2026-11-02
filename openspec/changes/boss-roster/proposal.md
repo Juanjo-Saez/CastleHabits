@@ -37,7 +37,8 @@ Diseño de los siguientes encuentros tras el Murciélago gigante. Es un document
 | Medusa | Hecho en `boss-medusa` |
 | Cerbero | Hecho en `boss-cerberus` |
 | Hidra / Escila | Hecho en `boss-hydra-scylla` |
-| Resto de bosses (Doppelgänger, Drácula, Sukamon) | Pendiente; un change por boss |
+| Doppelgänger | Hecho en `boss-doppelganger` |
+| Resto de bosses (Drácula, Sukamon) | Pendiente; un change por boss |
 
 ### Modelo de datos
 
@@ -129,8 +130,9 @@ Dos días con todas las obligaciones cumplidas. Entorno: EXP −30 %. Derrota: 2
 - **Efecto buscado:** obliga a atender las misiones secundarias, que casi nunca importan.
 
 ### 9. Doppelgänger — *Duelo contigo*
-- **Combate:** compara los completados de la ventana con los de tus 5 días anteriores. Se vence si los superas en un 10 % y no tienes más fallos que entonces.
-- **Entorno:** *Espejo*: las estadísticas se muestran invertidas (solo visual).
+- **Disparador:** un tramo de ruta completado desde su última aparición, o 30 días con el promedio diario de completados de los primeros y últimos 7 días dentro de un 10 %; ambos promedios deben ser mayores que cero.
+- **Combate:** compara todos los completados de los 5 días del encuentro con los cinco días inmediatamente anteriores. Se vence al alcanzar `ceil(base × 1,10)` (mínimo 1 si la base es 0) y no tener más fallos; los fallos protegidos cuentan.
+- **Entorno:** *Espejo*: el mapa de constancia de Crónicas se muestra en orden cronológico inverso, sin alterar los datos.
 - **Derrota:** la maldición *Sombra* (EXP −10 % durante 10 días).
 - **Primera victoria de la expedición:** reliquia *Espejo de plata* (revela las estadísticas históricas hasta jubilarte).
 
@@ -303,7 +305,7 @@ Este documento es el diseño compartido. Los changes derivados y su estado actua
    - [x] **[boss-medusa](../boss-medusa/proposal.md)**: estatuas y Amnesia.
    - [x] **[boss-cerberus](../boss-cerberus/proposal.md)**: tres cabezas, Aliento infernal y Triple mordisco.
    - [x] **[boss-hydra-scylla](../boss-hydra-scylla/proposal.md)**: cabezas crecientes, Veneno de hidra y cura del alma.
-   - [ ] Doppelgänger.
+   - [x] **[boss-doppelganger](../boss-doppelganger/proposal.md)**: duelo contra el ritmo reciente, Espejo y Reflejo.
    - [ ] Sukamon: minijefe.
    - [ ] Drácula: boss final.
 

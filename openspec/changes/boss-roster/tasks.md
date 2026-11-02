@@ -61,4 +61,5 @@ Lo que queda se reparte en changes propios, listados en [proposal.md](./proposal
 - [x] [boss-death](../boss-death/tasks.md): hoces por incumplimientos, apuesta, Cielo sin luna y Hoz de Death.
 - [x] [boss-cerberus](../boss-cerberus/tasks.md): tres cabezas, metas por categoría y regeneración diaria.
 - [x] [boss-hydra-scylla](../boss-hydra-scylla/tasks.md): cabezas crecientes, veneno, trigger por zona y pasiva diaria.
-- [ ] Un change por boss pendiente, en el orden del proposal: Doppelgänger, Sukamon y Drácula.
+- [x] [boss-doppelganger](../boss-doppelganger/tasks.md): duelo por ritmo reciente, Espejo y Reflejo.
+- [ ] Un change por boss pendiente, en el orden del proposal: Sukamon y Drácula.
