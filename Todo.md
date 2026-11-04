@@ -14,7 +14,8 @@ OpenSpecs enlazados.
 - **Rutas y oficios:** ya existen Cazavampiros, Tecnomancer y Fortaleza Interior,
   con misiones iniciales, progreso por tramos y oficios equipables.
 - **Bosses:** están implementados el Murciélago gigante, Slogra y Gaibon,
-  Legion, Frankenstein, Succubus, Death, Medusa, Cerbero e Hidra/Escila. Hay Bestiario, almas,
+  Legion, Frankenstein, Succubus, Death, Medusa, Cerbero, Hidra/Escila,
+  Doppelgänger y Sukamon. Hay Bestiario, almas,
   reliquias, maldiciones y un motor común; algunos premios, pasivas y encuentros
   todavía están pendientes.
 - **Castillo:** escena pixel-art, luna independiente, climas y estados de boss.
@@ -49,10 +50,10 @@ deben acordarse al concretar el OpenSpec.
 
 ### Bosses, almas y premios
 
-- Completar los encuentros pendientes: Sukamon y Drácula; Doppelgänger,
-  Medusa, Cerbero e Hidra/Escila ya están implementados.
-- Añadir y validar los disparadores reactivos específicos pendientes de Sukamon
-  y Drácula; Doppelgänger ya tiene disparadores por ruta y ritmo estable.
+- Completar el encuentro pendiente de Drácula; Sukamon ya cuenta con un change
+  OpenSpec individual en `openspec/changes/boss-sukamon/`.
+- Añadir y validar el disparador reactivo de Drácula; Sukamon se activa con
+  tres aplazamientos en siete días y Doppelgänger con sus reglas específicas.
 - Pasivas runtime de las almas equipadas completadas: Death salva 1/2/3 golpes
   mortales por expedición, Medusa concede congelaciones gratuitas con
   enfriamiento móvil de 7/5/3 días, Cerbero reduce el daño por fallo un
@@ -64,6 +65,8 @@ deben acordarse al concretar el OpenSpec.
   [soul-passives](./openspec/changes/soul-passives/).
 - Implementar versión élite, látigo, títulos y cosméticos según
   [boss-premios-elite](./openspec/changes/boss-premios-elite/).
+- Validar visualmente en navegador el retrato temporal de Sukamon y su
+  presentación en el Perfil.
 - Completar la comprobación visual en navegador del encuentro de Legion,
   pendiente en
   [boss-legion](./openspec/changes/boss-legion/).
@@ -84,6 +87,14 @@ pendientes.
   coherencia entre pantallas y componentes; ahora mismo se percibe demasiado
   dispar. Acordar primero una dirección visual común y revisar el conjunto
   antes de rehacer pantallas por separado.
+- Mejorar la accesibilidad y la facilidad de uso para personas nuevas. Revisar
+  la organización de las habitaciones y sus contenidos para que la navegación y
+  las funciones disponibles se entiendan sin conocer previamente la app.
+- Crear un tutorial para las primeras sesiones que explique el funcionamiento
+  de la aplicación y permita volver a consultarlo desde un botón en el perfil.
+- Diseñar una curva de inicio gradual: retrasar la aparición de bosses hasta
+  que la persona lleve unos días usando la app o alcance cierto nivel, para que
+  primero pueda familiarizarse con sus funciones.
 - Rediseñar el Bestiario como una sección desplegable que se abra como un libro,
   con navegación y fichas claras para consultar la información descubierta.
   Mantener ocultos los datos de criaturas no descubiertas, comprobar la
@@ -135,16 +146,17 @@ pendientes.
 - Traits heredables y promoción/prestigio para el endgame.
 - Funciones sociales, como prestar temporalmente un oficio cuando haya cuentas
   y amistades.
-- Incorporar a Bahamut y Squall, y desarrollar el concepto del minijefe
-  Sukamon. El usuario confirma que dispone de las licencias necesarias.
+- Incorporar a Bahamut y Squall. El usuario confirma que dispone de las
+  licencias necesarias.
 
 ## OpenSpecs con trabajo todavía abierto
 
 - [Rutas y oficios — base implementada](./openspec/changes/routes-missions-jobs/).
   La evolución de rutas está en borrador y pendiente de validar en
   [route-evolution](./openspec/changes/route-evolution/).
-- [Plantel de bosses](./openspec/changes/boss-roster/): quedan encuentros del
-  plantel y disparadores específicos.
+- [Plantel de bosses](./openspec/changes/boss-roster/): queda el encuentro final
+  de Drácula y su disparador específico. El minijefe Sukamon está en
+  [su change](./openspec/changes/boss-sukamon/).
 - [Pasivas runtime de almas](./openspec/changes/soul-passives/).
 - [Élite, látigo y títulos](./openspec/changes/boss-premios-elite/).
 - [Validación visual de Legion](./openspec/changes/boss-legion/).

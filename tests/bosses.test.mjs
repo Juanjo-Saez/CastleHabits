@@ -47,6 +47,7 @@ import {
   splitBars,
   summarizeBoss,
   hidesTomorrow,
+  sukamonProgress,
 } from '../src/lib/bosses.ts'
 import { addCurse, CURSES, cureCost, tickCurses } from '../src/lib/curses.ts'
 import { applyPenance, planDayCorrection } from '../src/lib/dayCorrections.ts'
@@ -113,6 +114,159 @@ test('Hidra se activa por tres fallos recientes en una zona, incluidos los prote
     missed('b', '2026-10-13'),
     missed('c', '2026-10-20', { itemId: 'outside-zone' }),
   ] }), false)
+})
+
+test('Sukamon cuenta aplazamientos repetidos durante siete días y excluye lo anterior a su encuentro previo', () => {
+  const postponed = (itemId, date) => ({
+    id: `postponed:${itemId}:${date}`,
+    itemId,
+    itemTitle: itemId,
+    itemType: 'chore',
+    kind: 'postponed',
+    scheduledDate: date,
+    activityDate: date,
+    occurredAt: `${date}T12:00:00.000Z`,
+    runStartedAt: '2026-10-01T02:00:00',
+  })
+  const items = [chore('a'), chore('b')]
+  const events = [
+    postponed('a', '2026-10-10'),
+    postponed('a', '2026-10-11'),
+    postponed('b', '2026-10-16'),
+    postponed('b', '2026-10-09'),
+  ]
+  const context = {
+    today: '2026-10-16',
+    profile: profile(),
+    items,
+    completionsByItem: byItem([done('b', '2026-10-16')]),
+    encounters: [],
+    events,
+  }
+
+  assert.equal(reactiveBoss(context), 'sukamon')
+  assert.equal(BOSSES.sukamon.trigger(context), true)
+  assert.equal(BOSSES.sukamon.trigger({
+    ...context,
+    encounters: [{
+      id: 'sukamon:previous',
+      bossId: 'sukamon',
+      sequence: 1,
+      status: 'victory',
+      scheduledFor: '2026-10-10',
+      resolvedOn: '2026-10-10',
+      rewardGranted: true,
+      damageApplied: false,
+      createdAt: '2026-10-10T00:00:00.000Z',
+    }],
+  }), false)
+
+  const scheduled = {
+    ...sukamonBoss('2026-10-16'),
+    id: 'enc:scheduled',
+    bossId: 'giant-bat',
+    status: 'cooldown',
+    targetItemIds: undefined,
+  }
+  const activated = planBossSync({
+    ...context,
+    completionsByItem: {},
+    encounters: [scheduled],
+    random: () => 0.5,
+  })
+  const active = activated.encounters.find((record) => record.id === scheduled.id)
+  assert.equal(active.bossId, 'sukamon')
+  assert.deepEqual(active.targetItemIds, ['a', 'b'])
+})
+
+test('Sukamon fija objetivos al aparecer y exige completar la meta cuantitativa ese mismo día', () => {
+  const encounter = sukamonBoss('2026-10-16', { targetItemIds: ['a', 'b'] })
+  const items = [
+    chore('a', { trackingType: 'quantity', quantityGoal: 5 }),
+    chore('b', { trackingType: 'quantity', quantityGoal: 3 }),
+  ]
+  const partial = sukamonProgress(encounter, items, byItem([
+    done('a', '2026-10-16', { quantityDone: 5 }),
+    done('b', '2026-10-16', { quantityDone: 2 }),
+  ]))
+  assert.deepEqual(partial.completedItemIds, ['a'])
+  assert.equal(partial.won, false)
+
+  const complete = sukamonProgress(encounter, items, byItem([
+    done('a', '2026-10-16', { quantityDone: 5 }),
+    done('b', '2026-10-16', { quantityDone: 3 }),
+  ]))
+  assert.equal(complete.won, true)
+  assert.equal(complete.resolvedOn, '2026-10-16')
+})
+
+test('Sukamon no tiene consumibles de consuelo y el Digivice solo puede salir una vez por expedición', () => {
+  const items = [chore('a')]
+  const encounter = sukamonBoss('2026-10-16', { targetItemIds: ['a'] })
+  const won = planBossSync({
+    today: '2026-10-16',
+    profile: profile(),
+    items,
+    completionsByItem: byItem([done('a', '2026-10-16')]),
+    encounters: [encounter],
+    random: () => 0.029,
+  })
+  const victory = won.encounters.find((record) => record.id === encounter.id)
+  assert.equal(victory.status, 'victory')
+  assert.equal(victory.rewards.digivice, true)
+  assert.deepEqual(victory.rewards.items, {})
+  assert.equal(victory.rewards.souls, undefined)
+  assert.equal(won.profile.digivice, true)
+
+  const boundary = planBossSync({
+    today: '2026-10-16',
+    profile: profile(),
+    items,
+    completionsByItem: byItem([done('a', '2026-10-16')]),
+    encounters: [sukamonBoss('2026-10-16', { targetItemIds: ['a'] })],
+    random: () => 0.03,
+  })
+  const boundaryVictory = boundary.encounters.find((record) => record.id === encounter.id)
+  assert.equal(boundaryVictory.rewards.digivice, undefined)
+  assert.deepEqual(boundaryVictory.rewards.items, {})
+
+  const alreadyOwned = planBossSync({
+    today: '2026-10-16',
+    profile: profile({ digivice: true }),
+    items,
+    completionsByItem: byItem([done('a', '2026-10-16')]),
+    encounters: [sukamonBoss('2026-10-16', { targetItemIds: ['a'] })],
+    random: () => 0,
+  })
+  const secondVictory = alreadyOwned.encounters.find((record) => record.id === encounter.id)
+  assert.equal(secondVictory.rewards.digivice, undefined)
+})
+
+test('perder contra Sukamon no causa daño y quita como máximo un sello', () => {
+  const encounter = sukamonBoss('2026-10-16', { targetItemIds: ['a'] })
+  const result = planBossSync({
+    today: '2026-10-17',
+    profile: profile({ postponeTokens: 0 }),
+    items: [chore('a')],
+    completionsByItem: {},
+    encounters: [encounter],
+    random: () => 0.5,
+  })
+  const defeat = result.encounters.find((record) => record.id === encounter.id)
+  assert.equal(defeat.status, 'defeat')
+  assert.equal(result.profile.postponeTokens, 0)
+  assert.equal(result.profile.hp, 50)
+  assert.equal(defeat.resolvedOn, '2026-10-17')
+
+  const withToken = planBossSync({
+    today: '2026-10-17',
+    profile: profile({ postponeTokens: 2 }),
+    items: [chore('a')],
+    completionsByItem: {},
+    encounters: [sukamonBoss('2026-10-16', { targetItemIds: ['a'] })],
+    random: () => 0.5,
+  })
+  assert.equal(withToken.profile.postponeTokens, 1)
 })
 
 test('Doppelgänger compara cinco días, incluye fallos protegidos y espera al cierre', () => {
@@ -529,6 +683,14 @@ function doppelgangerBoss(windowStart = '2026-10-10', changes = {}) {
   return {
     id: 'enc:doppelganger', bossId: 'doppelganger', sequence: 1, status: 'active', scheduledFor: windowStart,
     windowStart, windowEnd: shiftKey(windowStart, 4), goal: 0,
+    rewardGranted: false, damageApplied: false, createdAt: '2026-10-01T00:00:00.000Z', ...changes,
+  }
+}
+
+function sukamonBoss(windowStart = '2026-10-10', changes = {}) {
+  return {
+    id: 'enc:sukamon', bossId: 'sukamon', sequence: 1, status: 'active', scheduledFor: windowStart,
+    windowStart, windowEnd: windowStart, goal: 0, targetItemIds: ['a'],
     rewardGranted: false, damageApplied: false, createdAt: '2026-10-01T00:00:00.000Z', ...changes,
   }
 }

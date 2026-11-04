@@ -127,11 +127,13 @@ export interface PlayerProfile {
   /** Almas obtenidas: progresan entre expediciones. */
   souls: Partial<Record<SoulId, SoulProgress>>
   /** Piedad acumulada por boss, expresada en puntos porcentuales. */
-  soulPity: Partial<Record<SoulId, number>>
+  soulPity: Partial<Record<BossId, number>>
   /** Reliquias de la expedición actual; se pierden al renacer. */
   relics: RelicId[]
   /** Victorias contra Legion de esta expedición; determina el Corazón de Legion. */
   legionVictories?: number
+  /** Digivice encontrado durante la expedición actual; todavía no tiene efecto. */
+  digivice?: boolean
   /** Almas equipadas en las casillas disponibles por nivel. */
   equippedSouls: SoulId[]
   /** Loadout elegido al entrar en el día operativo; permanece bloqueado hasta las 02:00. */
@@ -199,10 +201,10 @@ export interface Reminder {
   createdAt: string
 }
 
-export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus' | 'death' | 'medusa' | 'cerberus' | 'hydra-scylla' | 'doppelganger'
+export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus' | 'death' | 'medusa' | 'cerberus' | 'hydra-scylla' | 'doppelganger' | 'sukamon'
 export type BossCategory = 'obligations' | 'scrolls' | 'sideQuests'
 export type DeathStakePercent = 0 | 10 | 25
-export type SoulId = BossId
+export type SoulId = Exclude<BossId, 'sukamon'>
 export type SoulRank = 1 | 2 | 3
 export type SoulPassiveId =
   | 'dailyXp'
@@ -282,6 +284,8 @@ export interface BossRewards {
   xp: number
   coins: number
   items: Partial<Record<BossResource, number>>
+  /** Recompensa única especial, separada de los consumibles del inventario. */
+  digivice?: boolean
   souls?: Partial<Record<SoulId, SoulAward>>
   relics?: RelicId[]
 }
@@ -307,6 +311,8 @@ export interface BossEncounter {
   zones?: string[]
   /** Metas fijadas al activar las cabezas de Cerbero. */
   headGoals?: Partial<Record<BossCategory, number>>
+  /** Tareas fijadas al activar Sukamon; su progreso no cambia si se aplazan otras después. */
+  targetItemIds?: string[]
   resolvedOn?: string
   /** Día en que podrá activarse la siguiente aparición, fijado al resolver. */
   nextActivationOn?: string

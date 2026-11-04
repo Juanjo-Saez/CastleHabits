@@ -42,8 +42,8 @@ Diseño de los siguientes encuentros tras el Murciélago gigante. Es un document
 
 ### Modelo de datos
 
-- **`BossDefinition`** (`lib/bosses.ts`): id, partes, nombre gramatical, ventana, objetivo (`days`, `hits`, `pieces`, `lifeSteal`, `statues`, `heads` o `growingHeads`), efectos, daño y maldición de derrota, premio base, tabla de objetos, enfriamiento, peso y disparador opcional.
-- **`BossEncounter`**: una aparición. El id es `enc:<sequence>` (los anteriores conservan `giant-bat:<n>`). `bossId` es provisional mientras está pendiente y un disparador puede cambiarlo al activarse. Guarda `goal` (meta fijada al activarse), `zones` cuando el boss fija zonas, `rewards` (EXP, oro y objetos concedidos) y `curse` (maldición aplicada al perder).
+- **`BossDefinition`** (`lib/bosses.ts`): id, partes, nombre gramatical, ventana, objetivo (`days`, `hits`, `pieces`, `lifeSteal`, `statues`, `heads`, `growingHeads` o `postponedTasks`), efectos, daño y maldición de derrota, premio base, tabla de objetos, drop especial, enfriamiento, peso y disparador opcional.
+- **`BossEncounter`**: una aparición. El id es `enc:<sequence>` (los anteriores conservan `giant-bat:<n>`). `bossId` es provisional mientras está pendiente y un disparador puede cambiarlo al activarse. Guarda `goal` (meta fijada al activarse), `zones` cuando el boss fija zonas, `targetItemIds` para las tareas fijadas por Sukamon, `rewards` (EXP, oro, objetos y premios especiales concedidos) y `curse` (maldición aplicada al perder).
 - **Perfil:** `holyWater` y `curses` (máximo 2, con `startedOn`, `expiresOn` y `lastTickOn`). Se reinician al jubilarse.
 - **Golpes:** sin restricción por fecha de creación; el único límite es un completado por tarea y día.
 - **Progreso derivado:** los golpes y los días completos se calculan siempre desde los completados reales, así que corregir ayer o deshacer una tarea los recalcula solos.
@@ -153,7 +153,7 @@ Ventana total de 12 días, tres fases de 4:
 - **Premio:** EXP 400, oro 200, la *Corona de la noche* (cosmético) y el alma de Drácula con probabilidad baja.
 
 ### Minijefe: Sukamon — *Lodo de lo pospuesto*
-El **Sukamon** de Digimon, el montón de lodo que nace de lo que se deja sin hacer (sprite propio inspirado en el original). Dura 1 día y se limita a las tareas aplazadas recientemente: cumplir todas lo vence. Derrota: pierdes un sello de aplazamiento. Como minijefe da menos EXP y oro (50 / 25) y sus mismas probabilidades de consumibles, sin alma.
+El **Sukamon** de Digimon, el montón de lodo que nace de lo que se deja sin hacer (retrato aportado por el usuario). Cuenta cada evento de aplazamiento de la expedición actual en los siete días operativos anteriores, incluso si se repite la tarea, y solo considera eventos posteriores al Sukamon anterior. Al aparecer fija las tareas distintas que siguen pendientes; cumplirlas todas ese mismo día lo vence. Al perder, retira un sello si queda alguno, sin bajar de cero ni causar daño. Da 50 EXP y 25 monedas, no concede alma ni consumibles regulares. Tiene un drop especial independiente de Digivice al 3 %, una sola vez por expedición y sin efecto por ahora; se reinicia al jubilarse.
 
 ## Efectos de entorno
 
@@ -306,7 +306,7 @@ Este documento es el diseño compartido. Los changes derivados y su estado actua
    - [x] **[boss-cerberus](../boss-cerberus/proposal.md)**: tres cabezas, Aliento infernal y Triple mordisco.
    - [x] **[boss-hydra-scylla](../boss-hydra-scylla/proposal.md)**: cabezas crecientes, Veneno de hidra y cura del alma.
    - [x] **[boss-doppelganger](../boss-doppelganger/proposal.md)**: duelo contra el ritmo reciente, Espejo y Reflejo.
-   - [ ] Sukamon: minijefe.
+   - [x] **[boss-sukamon](../boss-sukamon/proposal.md)**: minijefe reactivo, objetivos congelados, pérdida de sello, Digivice especial y retrato temporal.
    - [ ] Drácula: boss final.
 
 Este change queda cerrado con las Fases 1–3 completadas.

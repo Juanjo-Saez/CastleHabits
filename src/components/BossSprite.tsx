@@ -58,6 +58,16 @@ function BossSprite({ bossId, scale = 3, className = '' }: Readonly<{ bossId: Bo
   if (bossId === 'doppelganger') {
     return <PixelArt rows={DOPPELGANGER} palette={DOPPELGANGER_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
   }
+  if (bossId === 'sukamon') {
+    return (
+      <img
+        src="/images/sukamon-portrait.png"
+        alt="Sukamon"
+        className={`shrink-0 object-contain ${className}`}
+        style={{ width: 32 * scale, height: 24 * scale }}
+      />
+    )
+  }
   return <PixelArt rows={GIANT_BAT} palette={GIANT_BAT_PALETTE} scale={scale} className={`shrink-0 ${className}`} />
 }
 

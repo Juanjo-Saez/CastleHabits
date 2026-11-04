@@ -13,6 +13,7 @@ import { getAvatarStage, xpToNextLevel } from '../lib/gamification'
 import { clearReminderDate } from '../lib/notifications'
 import { clearSummaryMarker } from '../lib/summaryMarker'
 import { effectiveMaxHp } from '../lib/routes'
+import { todayKey } from '../lib/date'
 import { restartExpedition } from '../store/routeActions'
 import { resetAllAppData } from '../db/database'
 import { useAchievementsStore } from '../store/useAchievementsStore'
@@ -23,6 +24,7 @@ import { useRewardsStore } from '../store/useRewardsStore'
 
 function ProfilePage() {
   const profile = usePlayerStore((s) => s.profile)
+  const encounters = useBossStore((s) => s.encounters)
   const clearLevelUp = usePlayerStore((s) => s.clearLevelUp)
   const [confirmRetirement, setConfirmRetirement] = useState(false)
   const [confirmFullReset, setConfirmFullReset] = useState(false)
@@ -53,6 +55,11 @@ function ProfilePage() {
   }
 
   const stage = getAvatarStage(profile.level)
+  const sukamonDefeatToday = encounters.some((encounter) =>
+    encounter.bossId === 'sukamon'
+    && encounter.status === 'defeat'
+    && encounter.resolvedOn === todayKey(),
+  )
   const nextLevelXp = xpToNextLevel(profile.level)
   const xpPercent = Math.min(100, (profile.xp / nextLevelXp) * 100)
   const maxHp = effectiveMaxHp(profile)
@@ -63,7 +70,7 @@ function ProfilePage() {
       <PageHeader title="El Cazador" subtitle="Tu progreso queda escrito en la piedra." />
       <section className="relative z-10 flex flex-col gap-4 px-3">
         <div className="cv-panel cv-panel--gold flex items-center gap-3 p-3">
-          <HunterPortrait level={profile.level} scale={4} />
+          <HunterPortrait level={profile.level} scale={4} sukamon={sukamonDefeatToday} />
           <div className="min-w-0 flex-1">
             <p className="cv-label">Nivel {profile.level}</p>
             <h2 className="cv-shadow mt-1 font-pixel text-2xl leading-none text-gold-300">{stage.title}</h2>
@@ -80,6 +87,13 @@ function ProfilePage() {
               <div className="cv-bar"><span className="cv-fill-hp" style={{ width: `${hpPercent}%` }} /></div>
             </div>
           </div>
+        </div>
+
+        <div className="cv-panel cv-panel--gold p-3">
+          <SectionTitle>Objeto especial</SectionTitle>
+          <p className="mt-1 font-body text-sm text-silver-400">
+            Digivice: {profile.digivice ? 'encontrado' : 'no encontrado'}. No tiene efecto por ahora y se reinicia al comenzar una nueva expedición.
+          </p>
         </div>
 
         <RoutesPanel />

@@ -59,6 +59,7 @@ export type BossObjective =
     categories: BossCategory[]
   }
   | { kind: 'growingHeads'; initialHeads: number }
+  | { kind: 'postponedTasks' }
   | { kind: 'duel' }
 
 /** Efectos de entorno: rigen mientras el boss está activo. */
@@ -99,6 +100,8 @@ export interface BossDefinition {
   defeatCurse?: { id: CurseId; days?: number; permanent?: boolean }
   reward: { xp: number; coins: number }
   drops: DropEntry[]
+  /** Premio especial independiente de la tabla de consumibles y del consuelo. */
+  specialDrop?: { name: string; chance: number; description: string }
   /** Texto específico para explicar una derrota cuando no hay daño directo adicional. */
   defeatText?: string
   /** Reliquia que se garantiza en la primera victoria de este boss en una expedición. */
@@ -434,6 +437,33 @@ export const BOSSES: Record<BossId, BossDefinition> = {
     maxDelay: 15,
     weight: 1,
   },
+  sukamon: {
+    id: 'sukamon',
+    name: 'Sukamon',
+    parts: ['Sukamon'],
+    grammar: { subject: 'Sukamon', object: 'a Sukamon', plural: false },
+    mechanic: 'Tareas aplazadas',
+    description: 'El lodo de lo pospuesto te obliga a resolver lo que dejaste para mañana.',
+    lore: 'Sukamon nace de cada aplazamiento y crece con lo que se queda pendiente. No basta con evitar nuevas demoras: hay que terminar todas las tareas que lo hicieron aparecer.',
+    soulChance: 0,
+    windowDays: 1,
+    objective: { kind: 'postponedTasks' },
+    effects: [],
+    defeatDamage: 0,
+    defeatText: 'Pierdes un sello de aplazamiento, si te queda alguno. Tu retrato queda cubierto de lodo durante un día',
+    reward: { xp: 50, coins: 25 },
+    drops: [],
+    specialDrop: {
+      name: 'Digivice',
+      chance: 0.03,
+      description: 'Solo puede obtenerse una vez por expedición y aún no tiene efecto.',
+    },
+    trigger: (context) => recentSukamonPostponements(context).length >= 3
+      && sukamonTargetItemIds(context).length > 0,
+    minDelay: 10,
+    maxDelay: 15,
+    weight: 0,
+  },
 }
 
 export const BOSS_IDS = Object.keys(BOSSES) as BossId[]
@@ -659,6 +689,7 @@ export function bossGoal(boss: BossDefinition, items: Item[], today: string): nu
     return Object.values(cerberusHeadGoals(items, today)).reduce((total, goal) => total + (goal ?? 0), 0)
   }
   if (boss.objective.kind === 'growingHeads') return boss.objective.initialHeads
+  if (boss.objective.kind === 'postponedTasks') return 0
   if (boss.objective.kind === 'duel') return 0
   if (boss.objective.kind === 'statues') {
     const { days, factor, min, max } = boss.objective.load
@@ -802,6 +833,72 @@ function eventBelongsToRun(event: ItemEvent, runStartedAt?: string): boolean {
   return event.runStartedAt
     ? event.runStartedAt === runStartedAt
     : new Date(event.occurredAt) >= new Date(runStartedAt)
+}
+
+function lastSukamonDate(context: BossTriggerContext): string | undefined {
+  const runStartedAt = context.profile.runStartedAt
+  return context.encounters
+    .filter((encounter) =>
+      encounter.bossId === 'sukamon'
+      && isResolved(encounter)
+      && (!runStartedAt || new Date(encounter.createdAt) >= new Date(runStartedAt)),
+    )
+    .map((encounter) => encounter.resolvedOn ?? encounter.createdAt.slice(0, 10))
+    .sort()
+    .at(-1)
+}
+
+function recentSukamonPostponements(context: BossTriggerContext): ItemEvent[] {
+  const cutoff = shiftKey(context.today, -6)
+  const itemsById = new Map(context.items.map((item) => [item.id, item]))
+  const lastEncounterDate = lastSukamonDate(context)
+  return (context.events ?? []).filter((event) => {
+    if (event.kind !== 'postponed' || !eventBelongsToRun(event, context.profile.runStartedAt)) return false
+    const date = eventDate(event, itemsById)
+    return date >= cutoff && date <= context.today && (!lastEncounterDate || date > lastEncounterDate)
+  })
+}
+
+function sukamonTargetItemIds(context: BossTriggerContext): string[] {
+  const itemsById = new Map(context.items.map((item) => [item.id, item]))
+  const postponedIds = new Set(recentSukamonPostponements(context).map((event) => event.itemId))
+  return [...postponedIds]
+    .filter((id) => {
+      const item = itemsById.get(id)
+      return item !== undefined
+        && !item.archived
+        && !isWindowCompleted(item, context.completionsByItem[id] ?? [], context.today)
+    })
+    .sort()
+}
+
+export interface SukamonProgress {
+  targetItemIds: string[]
+  completedItemIds: string[]
+  won: boolean
+  resolvedOn?: string
+}
+
+export function sukamonProgress(
+  encounter: BossEncounter,
+  items: Item[],
+  completionsByItem: Record<string, Completion[]>,
+): SukamonProgress {
+  const targetItemIds = encounter.targetItemIds ?? []
+  const itemsById = new Map(items.map((item) => [item.id, item]))
+  const completedItemIds = targetItemIds.filter((id) => {
+    const item = itemsById.get(id)
+    return item !== undefined && (completionsByItem[id] ?? []).some((completion) =>
+      completion.date === encounter.windowStart && isMetCompletion(item, completion),
+    )
+  })
+  const won = targetItemIds.length > 0 && completedItemIds.length === targetItemIds.length
+  return {
+    targetItemIds,
+    completedItemIds,
+    won,
+    ...(won ? { resolvedOn: encounter.windowStart } : {}),
+  }
 }
 
 function completionCountInRange(
@@ -1293,6 +1390,7 @@ export interface BossSummary {
   statuesBroken: number
   statuesMissed: number
   duel?: DoppelgangerProgress
+  sukamon?: SukamonProgress
   /** Días que quedan de la ventana, contando hoy; 0 si no está activo. */
   daysLeft: number
   today: BossDayStatus
@@ -1331,6 +1429,9 @@ export function summarizeBoss(
   const duel = kind === 'duel'
     ? doppelgangerProgress(encounter, items, completionsByItem, events, today, runStartedAt)
     : null
+  const sukamon = kind === 'postponedTasks'
+    ? sukamonProgress(encounter, items, completionsByItem)
+    : null
   const pieces = kind === 'pieces' && active
     ? pieceProgress(encounter, items, completionsByItem, today)
     : { disabledZones: encounter.status === 'victory' ? encounter.zones ?? [] : [] }
@@ -1343,7 +1444,8 @@ export function summarizeBoss(
             : kind === 'heads' ? (heads?.progress ?? 0)
               : kind === 'growingHeads' ? (hydra?.heads ?? 0)
                 : kind === 'duel' ? (duel?.currentCompletions ?? 0)
-                  : 0
+                  : kind === 'postponedTasks' ? (sukamon?.completedItemIds.length ?? 0)
+                    : 0
   const guardHits = kind === 'hits' && definition.objective.kind === 'hits' && definition.objective.guard
     ? (active ? (progress?.guardHits ?? 0)
       : (encounter.status === 'victory' ? definition.objective.guard.hits : 0))
@@ -1355,7 +1457,7 @@ export function summarizeBoss(
     completedDates,
     target: definition.objective.kind === 'days' ? definition.objective.targetDays : 0,
     damage,
-    goal: duel?.targetCompletions ?? goal,
+    goal: sukamon?.targetItemIds.length ?? duel?.targetCompletions ?? goal,
     bars: kind === 'hits'
       ? splitBars(definition, goal, damage, guardHits)
       : kind === 'pieces'
@@ -1377,7 +1479,13 @@ export function summarizeBoss(
                       name: 'Completados',
                       max: duel?.targetCompletions ?? 1,
                       hp: Math.min(duel?.currentCompletions ?? 0, duel?.targetCompletions ?? 1),
-                    }] : [],
+                    }]
+                      : kind === 'postponedTasks' && sukamon ? sukamon.targetItemIds.map((id) => ({
+                        name: items.find((item) => item.id === id)?.title ?? 'Tarea pendiente',
+                        max: 1,
+                        hp: sukamon.completedItemIds.includes(id) ? 0 : 1,
+                      }))
+                        : [],
     guardHits,
     scythes: damage,
     headsDown: heads?.headsDown ?? (encounter.status === 'victory' && kind === 'heads' ? 3 : 0),
@@ -1387,6 +1495,7 @@ export function summarizeBoss(
     statuesBroken: statues?.broken ?? (encounter.status === 'victory' && kind === 'statues' ? goal : 0),
     statuesMissed: statues?.missed ?? 0,
     duel: duel ?? undefined,
+    sukamon: sukamon ?? undefined,
     daysLeft: active && encounter.windowEnd
       ? Math.max(0, differenceInCalendarDays(parseISO(encounter.windowEnd), parseISO(today)) + 1)
       : 0,
@@ -1403,6 +1512,7 @@ export function bossCountsFor(item: Item, encounter: BossEncounter | null, dateK
     return category !== null && cerberusCategoryDueOn(item, category, dateKey)
   }
   if (objective.kind === 'growingHeads') return !item.archived
+  if (objective.kind === 'postponedTasks') return encounter.targetItemIds?.includes(item.id) === true
   if (objective.kind === 'duel') return !item.archived
   return objective.kind === 'hits'
     ? !item.archived
@@ -1454,6 +1564,9 @@ export function encounterSummaryLine(summary: BossSummary): string {
   if (summary.kind === 'statues') return `${summary.damage}/${summary.goal} estatuas`
   if (summary.kind === 'heads') return `${summary.headsDown}/3 cabezas derrotadas`
   if (summary.kind === 'growingHeads') return `${summary.headsRemaining} cabezas restantes`
+  if (summary.kind === 'postponedTasks' && summary.sukamon) {
+    return `${summary.sukamon.completedItemIds.length}/${summary.sukamon.targetItemIds.length} tareas aplazadas`
+  }
   if (summary.kind === 'duel' && summary.duel) {
     return `${summary.duel.currentCompletions}/${summary.duel.targetCompletions} completados · ${summary.duel.currentMisses}/${summary.duel.previousMisses} fallos`
   }
@@ -1523,6 +1636,9 @@ export function bestiaryMechanic(boss: BossDefinition): string {
   }
   if (boss.objective.kind === 'growingHeads') {
     return `Empieza con ${boss.objective.initialHeads} cabezas. Cada tarea cumplida corta una; cada obligación que termina sin completar hace crecer otra.`
+  }
+  if (boss.objective.kind === 'postponedTasks') {
+    return 'Completa durante hoy todas las tareas aplazadas pendientes que hicieron aparecer a Sukamon.'
   }
   if (boss.objective.kind === 'duel') {
     return 'Compara todos los completados de los cinco días del encuentro con los cinco anteriores: alcanza al menos un 10 % más (mínimo uno si antes no hubo completados) y no acumules más fallos.'
@@ -1698,12 +1814,15 @@ function legionVictoriesInRun(
 
 /** Boss que no puede esperar al sorteo porque se cumplió su disparador; null si ninguno. */
 export function reactiveBoss(context: BossTriggerContext): BossId | null {
+  if (BOSSES.sukamon.trigger?.(context)) return 'sukamon'
   return BOSS_IDS.find((id) => BOSSES[id].trigger?.(context)) ?? null
 }
 
 /** Sorteo ponderado del siguiente boss, sin repetir el último si hay otro disponible. */
 export function pickBoss(previous: BossId | undefined, random: Random = Math.random): BossId {
-  const pool = BOSS_IDS.length > 1 ? BOSS_IDS.filter((id) => id !== previous) : BOSS_IDS
+  const eligible = BOSS_IDS.filter((id) => BOSSES[id].weight > 0)
+  const alternatives = eligible.filter((id) => id !== previous)
+  const pool = alternatives.length > 0 ? alternatives : eligible
   const total = pool.reduce((sum, id) => sum + BOSSES[id].weight, 0)
   let roll = random() * total
   for (const id of pool) {
@@ -1786,6 +1905,10 @@ function verdictOf(
   if (boss.objective.kind === 'growingHeads') {
     const progress = hydraProgress(encounter, items, completionsByItem, events, today, runStartedAt)
     return { won: Boolean(progress.reachedOn), resolvedOn: progress.reachedOn }
+  }
+  if (boss.objective.kind === 'postponedTasks') {
+    const progress = sukamonProgress(encounter, items, completionsByItem)
+    return { won: progress.won, resolvedOn: progress.resolvedOn }
   }
   if (boss.objective.kind === 'duel') {
     const progress = doppelgangerProgress(encounter, items, completionsByItem, events, today, runStartedAt)
@@ -1943,14 +2066,18 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
   for (let step = 0; step < 4 && current; step += 1) {
     if (isPending(current)) {
       if (today < current.scheduledFor) break
-      const chosen = reactiveBoss({ today, profile, items, completionsByItem, encounters: [...records.values()], events })
-        ?? current.bossId
+      const context = { today, profile, items, completionsByItem, encounters: [...records.values()], events }
+      const chosen = reactiveBoss(context)
+        ?? (current.bossId === 'sukamon' ? pickBoss(current.bossId, random) : current.bossId)
       const boss = BOSSES[chosen]
       const goal = boss.objective.kind === 'lifeSteal'
         ? initialLifeStolen(profile)
         : boss.objective.kind === 'scythes' ? boss.objective.target
         : bossGoal(boss, items, today)
       const headGoals = boss.objective.kind === 'heads' ? cerberusHeadGoals(items, today) : undefined
+      const targetItemIds = boss.objective.kind === 'postponedTasks'
+        ? sukamonTargetItemIds(context)
+        : undefined
       if (boss.objective.kind === 'lifeSteal' && goal > 0) {
         applyDamage(goal, today, `boss:${current.id}:lifeSteal`)
       }
@@ -1962,6 +2089,7 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
         windowEnd: shiftKey(today, boss.windowDays - 1),
         goal,
         ...(headGoals ? { headGoals } : {}),
+        ...(targetItemIds ? { targetItemIds } : {}),
         zones: bossZones(boss, items),
       }
       save(current)
@@ -1973,7 +2101,10 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
     let resolved: BossEncounter | null = null
     if (verdict.won) {
       const baseRewards = rollRewards(boss, profile.level, random)
-      const soulResult = collectSoul(profile, boss.id, boss.soulChance, random)
+      const digivice = boss.id === 'sukamon' && !profile.digivice && random() < 0.03
+      const soulResult = boss.id === 'sukamon'
+        ? { profile, award: undefined }
+        : collectSoul(profile, boss.id, boss.soulChance, random)
       profile = applyBossRevenge(soulResult.profile, boss)
       if (boss.id === 'legion') {
         profile = { ...profile, legionVictories: (profile.legionVictories ?? 0) + 1 }
@@ -1994,11 +2125,12 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
       const rewards = eclipseAdjustedRewards(rolledRewards, verdict.resolvedOn ?? today)
       const awardedRewards = {
         ...rewards,
+        ...(digivice ? { digivice: true } : {}),
         ...(soulResult.award ? { souls: { [boss.id]: soulResult.award } } : {}),
         ...(relics.length > 0 ? { relics } : {}),
       }
       const applied = applyBossReward(profile, awardedRewards)
-      profile = applied.profile
+      profile = digivice ? { ...applied.profile, digivice: true } : applied.profile
       leveledUp = leveledUp || applied.leveledUp
       resolved = {
         ...current, status: 'victory', resolvedOn: verdict.resolvedOn, rewardGranted: true, rewards: awardedRewards,
@@ -2006,6 +2138,9 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
     } else if (verdict.lost || today > (current.windowEnd as string)) {
       const damageDate = verdict.resolvedOn ?? shiftKey(current.windowEnd as string, 1)
       applyDamage(boss.defeatDamage, damageDate, `boss:${current.id}:defeat`)
+      if (boss.id === 'sukamon') {
+        profile = { ...profile, postponeTokens: Math.max(0, profile.postponeTokens - 1) }
+      }
       if (boss.defeatCurse && !profile.dead) {
         const curses = addCurse(
           profile.curses,

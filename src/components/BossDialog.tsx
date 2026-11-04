@@ -38,6 +38,10 @@ function dayLabel(dateKey: string): string {
   return format(parseISO(dateKey), 'dd/MM')
 }
 
+function percent(chance: number): string {
+  return `${(chance * 100).toLocaleString('es-ES', { maximumFractionDigits: 1 })} %`
+}
+
 function itemsText(items: Partial<Record<BossResource, number>>): string {
   return Object.entries(items)
     .filter(([, quantity]) => (quantity ?? 0) > 0)
@@ -60,14 +64,15 @@ function headline(summary: BossSummary, mode: BossDialogMode): string | null {
       })
       .join(', ')
     const relics = (rewards.relics ?? []).map((id) => RELICS[id].name).join(', ')
-    const extras = [items, souls, relics].filter(Boolean).join(', ')
+    const extras = [items, rewards.digivice ? 'Digivice' : '', souls, relics].filter(Boolean).join(', ')
     return `¡Has vencido ${definition.grammar.object}! Recibes ${rewards.xp} EXP, ${rewards.coins} monedas${extras ? ` y ${extras}` : ''}.`
   }
   if (encounter.status === 'defeat' && mode === 'result') {
     const curse = encounter.curse ? ` Te alcanza la maldición ${CURSES[encounter.curse].name}.` : ''
     const verb = definition.grammar.plural ? 'se retiran' : 'se retira'
     const consequence = definition.defeatText ?? `Pierdes ${definition.defeatDamage} de vida`
-    return `${definition.grammar.subject} ${verb} tras el combate: ${consequence}.${curse}`
+    const punctuation = consequence.endsWith('.') ? '' : '.'
+    return `${definition.grammar.subject} ${verb} tras el combate: ${consequence}${punctuation}${curse}`
   }
   if (mode === 'intro') return `${definition.grammar.subject} ${definition.grammar.plural ? 'rondan' : 'ronda'} el castillo.`
   return null
@@ -204,12 +209,16 @@ function BossDialog({
                             ? 'Estatuas'
                               : kind === 'duel'
                                 ? 'Completados'
-                                : kind === 'heads' || kind === 'growingHeads'
-                                        ? 'Cabezas'
-                                        : 'Golpes'}
-                              value={kind === 'duel'
-                                ? `${duel?.currentCompletions ?? 0}/${duel?.targetCompletions ?? 1}`
-                                : kind === 'heads'
+                                : kind === 'postponedTasks'
+                                  ? 'Tareas'
+                                  : kind === 'heads' || kind === 'growingHeads'
+                                                  ? 'Cabezas'
+                                                  : 'Golpes'}
+                                        value={kind === 'duel'
+                                          ? `${duel?.currentCompletions ?? 0}/${duel?.targetCompletions ?? 1}`
+                                          : kind === 'postponedTasks'
+                                            ? `${summary.sukamon?.completedItemIds.length ?? 0}/${summary.sukamon?.targetItemIds.length ?? 0}`
+                                          : kind === 'heads'
                                 ? `${headsDown}/3`
                                 : kind === 'growingHeads' ? `${headsRemaining} restantes` : `${damage}/${goal}`}
                   />
@@ -251,6 +260,8 @@ function BossDialog({
                                 ? 'Progreso del duelo'
                                 : kind === 'heads' || kind === 'growingHeads'
                                       ? `Cabezas de ${definition.name}`
+                                      : kind === 'postponedTasks'
+                                        ? 'Tareas aplazadas por completar'
                                       : 'Vida del boss'
                   }
                   className="flex flex-col gap-2"
@@ -275,6 +286,8 @@ function BossDialog({
                                   ? `Estatuas rotas de ${bar.name}`
                                   : kind === 'duel'
                                     ? 'Completados durante el encuentro'
+                                  : kind === 'postponedTasks'
+                                    ? `Estado de la tarea aplazada ${bar.name}`
                                   : kind === 'heads' || kind === 'growingHeads'
                                         ? `Vida de la cabeza de ${bar.name}`
                                         : `Vida de ${bar.name}`
@@ -316,6 +329,11 @@ function BossDialog({
                     <p className="mt-1 text-center font-pixel text-base leading-snug text-silver-500">
                       Periodo anterior: {duel.previousCompletions} completados y {duel.previousMisses} fallos.
                       {' '}Encuentro: {duel.currentCompletions} completados y {duel.currentMisses} fallos.
+                    </p>
+                  )}
+                  {objective.kind === 'postponedTasks' && summary.sukamon && (
+                    <p className="mt-1 text-center font-pixel text-base leading-snug text-silver-500">
+                      Completa hoy las tareas aplazadas fijadas al comenzar el encuentro.
                     </p>
                   )}
                 </section>
@@ -390,6 +408,10 @@ function BossDialog({
                 <>
                   {bestiaryMechanic(definition)} El resultado se confirma cuando termina la ventana de {definition.windowDays} días.
                 </>
+              ) : objective.kind === 'postponedTasks' ? (
+                <>
+                  {bestiaryMechanic(definition)} El encuentro dura un día y solo cuentan las tareas fijadas al aparecer.
+                </>
               ) : (
                 <>
                   {bestiaryMechanic(definition)} Debes agotar su vida ({goal || 'según tu carga'})
@@ -399,7 +421,7 @@ function BossDialog({
             </Rule>
             <Rule icon={<PixelArt rows={HEART} palette={HEART_PALETTE} scale={3} />} title="Si fallas">
               {definition.defeatText ?? `Al acabar el plazo recibes ${definition.defeatDamage} de daño directo: ninguna defensa lo detiene.`}
-              {definition.defeatText ? '.' : ''}
+              {definition.defeatText && !definition.defeatText.endsWith('.') ? '.' : ''}
               {definition.defeatCurse && (
                 <> Además te alcanza la maldición <strong>{CURSES[definition.defeatCurse.id].name}</strong>
                   {definition.defeatCurse.permanent
@@ -409,7 +431,11 @@ function BossDialog({
             </Rule>
             <Rule icon={<PixelArt rows={COIN} palette={COIN_PALETTE} scale={3} />} title="Recompensa">
               {Math.round(definition.reward.xp * multiplier)} EXP y {Math.round(definition.reward.coins * multiplier)} monedas,
-              más objetos al azar: {dropLabels}.
+              {definition.drops.length > 0 ? ` más objetos al azar: ${dropLabels}.` : ' sin consumibles regulares.'}
+              {definition.specialDrop && (
+                <> Tiene un {percent(definition.specialDrop.chance)} de probabilidad de soltar <strong>{definition.specialDrop.name}</strong>;
+                  {' '}{definition.specialDrop.description}</>
+              )}
             </Rule>
           </ul>
 

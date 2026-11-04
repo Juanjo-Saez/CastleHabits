@@ -2,7 +2,11 @@ import { getAvatarStage } from '../lib/gamification'
 import { HUNTER } from '../lib/pixelArt'
 import PixelArt from './PixelArt'
 
-function HunterPortrait({ level, scale = 5 }: Readonly<{ level: number; scale?: number }>) {
+function HunterPortrait({
+  level,
+  scale = 5,
+  sukamon,
+}: Readonly<{ level: number; scale?: number; sukamon?: boolean }>) {
   const stage = getAvatarStage(level)
   return (
     <div
@@ -13,7 +17,15 @@ function HunterPortrait({ level, scale = 5 }: Readonly<{ level: number; scale?: 
           : undefined
       }
     >
-      <PixelArt rows={HUNTER} palette={stage.palette} scale={scale} title={stage.title} />
+      {sukamon ? (
+        <img
+          src="/images/sukamon-portrait.png"
+          alt="Retrato del cazador cubierto de lodo"
+          className="h-16 w-20 object-contain"
+        />
+      ) : (
+        <PixelArt rows={HUNTER} palette={stage.palette} scale={scale} title={stage.title} />
+      )}
     </div>
   )
 }

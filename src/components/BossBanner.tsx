@@ -45,7 +45,11 @@ function BossBanner({ summary, onOpen }: Readonly<{ summary: BossSummary; onOpen
           </span>
         )}
         <span className="cv-label mt-1 block text-[0.8rem] text-silver-500">
-          {kind === 'duel' ? 'Espejo visual' : definition.effects.map(describeEffect).join(' · ')}
+          {kind === 'duel'
+            ? 'Espejo visual'
+            : kind === 'postponedTasks'
+              ? 'Completa lo aplazado hoy'
+              : definition.effects.map(describeEffect).join(' · ')}
         </span>
       </span>
     </button>

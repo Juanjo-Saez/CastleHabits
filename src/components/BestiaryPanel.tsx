@@ -83,8 +83,7 @@ function BestiaryCard({
           </p>
         ))}
         <p className="font-body text-sm text-silver-500">
-          Derrota: {boss.defeatDamage} de daño directo
-          {boss.defeatCurse ? ` y la maldición ${CURSES[boss.defeatCurse.id].name}` : ''}.
+          Derrota: {boss.defeatText ?? `${boss.defeatDamage} de daño directo${boss.defeatCurse ? ` y la maldición ${CURSES[boss.defeatCurse.id].name}` : ''}.`}
         </p>
       </div>
 
@@ -107,14 +106,25 @@ function BestiaryCard({
         <p className="cv-label">Probabilidades de objetos</p>
         {unlocks.odds ? (
           <>
-            <ul className="font-body text-sm text-silver-100">
-              {boss.drops.map((drop) => (
-                <li key={drop.item}>{dropLabel(drop)}: {percent(drop.chance)}</li>
-              ))}
-            </ul>
-            <p className="font-body text-xs italic text-silver-500">
-              Cada objeto se sortea por separado; si no sale ninguno, se concede el más probable.
-            </p>
+            {boss.drops.length > 0 ? (
+              <>
+                <ul className="font-body text-sm text-silver-100">
+                  {boss.drops.map((drop) => (
+                    <li key={drop.item}>{dropLabel(drop)}: {percent(drop.chance)}</li>
+                  ))}
+                </ul>
+                <p className="font-body text-xs italic text-silver-500">
+                  Cada objeto se sortea por separado; si no sale ninguno, se concede el más probable.
+                </p>
+              </>
+            ) : (
+              <p className="font-body text-sm text-silver-300">No concede consumibles regulares.</p>
+            )}
+            {boss.specialDrop && (
+              <p className="font-body text-sm text-silver-100">
+                {boss.specialDrop.name}: {percent(boss.specialDrop.chance)}. {boss.specialDrop.description}
+              </p>
+            )}
           </>
         ) : (
           <LockedNote title="Probabilidades" unlock={BESTIARY_UNLOCKS.odds} victories={entry.victories} />
@@ -137,7 +147,9 @@ function BestiaryCard({
 
       <div>
         <p className="cv-label">Alma</p>
-        {unlocks.soul ? (
+        {boss.soulChance === 0 ? (
+          <p className="font-body text-sm text-silver-100">Este minijefe no concede alma.</p>
+        ) : unlocks.soul ? (
           <p className="font-body text-sm text-silver-100">
             Probabilidad del alma: {percent(soulChanceWithPity(boss.soulChance, soulPity))} por victoria
             (base {percent(boss.soulChance)}, piedad {soulPity} %).
