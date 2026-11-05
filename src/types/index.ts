@@ -134,6 +134,14 @@ export interface PlayerProfile {
   legionVictories?: number
   /** Digivice encontrado durante la expedición actual; todavía no tiene efecto. */
   digivice?: boolean
+  /** Insignias permanentes que no se pierden al jubilarse. */
+  unlockedCosmetics?: BossCosmeticId[]
+  /** Hitos únicos de Drácula ya detectados durante esta expedición. */
+  draculaMilestones?: string[]
+  /** Hay al menos un hito de Drácula pendiente de una aparición. */
+  draculaPending?: boolean
+  /** Revancha automática de Drácula si ya no quedan hitos nuevos. */
+  draculaRevengeOn?: string
   /** Almas equipadas en las casillas disponibles por nivel. */
   equippedSouls: SoulId[]
   /** Loadout elegido al entrar en el día operativo; permanece bloqueado hasta las 02:00. */
@@ -201,8 +209,10 @@ export interface Reminder {
   createdAt: string
 }
 
-export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus' | 'death' | 'medusa' | 'cerberus' | 'hydra-scylla' | 'doppelganger' | 'sukamon'
+export type BossId = 'giant-bat' | 'slogra-gaibon' | 'legion' | 'frankenstein' | 'succubus' | 'death' | 'medusa' | 'cerberus' | 'hydra-scylla' | 'doppelganger' | 'sukamon' | 'dracula'
 export type BossCategory = 'obligations' | 'scrolls' | 'sideQuests'
+export type BossCosmeticId = 'nightCrown'
+export type DraculaPhase = 'human' | 'bat' | 'demon'
 export type DeathStakePercent = 0 | 10 | 25
 export type SoulId = Exclude<BossId, 'sukamon'>
 export type SoulRank = 1 | 2 | 3
@@ -268,6 +278,7 @@ export type CurseId =
   | 'petrification'
   | 'amnesia'
   | 'chains'
+  | 'draculaMark'
 
 /** Maldición en curso: rige desde `startedOn` hasta el día anterior a `expiresOn`. */
 export interface ActiveCurse {
@@ -286,6 +297,7 @@ export interface BossRewards {
   items: Partial<Record<BossResource, number>>
   /** Recompensa única especial, separada de los consumibles del inventario. */
   digivice?: boolean
+  cosmetics?: BossCosmeticId[]
   souls?: Partial<Record<SoulId, SoulAward>>
   relics?: RelicId[]
 }
@@ -313,6 +325,16 @@ export interface BossEncounter {
   headGoals?: Partial<Record<BossCategory, number>>
   /** Tareas fijadas al activar Sukamon; su progreso no cambia si se aplazan otras después. */
   targetItemIds?: string[]
+  /** Fase de Drácula y fechas de su ventana de cuatro días. */
+  draculaPhase?: DraculaPhase
+  draculaPhaseStartedOn?: string
+  draculaPhaseEndsOn?: string
+  /** Meta de golpes de la fase Murciélago, fijada al activar el encuentro. */
+  draculaBatGoal?: number
+  /** Compatibilidad con encuentros activos guardados antes del cambio de fases. */
+  draculaDemonGoal?: number
+  /** Fases superadas, recalculadas desde completados y eventos reales. */
+  draculaPhasesCompleted?: DraculaPhase[]
   resolvedOn?: string
   /** Día en que podrá activarse la siguiente aparición, fijado al resolver. */
   nextActivationOn?: string

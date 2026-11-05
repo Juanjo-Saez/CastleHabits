@@ -38,13 +38,14 @@ Diseño de los siguientes encuentros tras el Murciélago gigante. Es un document
 | Cerbero | Hecho en `boss-cerberus` |
 | Hidra / Escila | Hecho en `boss-hydra-scylla` |
 | Doppelgänger | Hecho en `boss-doppelganger` |
-| Resto de bosses (Drácula, Sukamon) | Pendiente; un change por boss |
+| Sukamon | Hecho en `boss-sukamon` |
+| Drácula | Hecho en `boss-dracula` |
 
 ### Modelo de datos
 
-- **`BossDefinition`** (`lib/bosses.ts`): id, partes, nombre gramatical, ventana, objetivo (`days`, `hits`, `pieces`, `lifeSteal`, `statues`, `heads`, `growingHeads` o `postponedTasks`), efectos, daño y maldición de derrota, premio base, tabla de objetos, drop especial, enfriamiento, peso y disparador opcional.
-- **`BossEncounter`**: una aparición. El id es `enc:<sequence>` (los anteriores conservan `giant-bat:<n>`). `bossId` es provisional mientras está pendiente y un disparador puede cambiarlo al activarse. Guarda `goal` (meta fijada al activarse), `zones` cuando el boss fija zonas, `targetItemIds` para las tareas fijadas por Sukamon, `rewards` (EXP, oro, objetos y premios especiales concedidos) y `curse` (maldición aplicada al perder).
-- **Perfil:** `holyWater` y `curses` (máximo 2, con `startedOn`, `expiresOn` y `lastTickOn`). Se reinician al jubilarse.
+- **`BossDefinition`** (`lib/bosses.ts`): id, partes, nombre gramatical, ventana, objetivo (`days`, `hits`, `pieces`, `lifeSteal`, `statues`, `heads`, `growingHeads`, `postponedTasks` o `dracula`), efectos (`eternalNight` incluido), daño y maldición de derrota, premio base, tabla de objetos, drop especial, cosmético de primera victoria, enfriamiento, peso y disparador opcional.
+- **`BossEncounter`**: una aparición. El id es `enc:<sequence>` (los anteriores conservan `giant-bat:<n>`). `bossId` es provisional mientras está pendiente y un disparador puede cambiarlo al activarse. Guarda `goal` (meta fijada al activarse), `zones` cuando el boss fija zonas, `targetItemIds` para las tareas fijadas por Sukamon, estado de fase de Drácula, `rewards` (EXP, oro, objetos y premios especiales concedidos) y `curse` (maldición aplicada al perder).
+- **Perfil:** `holyWater` y `curses` (máximo 2, con `startedOn`, `expiresOn` y `lastTickOn`). Se reinician al jubilarse. Las insignias desbloqueadas y el bestiario persisten; hitos y revancha automática de Drácula son de la expedición actual.
 - **Golpes:** sin restricción por fecha de creación; el único límite es un completado por tarea y día.
 - **Progreso derivado:** los golpes y los días completos se calculan siempre desde los completados reales, así que corregir ayer o deshacer una tarea los recalcula solos.
 - **Robo de vida:** Succubus fija en `goal` la vida robada al activarse y deriva la sangre recuperada de los completados, sin guardar contadores manuales.
@@ -74,7 +75,7 @@ Diseño de los siguientes encuentros tras el Murciélago gigante. Es un document
 | Hidra / Escila | Una zona con 3 o más fallos en 10 días |
 | Doppelgänger | Un tramo de ruta completado, o 30 días sin cambios en tu ritmo |
 | Succubus | Vida por encima del 80 % durante 5 días |
-| Drácula *(final)* | Niveles 10, 20 y 30, o terminar una ruta |
+| Drácula *(final)* | Cada nivel 10, 20 y 30, o completar el último tramo de cada ruta; hitos únicos por expedición y pendientes agrupados |
 
 ## Plantel
 
@@ -143,14 +144,11 @@ Dos días con todas las obligaciones cumplidas. Entorno: EXP −30 %. Derrota: 2
 - **Alma:** cura 2/4/6 PV al amanecer si el día anterior cerró sin fallos, según rango; los fallos protegidos también cancelan la cura.
 
 ### 11. Drácula — *Jefe final de tres fases*
-Ventana total de 12 días, tres fases de 4:
-1. **Humano:** Constancia (2 días completos).
-2. **Demonio:** Golpes (vida con `factor 1,0`).
-3. **Murciélago:** ninguna obligación fallada durante los 4 días.
-
-- **Entorno:** *Noche eterna*: luna de sangre, daño por fallo ×1,5.
-- **Derrota:** la maldición *Marca de Drácula* (vida máxima −10 % hasta derrotarlo en una revancha).
-- **Premio:** EXP 400, oro 200, la *Corona de la noche* (cosmético) y el alma de Drácula con probabilidad baja.
+La especificación confirmada está en [boss-dracula](../boss-dracula/proposal.md).
+Cada nivel 10, 20 o 30 y cada ruta completada genera un hito único por
+expedición; los hitos pendientes se agrupan y Drácula aparece al terminar
+cualquier boss activo. Si ya no quedan hitos, la revancha tras una derrota se
+programa en 10–15 días.
 
 ### Minijefe: Sukamon — *Lodo de lo pospuesto*
 El **Sukamon** de Digimon, el montón de lodo que nace de lo que se deja sin hacer (retrato aportado por el usuario). Cuenta cada evento de aplazamiento de la expedición actual en los siete días operativos anteriores, incluso si se repite la tarea, y solo considera eventos posteriores al Sukamon anterior. Al aparecer fija las tareas distintas que siguen pendientes; cumplirlas todas ese mismo día lo vence. Al perder, retira un sello si queda alguno, sin bajar de cero ni causar daño. Da 50 EXP y 25 monedas, no concede alma ni consumibles regulares. Tiene un drop especial independiente de Digivice al 3 %, una sola vez por expedición y sin efecto por ahora; se reinicia al jubilarse.
@@ -191,7 +189,7 @@ Máximo **2 a la vez**; la misma no se acumula (se renueva su duración).
 | Hoz de Death | Grave | Vida máxima −10 % | Hasta curarla |
 | Amnesia | Grave | Se ocultan las estadísticas históricas | Hasta curarla |
 | Cadenas | Grave | Una tarea no se aplaza y su fallo duele el doble | Hasta curarla |
-| Marca de Drácula | Grave | Daño por fallo ×1,5 | Hasta revancha |
+| Marca de Drácula | Grave | Vida máxima efectiva −10 % | Hasta vencer a Drácula en una revancha |
 
 **Las leves caducan solas; las graves hay que curarlas:**
 - **Sacerdotisa** (oro): `coste = 30 + 10 × nivel`.
@@ -227,7 +225,7 @@ Sello de aplazamiento, poción de vigor, congelación de racha *(ya existen)*, *
 | Cerbero | 150 / 80 | Sello 40 %, Poción 40 %, Congelación 40 %, Látigo 25 %, Agua bendita 8 % | 2,5 % |
 | Doppelgänger | 160 / 80 | Látigo 40 %, Congelación 30 %, Sello 30 %, Agua bendita 20 % | 2 % |
 | Hidra / Escila | 130 / 70 | Poción 55 %, Sello 30 %, Agua bendita 20 %, Congelación 20 % | 3 % |
-| Drácula | 400 / 200 | Todos 60–70 %, Agua bendita 40 %, Bolsa de oro 60 % | 5 % |
+| Drácula | 400 / 200 | Sin consumibles regulares; Corona de la noche en la primera victoria | 2 % |
 
 ### Almas (pasivas positivas, pequeñas)
 
@@ -244,7 +242,7 @@ Sello de aplazamiento, poción de vigor, congelación de racha *(ya existen)*, *
 | Cerbero | El daño por fallo baja un 10 % |
 | Doppelgänger | **Reflejo:** una vez por semana, el daño de un fallo se reduce a la mitad |
 | Hidra / Escila | Cura 2/4/6 PV al amanecer si ayer no hubo fallos, según rango |
-| Drácula | Vida máxima +10 % y aura de la Corona |
+| Drácula | Coleccionable, sin pasiva |
 
 **Las almas persisten entre expediciones.** Las casillas equipadas dependen del nivel de la expedición actual: 1 al nivel 5, 2 al nivel 10 y 3 al nivel 20, para que una expedición nueva no parta con todo el poder acumulado.
 
@@ -307,6 +305,6 @@ Este documento es el diseño compartido. Los changes derivados y su estado actua
    - [x] **[boss-hydra-scylla](../boss-hydra-scylla/proposal.md)**: cabezas crecientes, Veneno de hidra y cura del alma.
    - [x] **[boss-doppelganger](../boss-doppelganger/proposal.md)**: duelo contra el ritmo reciente, Espejo y Reflejo.
    - [x] **[boss-sukamon](../boss-sukamon/proposal.md)**: minijefe reactivo, objetivos congelados, pérdida de sello, Digivice especial y retrato temporal.
-   - [ ] Drácula: boss final.
+   - [x] **[boss-dracula](../boss-dracula/proposal.md)**: hitos agrupados, tres fases, Marca, revancha y Corona permanente.
 
 Este change queda cerrado con las Fases 1–3 completadas.

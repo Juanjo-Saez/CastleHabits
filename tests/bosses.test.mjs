@@ -17,6 +17,7 @@ import {
   cerberusProgress,
   completeDatesOf,
   dailyLoad,
+  draculaProgress,
   doppelgangerProgress,
   describeEffect,
   encounterSummaryLine,
@@ -77,6 +78,7 @@ import {
   isFirstZoneCompletionOn,
   soulChanceWithPity,
   soulSlotsForLevel,
+  soulDefinition,
 } from '../src/lib/souls.ts'
 import {
   WEATHER_PROFILES,
@@ -267,6 +269,217 @@ test('perder contra Sukamon no causa daño y quita como máximo un sello', () =>
     random: () => 0.5,
   })
   assert.equal(withToken.profile.postponeTokens, 1)
+})
+
+test('Drácula mantiene Noche eterna, daño de fallo ×1,5 y el eclipse ×2', () => {
+  const eclipseDate = Array.from({ length: 400 }, (_, offset) => shiftKey('2026-10-01', offset))
+    .find((date) => weatherForDay(date) === 'eclipse')
+  const clearDate = Array.from({ length: 400 }, (_, offset) => shiftKey('2026-10-01', offset))
+    .find((date) => weatherForDay(date) !== 'eclipse')
+  assert.ok(eclipseDate)
+  assert.ok(clearDate)
+
+  const eclipseBoss = draculaBoss(eclipseDate)
+  const clearBoss = draculaBoss(clearDate)
+  assert.equal(BOSSES.dracula.objective.kind, 'dracula')
+  assert.equal(BOSSES.dracula.windowDays, 12)
+  assert.equal(BOSSES.dracula.weight, 0)
+  assert.equal(BOSSES.dracula.soulChance, 0.02)
+  assert.equal(BOSSES.dracula.drops.length, 0)
+  assert.equal(bossGoal(BOSSES.dracula, [], eclipseDate), 10)
+  assert.equal(effectPercent(eclipseBoss, 'damagePercent', eclipseDate), 150)
+  assert.equal(modifyDamage(10, { boss: eclipseBoss }, eclipseDate), 30)
+  assert.equal(modifyDamage(10, { boss: clearBoss }, clearDate), 15)
+  assert.equal(soulDefinition('dracula').passiveId, undefined)
+  assert.match(soulDefinition('dracula').effectDescription, /sin pasiva/i)
+})
+
+test('Drácula recorre Humano, Murciélago y Demonio, empezando cada fase al día siguiente', () => {
+  const encounter = draculaBoss()
+  const human = chore('human')
+  const hardA = chore('hard-a', { difficulty: 'hard', createdAt: '2026-10-13T10:00:00' })
+  const hardB = chore('hard-b', { difficulty: 'hard', createdAt: '2026-10-13T10:00:00' })
+  const items = [human, hardA, hardB]
+  const completions = byItem([
+    done('human', '2026-10-10'),
+    done('human', '2026-10-12'),
+    done('hard-a', '2026-10-13'),
+    done('hard-b', '2026-10-13'),
+  ])
+
+  const bat = draculaProgress(encounter, items, completions, [], '2026-10-12')
+  assert.equal(bat.phase, 'bat')
+  assert.equal(bat.phaseStartedOn, '2026-10-13')
+  assert.equal(bat.phaseEndsOn, '2026-10-16')
+  assert.deepEqual(bat.completedPhases, ['human'])
+  assert.equal(bat.progress, 0)
+
+  const legacyGoal = draculaProgress(
+    { ...encounter, draculaBatGoal: undefined, draculaDemonGoal: 12 },
+    items,
+    completions,
+    [],
+    '2026-10-12',
+  )
+  assert.equal(legacyGoal.goal, 12)
+
+  const demon = draculaProgress(encounter, items, completions, [], '2026-10-13')
+  assert.equal(demon.phase, 'demon')
+  assert.equal(demon.phaseStartedOn, '2026-10-14')
+  assert.equal(demon.phaseEndsOn, '2026-10-17')
+  assert.deepEqual(demon.completedPhases, ['human', 'bat'])
+  assert.equal(demon.progress, 0)
+
+  const victory = draculaProgress(encounter, items, completions, [], '2026-10-18')
+  assert.equal(victory.verdict.won, true)
+  assert.equal(victory.verdict.resolvedOn, '2026-10-17')
+  assert.deepEqual(victory.completedPhases, ['human', 'bat', 'demon'])
+
+  const protectedMiss = missed('human', '2026-10-15', { protectedBy: 'shield' })
+  const defeat = draculaProgress(encounter, items, completions, [protectedMiss], '2026-10-18')
+  assert.equal(defeat.missed, true)
+  assert.deepEqual(defeat.verdict, { won: false, lost: true, resolvedOn: '2026-10-18' })
+
+  const excludedMisses = [
+    missed('habit', '2026-10-15', { itemType: 'habit' }),
+    missed('side-quest', '2026-10-16', { commitment: 'sideQuest' }),
+  ]
+  const clean = draculaProgress(encounter, items, completions, excludedMisses, '2026-10-18')
+  assert.equal(clean.verdict.won, true)
+})
+
+test('Drácula pierde al cerrar la cuarta jornada fallida y aplica la Marca hasta la revancha', () => {
+  const completedRoutes = Object.fromEntries(
+    Object.keys(defaultRoutes()).map((routeId) => [routeId, { level: 5 }]),
+  )
+  const player = profile({
+    level: 30,
+    routes: completedRoutes,
+    draculaMilestones: allDraculaMilestones(),
+  })
+  const result = planBossSync({
+    today: '2026-10-14',
+    profile: player,
+    items: [],
+    completionsByItem: {},
+    encounters: [draculaBoss()],
+    random: () => 0,
+  })
+  const defeat = result.encounters.find((encounter) => encounter.id === 'enc:dracula')
+  assert.equal(defeat.status, 'defeat')
+  assert.equal(defeat.resolvedOn, '2026-10-14')
+  assert.equal(result.profile.hp, 45)
+  assert.equal(effectiveMaxHp(result.profile), 45)
+  assert.equal(result.profile.curses[0].id, 'draculaMark')
+  assert.equal(result.profile.curses[0].permanent, true)
+  assert.equal(result.profile.draculaRevengeOn, '2026-10-24')
+
+  const beforeRevenge = planBossSync({
+    today: '2026-10-23',
+    profile: result.profile,
+    items: [],
+    completionsByItem: {},
+    encounters: result.encounters,
+    random: () => 0,
+  })
+  assert.equal(beforeRevenge.encounters.at(-1).status, 'cooldown')
+  const revenge = planBossSync({
+    today: '2026-10-24',
+    profile: beforeRevenge.profile,
+    items: [],
+    completionsByItem: {},
+    encounters: beforeRevenge.encounters,
+    random: () => 0,
+  })
+  assert.equal(revenge.encounters.at(-1).bossId, 'dracula')
+  assert.equal(revenge.encounters.at(-1).status, 'active')
+  assert.equal(revenge.profile.curses[0].id, 'draculaMark')
+  assert.equal(revenge.profile.draculaRevengeOn, undefined)
+})
+
+test('Drácula agrupa hitos de nivel y espera a que termine el boss activo', () => {
+  const task = chore('a')
+  const active = activeBoss()
+  const queued = planBossSync({
+    today: '2026-10-10',
+    profile: profile({ level: 30, draculaMilestones: [] }),
+    items: [task],
+    completionsByItem: {},
+    encounters: [active],
+    random: () => 0.5,
+  })
+  assert.equal(queued.profile.draculaPending, true)
+  assert.deepEqual(queued.profile.draculaMilestones, ['level:10', 'level:20', 'level:30'])
+  assert.equal(queued.encounters.at(-1).bossId, 'giant-bat')
+  assert.equal(queued.encounters.at(-1).status, 'active')
+
+  const activated = planBossSync({
+    today: '2026-10-11',
+    profile: queued.profile,
+    items: [task],
+    completionsByItem: byItem([done('a', '2026-10-10'), done('a', '2026-10-11')]),
+    encounters: queued.encounters,
+    random: () => 0.5,
+  })
+  const dracula = activated.encounters.find((encounter) => encounter.bossId === 'dracula')
+  assert.equal(dracula.status, 'active')
+  assert.equal(dracula.windowStart, '2026-10-11')
+  assert.equal(activated.profile.draculaPending, false)
+  assert.equal(activated.encounters.filter((encounter) => encounter.bossId === 'dracula').length, 1)
+
+  const routeProfile = profile({
+    draculaMilestones: [],
+    routes: { ...defaultRoutes(), technomancer: { level: 5 } },
+  })
+  const routeTrigger = sync({ profile: routeProfile }, '2026-10-10')
+  assert.equal(routeTrigger.encounters.at(-1).bossId, 'dracula')
+  assert.ok(routeTrigger.profile.draculaMilestones.includes('route:technomancer'))
+})
+
+test('la victoria de Drácula elimina la Marca y concede una sola Corona permanente', () => {
+  const items = [
+    chore('human'),
+    chore('hard-a', { difficulty: 'hard', createdAt: '2026-10-13T10:00:00' }),
+    chore('hard-b', { difficulty: 'hard', createdAt: '2026-10-13T10:00:00' }),
+  ]
+  const completions = byItem([
+    done('human', '2026-10-10'),
+    done('human', '2026-10-12'),
+    done('hard-a', '2026-10-13'),
+    done('hard-b', '2026-10-13'),
+  ])
+  const marked = addCurse([], 'draculaMark', 'dracula', '2026-10-14', 0, true)
+  const result = planBossSync({
+    today: '2026-10-18',
+    profile: profile({ curses: marked, hp: 40 }),
+    items,
+    completionsByItem: completions,
+    encounters: [draculaBoss()],
+    random: () => 0.005,
+  })
+  const victory = result.encounters.find((encounter) => encounter.id === 'enc:dracula')
+  assert.equal(victory.status, 'victory')
+  assert.equal(victory.rewards.xp, 400)
+  assert.equal(victory.rewards.coins, 200)
+  assert.deepEqual(victory.rewards.items, {})
+  assert.deepEqual(victory.rewards.cosmetics, ['nightCrown'])
+  assert.ok(victory.rewards.souls.dracula)
+  assert.deepEqual(result.profile.unlockedCosmetics, ['nightCrown'])
+  assert.equal(result.profile.curses.some((curse) => curse.id === 'draculaMark'), false)
+  assert.equal(effectiveMaxHp(result.profile), result.profile.maxHp)
+  assert.ok(effectiveMaxHp(result.profile) > 45)
+
+  const repeated = planBossSync({
+    today: '2026-10-18',
+    profile: profile({ unlockedCosmetics: ['nightCrown'] }),
+    items,
+    completionsByItem: completions,
+    encounters: [draculaBoss('2026-10-10', { id: 'enc:dracula:2', sequence: 2 })],
+    random: () => 0.5,
+  })
+  const repeatedVictory = repeated.encounters.find((encounter) => encounter.id === 'enc:dracula:2')
+  assert.equal(repeatedVictory.rewards.cosmetics, undefined)
+  assert.deepEqual(repeated.profile.unlockedCosmetics, ['nightCrown'])
 })
 
 test('Doppelgänger compara cinco días, incluye fallos protegidos y espera al cierre', () => {
@@ -695,6 +908,23 @@ function sukamonBoss(windowStart = '2026-10-10', changes = {}) {
   }
 }
 
+function draculaBoss(windowStart = '2026-10-10', changes = {}) {
+  return {
+    id: 'enc:dracula', bossId: 'dracula', sequence: 1, status: 'active', scheduledFor: windowStart,
+    windowStart, windowEnd: shiftKey(windowStart, 11), goal: 2,
+    draculaPhase: 'human', draculaPhaseStartedOn: windowStart,
+    draculaPhaseEndsOn: shiftKey(windowStart, 3), draculaBatGoal: 10, draculaPhasesCompleted: [],
+    rewardGranted: false, damageApplied: false, createdAt: '2026-10-01T00:00:00.000Z', ...changes,
+  }
+}
+
+function allDraculaMilestones() {
+  return [
+    'level:10', 'level:20', 'level:30',
+    ...Object.keys(defaultRoutes()).map((routeId) => `route:${routeId}`),
+  ]
+}
+
 function missed(itemId, date, changes = {}) {
   return {
     id: `missed:${itemId}:${date}`, itemId, itemTitle: itemId, itemType: 'chore',
@@ -720,6 +950,7 @@ function profile(changes = {}) {
     id: 1, level: 1, xp: 0, coins: 0, postponeTokens: 0, vitalityPotions: 0, hp: 50, maxHp: 50,
     streakFreezes: 0, holyWater: 0, curses: [], routes: defaultRoutes(), equippedRoute: null,
     souls: {}, soulPity: {}, relics: [], equippedSouls: [],
+    draculaMilestones: ['level:10'],
     hardcore: true, dead: false, runStartedAt: '2026-10-01T02:00:00', ...changes,
   }
 }
@@ -1702,6 +1933,13 @@ test('las tareas que cuentan para el boss dependen de su objetivo', () => {
   assert.equal(bossCountsFor(chore('n', { createdAt: '2026-10-12T12:00:00' }), sloBoss(), day), true)
   assert.equal(bossCountsFor(chore('x', { archived: true }), sloBoss(), day), false)
   assert.equal(bossCountsFor(obligation, sloBoss(), '2026-10-20'), false)
+
+  const draculaBat = draculaBoss(day, { draculaPhase: 'bat' })
+  const draculaDemon = draculaBoss(day, { draculaPhase: 'demon' })
+  assert.equal(bossCountsFor(habit, draculaBat, day), true)
+  assert.equal(bossCountsFor(habit, draculaBoss(day, { draculaPhase: 'human' }), day), false)
+  assert.equal(bossCountsFor(habit, draculaDemon, day), false)
+  assert.equal(bossCountsFor(obligation, draculaDemon, day), true)
 })
 
 test('los premios antiguos de un solo recurso se migran sin perder nada', () => {

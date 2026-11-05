@@ -84,6 +84,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       soulPity: profile.soulPity ?? {},
       relics: profile.relics ?? [],
       digivice: Boolean(profile.digivice),
+      unlockedCosmetics: profile.unlockedCosmetics ?? [],
+      draculaMilestones: profile.draculaMilestones ?? [],
+      draculaPending: Boolean(profile.draculaPending),
+      draculaRevengeOn: profile.draculaRevengeOn,
       legionVictories: Math.max(
         0,
         profile.legionVictories ?? (profile.relics?.includes('heart') ? 1 : 0),
@@ -104,6 +108,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       || profile.soulPity === undefined
       || profile.relics === undefined
       || profile.digivice === undefined
+      || profile.unlockedCosmetics === undefined
+      || profile.draculaMilestones === undefined
+      || profile.draculaPending === undefined
       || profile.legionVictories === undefined
       || profile.equippedSouls === undefined
       || profile.penanceProgress === undefined
@@ -419,6 +426,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       equippedRoute: null,
       relics: [],
       digivice: false,
+      draculaMilestones: [],
+      draculaPending: false,
+      draculaRevengeOn: undefined,
       legionVictories: 0,
       equippedSouls: [],
       dailySoulLoadout: undefined,

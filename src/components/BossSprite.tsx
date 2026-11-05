@@ -1,4 +1,5 @@
-import type { BossId } from '../types'
+import type { BossId, DraculaPhase } from '../types'
+import { DRACULA_PHASE_LABELS } from '../lib/bosses'
 import {
   CERBERUS,
   CERBERUS_PALETTE,
@@ -23,8 +24,32 @@ import {
 } from '../lib/pixelArt'
 import PixelArt from './PixelArt'
 
+const DRACULA_PHASE_IMAGES: Record<DraculaPhase, string> = {
+  human: '/images/dracula-human.webp',
+  bat: '/images/dracula-bat.jpg',
+  demon: '/images/dracula-demon.webp',
+}
+
 /** Dibujo de cada boss; los de dos partes se componen en una sola escena. */
-function BossSprite({ bossId, scale = 3, className = '' }: Readonly<{ bossId: BossId; scale?: number; className?: string }>) {
+function BossSprite({
+  bossId,
+  scale = 3,
+  className = '',
+  phase,
+}: Readonly<{ bossId: BossId; scale?: number; className?: string; phase?: DraculaPhase }>) {
+  if (bossId === 'dracula') {
+    const currentPhase = phase ?? 'human'
+    return (
+      <span
+        role="img"
+        aria-label={`Drácula · fase ${DRACULA_PHASE_LABELS[currentPhase]}`}
+        className={`cv-plate flex shrink-0 items-center justify-center overflow-hidden border border-blood-500/60 p-1 ${className}`}
+        style={{ width: 44 * scale, height: 48 * scale }}
+      >
+        <img src={DRACULA_PHASE_IMAGES[currentPhase]} alt="" className="h-full w-full object-contain" />
+      </span>
+    )
+  }
   if (bossId === 'slogra-gaibon') {
     return (
       <span

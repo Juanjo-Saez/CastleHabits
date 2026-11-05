@@ -31,6 +31,7 @@ const SOUL_NAMES: Partial<Record<SoulId, string>> = {
   cerberus: 'Alma de Cerbero',
   'hydra-scylla': 'Alma de Hidra / Escila',
   doppelganger: 'Alma de Doppelgänger',
+  dracula: 'Alma de Drácula',
 }
 
 const SOUL_PASSIVES: Partial<Record<SoulId, SoulPassiveId>> = {
@@ -57,6 +58,7 @@ const SOUL_EFFECTS: Partial<Record<SoulId, string>> = {
   cerberus: 'Reduce el daño por fallo un 10/15/20 % según el rango.',
   'hydra-scylla': 'Si ayer no hubo fallos, recuperas 2/4/6 PV al amanecer según el rango.',
   doppelganger: 'Reflejo reduce a la mitad el daño de un fallo cada 7/5/3 días según el rango.',
+  dracula: 'Alma coleccionable sin pasiva activa.',
 }
 
 export const SOULS: Partial<Record<SoulId, SoulDefinition>> = Object.fromEntries(

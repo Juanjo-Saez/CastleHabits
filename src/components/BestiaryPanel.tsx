@@ -16,7 +16,7 @@ import {
 import { CURSES } from '../lib/curses'
 import { useBossStore } from '../store/useBossStore'
 import { usePlayerStore } from '../store/usePlayerStore'
-import { soulChanceWithPity } from '../lib/souls'
+import { soulChanceWithPity, soulDefinition } from '../lib/souls'
 import BossSprite from './BossSprite'
 import SectionTitle from './SectionTitle'
 
@@ -92,6 +92,11 @@ function BestiaryCard({
         <p className="font-body text-sm text-silver-100">
           EXP {Math.round(boss.reward.xp * multiplier)} · Oro {Math.round(boss.reward.coins * multiplier)}
         </p>
+        {boss.firstVictoryCosmetic && (
+          <p className="font-body text-sm text-silver-300">
+            Primera victoria: insignia permanente Corona de la noche (no equipable).
+          </p>
+        )}
       </div>
 
       <div>
@@ -147,12 +152,13 @@ function BestiaryCard({
 
       <div>
         <p className="cv-label">Alma</p>
-        {boss.soulChance === 0 ? (
+        {boss.id === 'sukamon' ? (
           <p className="font-body text-sm text-silver-100">Este minijefe no concede alma.</p>
         ) : unlocks.soul ? (
           <p className="font-body text-sm text-silver-100">
             Probabilidad del alma: {percent(soulChanceWithPity(boss.soulChance, soulPity))} por victoria
             (base {percent(boss.soulChance)}, piedad {soulPity} %).
+            {' '}{soulDefinition(boss.id).effectDescription}
           </p>
         ) : (
           <LockedNote title="Probabilidad del alma" unlock={BESTIARY_UNLOCKS.soul} victories={entry.victories} />

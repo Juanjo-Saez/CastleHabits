@@ -1,4 +1,4 @@
-import { describeEffect, encounterSummaryLine, type BossSummary } from '../lib/bosses'
+import { describeEffect, encounterSummaryLine, DRACULA_PHASE_LABELS, type BossSummary } from '../lib/bosses'
 import BossSprite from './BossSprite'
 
 /** Tarjeta persistente del Castillo mientras el boss está activo. */
@@ -15,9 +15,12 @@ function BossBanner({ summary, onOpen }: Readonly<{ summary: BossSummary; onOpen
         aria-hidden
         className="pointer-events-none absolute -top-6 -left-6 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgb(236_229_198/0.28),transparent_70%)]"
       />
-      <BossSprite bossId={definition.id} scale={2} className="cv-boss-float relative" />
+      <BossSprite bossId={definition.id} phase={summary.dracula?.phase} scale={2} className="cv-boss-float relative" />
       <span className="relative min-w-0 flex-1">
-        <span className="cv-label block text-blood-400">Boss · {daysLeft === 1 ? 'último día' : `quedan ${daysLeft} días`}</span>
+        <span className="cv-label block text-blood-400">
+          Boss{summary.dracula ? ` · Fase ${DRACULA_PHASE_LABELS[summary.dracula.phase]}` : ''}
+          {' · '}{daysLeft === 1 ? 'último día' : `quedan ${daysLeft} días`}
+        </span>
         <span className="cv-title mt-1 block text-2xl">{definition.name}</span>
         {kind === 'days' ? (
           <span className="mt-1 flex items-center gap-2">

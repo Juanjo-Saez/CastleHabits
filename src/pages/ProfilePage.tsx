@@ -90,10 +90,16 @@ function ProfilePage() {
         </div>
 
         <div className="cv-panel cv-panel--gold p-3">
-          <SectionTitle>Objeto especial</SectionTitle>
+          <SectionTitle>Objetos y emblemas</SectionTitle>
           <p className="mt-1 font-body text-sm text-silver-400">
             Digivice: {profile.digivice ? 'encontrado' : 'no encontrado'}. No tiene efecto por ahora y se reinicia al comenzar una nueva expedición.
           </p>
+          {profile.unlockedCosmetics?.includes('nightCrown') && (
+            <p className="mt-2">
+              <span className="cv-tag cv-tag--gold inline-block">Corona de la noche</span>
+              <span className="ml-2 font-body text-sm text-silver-400">Insignia permanente, no equipable.</span>
+            </p>
+          )}
         </div>
 
         <RoutesPanel />

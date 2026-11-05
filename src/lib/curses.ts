@@ -81,6 +81,10 @@ export const CURSES: Record<CurseId, CurseDefinition> = {
     id: 'chains', name: 'Cadenas', severity: 'grave', blocksPostpone: true, damagePercent: 200,
     description: 'No puedes aplazar obligaciones y sus fallos infligen el doble de daño.',
   },
+  draculaMark: {
+    id: 'draculaMark', name: 'Marca de Drácula', severity: 'grave', maxHpPercent: -10,
+    description: 'Tu vida máxima efectiva se reduce un 10 % hasta vencer a Drácula en una revancha.',
+  },
 }
 
 export const MAX_CURSES = 2

@@ -5,10 +5,12 @@ import type {
   BossId,
   BossResource,
   BossRewards,
+  BossCosmeticId,
   Completion,
   CurseId,
   DaySnapshot,
   Difficulty,
+  DraculaPhase,
   Item,
   ItemEvent,
   PlayerProfile,
@@ -23,7 +25,7 @@ import { collectSoul, hydraDawnHeal } from './souls'
 import { createSoulPassiveActivation, soulPassiveRankOn } from './soulPassiveLedger'
 import { resolvePlayerDamage } from './soulDamage'
 import { isItemDueOn, isMetCompletion, isObligation, isWindowCompleted, windowDaysOf } from './recurrence'
-import { effectiveMaxHp } from './routes'
+import { effectiveMaxHp, MAX_ROUTE_LEVEL, ROUTE_IDS } from './routes'
 import { streakEndingOn } from './streak'
 import { eclipseMultiplierForDay } from './weather'
 
@@ -61,6 +63,7 @@ export type BossObjective =
   | { kind: 'growingHeads'; initialHeads: number }
   | { kind: 'postponedTasks' }
   | { kind: 'duel' }
+  | { kind: 'dracula' }
 
 /** Efectos de entorno: rigen mientras el boss está activo. */
 export type EnvEffect =
@@ -69,6 +72,7 @@ export type EnvEffect =
   | { kind: 'damagePercent'; percent: number }
   | { kind: 'hideTomorrow' }
   | { kind: 'disableFreeze' }
+  | { kind: 'eternalNight' }
   | { kind: 'zonePercent'; xpPercent: number; damagePercent: number }
 
 /** Una entrada de la tabla de premios; cada una se sortea por separado. */
@@ -106,6 +110,8 @@ export interface BossDefinition {
   defeatText?: string
   /** Reliquia que se garantiza en la primera victoria de este boss en una expedición. */
   firstVictoryRelic?: RelicId
+  /** Insignia permanente que se concede en la primera victoria de la cuenta. */
+  firstVictoryCosmetic?: BossCosmeticId
   /** Maldición que este boss elimina al ser vencido en una revancha. */
   revengeCurse?: CurseId
   /** Rango inclusivo, en días, del enfriamiento antes de la siguiente aparición. */
@@ -464,6 +470,32 @@ export const BOSSES: Record<BossId, BossDefinition> = {
     maxDelay: 15,
     weight: 0,
   },
+  dracula: {
+    id: 'dracula',
+    name: 'Drácula',
+    parts: ['Humano', 'Demonio', 'Murciélago'],
+    grammar: { subject: 'Drácula', object: 'a Drácula', plural: false },
+    mechanic: 'Tres fases',
+    description: 'El señor del castillo cambia de forma y pone a prueba tu constancia, tus golpes y tu resistencia.',
+    lore: 'El señor de la noche no se deja derrotar con un solo golpe. Primero te desafía con rostro humano, después revela su forma demoníaca y, cuando crees haber vencido, intenta escapar convertido en murciélago.',
+    soulChance: 0.02,
+    windowDays: 12,
+    objective: { kind: 'dracula' },
+    effects: [
+      { kind: 'eternalNight' },
+      { kind: 'damagePercent', percent: 150 },
+    ],
+    defeatDamage: 0,
+    defeatCurse: { id: 'draculaMark', permanent: true },
+    defeatText: 'La Marca de Drácula reduce tu vida máxima efectiva un 10 % hasta vencerlo en una revancha.',
+    revengeCurse: 'draculaMark',
+    reward: { xp: 400, coins: 200 },
+    drops: [],
+    firstVictoryCosmetic: 'nightCrown',
+    minDelay: 10,
+    maxDelay: 15,
+    weight: 0,
+  },
 }
 
 export const BOSS_IDS = Object.keys(BOSSES) as BossId[]
@@ -682,6 +714,9 @@ export function clamp(value: number, min: number, max: number): number {
 /** Meta que se fija al activar el boss: días a lograr, o vida total de un boss de golpes. */
 export function bossGoal(boss: BossDefinition, items: Item[], today: string): number {
   if (boss.objective.kind === 'days') return boss.objective.targetDays
+  if (boss.objective.kind === 'dracula') {
+    return clamp(Math.round(dailyLoad(items, today) * 4), 10, 80)
+  }
   if (boss.objective.kind === 'pieces') return bossZones(boss, items).length
   if (boss.objective.kind === 'lifeSteal') return 0
   if (boss.objective.kind === 'scythes') return boss.objective.target
@@ -1274,10 +1309,12 @@ export function hitProgress(
   items: Item[],
   completionsByItem: Record<string, Completion[]>,
   today: string,
+  damageOverride?: Record<Difficulty, number>,
 ): HitProgress {
   const boss = BOSSES[encounter.bossId]
-  if (boss.objective.kind !== 'hits' || !encounter.windowStart || !encounter.windowEnd) return { damage: 0 }
-  const { damage: table, guard } = boss.objective
+  const table = damageOverride ?? (boss.objective.kind === 'hits' ? boss.objective.damage : undefined)
+  const guard = boss.objective.kind === 'hits' ? boss.objective.guard : undefined
+  if (!table || !encounter.windowStart || !encounter.windowEnd) return { damage: 0 }
   const last = encounter.windowEnd < today ? encounter.windowEnd : today
   const completions: { itemId: string; date: string; createdAt: string; id: string; damage: number; difficulty: Difficulty }[] = []
   // Todas las tareas golpean, también las creadas durante el combate; archivadas incluidas si ya cumplieron.
@@ -1370,6 +1407,138 @@ export function lifeProgress(
   return { recovered: total, reachedOn }
 }
 
+export const DRACULA_PHASE_LABELS: Record<DraculaPhase, string> = {
+  human: 'Humano',
+  bat: 'Murciélago',
+  demon: 'Demonio',
+}
+
+const DRACULA_DAMAGE: Record<Difficulty, number> = {
+  trivial: 1,
+  easy: 2,
+  medium: 3,
+  hard: 5,
+}
+
+export interface DraculaProgress {
+  phase: DraculaPhase
+  phaseStartedOn: string
+  phaseEndsOn: string
+  completedPhases: DraculaPhase[]
+  progress: number
+  goal: number
+  missed: boolean
+  verdict?: { won: boolean; lost?: boolean; resolvedOn?: string }
+}
+
+function phaseEncounter(
+  encounter: BossEncounter,
+  phaseStartedOn: string,
+  phaseEndsOn: string,
+  goal: number,
+): BossEncounter {
+  return {
+    ...encounter,
+    windowStart: phaseStartedOn,
+    windowEnd: phaseEndsOn,
+    goal,
+  }
+}
+
+/** Recalcula la fase actual y sus transiciones desde los datos reales del encuentro. */
+export function draculaProgress(
+  encounter: BossEncounter,
+  items: Item[],
+  completionsByItem: Record<string, Completion[]>,
+  events: ItemEvent[],
+  today: string,
+  runStartedAt?: string,
+): DraculaProgress {
+  const encounterStart = encounter.windowStart ?? today
+  const humanEnd = shiftKey(encounterStart, 3)
+  const humanWindow = phaseEncounter(encounter, encounterStart, humanEnd, 2)
+  const completeDates = completeDatesOf(humanWindow, items, completionsByItem, today)
+  const completedPhases: DraculaPhase[] = []
+
+  if (completeDates.length < 2) {
+    return {
+      phase: 'human',
+      phaseStartedOn: encounterStart,
+      phaseEndsOn: humanEnd,
+      completedPhases,
+      progress: completeDates.length,
+      goal: 2,
+      missed: false,
+      ...(today > humanEnd
+        ? { verdict: { won: false, lost: true, resolvedOn: shiftKey(humanEnd, 1) } }
+        : {}),
+    }
+  }
+
+  completedPhases.push('human')
+  const batStart = shiftKey(completeDates[1], 1)
+  const batEnd = shiftKey(batStart, 3)
+  const batGoal = encounter.draculaBatGoal ?? encounter.draculaDemonGoal ?? 10
+  const batWindow = phaseEncounter(encounter, batStart, batEnd, batGoal)
+  const batDamage = hitProgress(
+    batWindow,
+    items,
+    completionsByItem,
+    today,
+    DRACULA_DAMAGE,
+  )
+
+  if (!batDamage.reachedOn) {
+    return {
+      phase: 'bat',
+      phaseStartedOn: batStart,
+      phaseEndsOn: batEnd,
+      completedPhases,
+      progress: batDamage.damage,
+      goal: batGoal,
+      missed: false,
+      ...(today > batEnd
+        ? { verdict: { won: false, lost: true, resolvedOn: shiftKey(batEnd, 1) } }
+        : {}),
+    }
+  }
+
+  completedPhases.push('bat')
+  const demonStart = shiftKey(batDamage.reachedOn, 1)
+  const demonEnd = shiftKey(demonStart, 3)
+  const through = today < demonEnd ? today : demonEnd
+  const itemsById = new Map(items.map((item) => [item.id, item]))
+  const missed = events.some((event) => {
+    if (event.kind !== 'missed' || !eventBelongsToRun(event, runStartedAt)) return false
+    const date = eventDate(event, itemsById)
+    if (date < demonStart || date > through) return false
+    const item = itemsById.get(event.itemId)
+    const type = item?.type ?? event.itemType
+    const commitment = item?.commitment ?? event.commitment
+    return type !== 'habit' && commitment !== 'sideQuest'
+  })
+  const elapsedDays = through < demonStart
+    ? 0
+    : differenceInCalendarDays(parseISO(through), parseISO(demonStart)) + 1
+  const demonProgress = missed ? 0 : Math.min(4, elapsedDays)
+  if (today > demonEnd && !missed) completedPhases.push('demon')
+
+  return {
+    phase: 'demon',
+    phaseStartedOn: demonStart,
+    phaseEndsOn: demonEnd,
+    completedPhases,
+    progress: demonProgress,
+    goal: 4,
+    missed,
+    ...(today > demonEnd
+      ? missed
+        ? { verdict: { won: false, lost: true, resolvedOn: shiftKey(demonEnd, 1) } }
+        : { verdict: { won: true, resolvedOn: demonEnd } }
+      : {}),
+  }
+}
+
 export interface BossSummary {
   encounter: BossEncounter
   definition: BossDefinition
@@ -1391,6 +1560,7 @@ export interface BossSummary {
   statuesMissed: number
   duel?: DoppelgangerProgress
   sukamon?: SukamonProgress
+  dracula?: DraculaProgress
   /** Días que quedan de la ventana, contando hoy; 0 si no está activo. */
   daysLeft: number
   today: BossDayStatus
@@ -1407,7 +1577,10 @@ export function summarizeBoss(
   const definition = BOSSES[encounter.bossId]
   const active = encounter.status === 'active'
   const kind = definition.objective.kind
-  const goal = encounter.goal ?? (
+  const dracula = kind === 'dracula'
+    ? draculaProgress(encounter, items, completionsByItem, events, today, runStartedAt)
+    : null
+  const goal = dracula?.goal ?? encounter.goal ?? (
     definition.objective.kind === 'days' || definition.objective.kind === 'scythes'
       ? definition.objective.kind === 'days' ? definition.objective.targetDays : definition.objective.target
       : definition.objective.kind === 'heads'
@@ -1435,7 +1608,8 @@ export function summarizeBoss(
   const pieces = kind === 'pieces' && active
     ? pieceProgress(encounter, items, completionsByItem, today)
     : { disabledZones: encounter.status === 'victory' ? encounter.zones ?? [] : [] }
-  const damage = kind === 'hits'
+  const damage = kind === 'dracula' ? (dracula?.progress ?? 0)
+    : kind === 'hits'
     ? (active ? progress?.damage ?? 0 : (encounter.status === 'victory' ? goal : 0))
     : kind === 'pieces' ? pieces.disabledZones.length
       : kind === 'lifeSteal' ? (active ? life?.recovered ?? 0 : (encounter.status === 'victory' ? goal : 0))
@@ -1458,7 +1632,13 @@ export function summarizeBoss(
     target: definition.objective.kind === 'days' ? definition.objective.targetDays : 0,
     damage,
     goal: sukamon?.targetItemIds.length ?? duel?.targetCompletions ?? goal,
-    bars: kind === 'hits'
+    bars: kind === 'dracula' && dracula
+      ? [{
+        name: `${DRACULA_PHASE_LABELS[dracula.phase]} · ${dracula.phase === 'bat' ? 'daño' : 'días'}`,
+        max: dracula.goal,
+        hp: Math.min(dracula.progress, dracula.goal),
+      }]
+      : kind === 'hits'
       ? splitBars(definition, goal, damage, guardHits)
       : kind === 'pieces'
         ? (encounter.zones ?? []).map((zone) => ({
@@ -1496,6 +1676,7 @@ export function summarizeBoss(
     statuesMissed: statues?.missed ?? 0,
     duel: duel ?? undefined,
     sukamon: sukamon ?? undefined,
+    dracula: dracula ?? undefined,
     daysLeft: active && encounter.windowEnd
       ? Math.max(0, differenceInCalendarDays(parseISO(encounter.windowEnd), parseISO(today)) + 1)
       : 0,
@@ -1514,6 +1695,11 @@ export function bossCountsFor(item: Item, encounter: BossEncounter | null, dateK
   if (objective.kind === 'growingHeads') return !item.archived
   if (objective.kind === 'postponedTasks') return encounter.targetItemIds?.includes(item.id) === true
   if (objective.kind === 'duel') return !item.archived
+  if (objective.kind === 'dracula') {
+    if (encounter.draculaPhase === 'bat') return !item.archived
+    const isObligation = item.type !== 'habit' && item.commitment !== 'sideQuest'
+    return isObligation && isBossDueOn(item, dateKey)
+  }
   return objective.kind === 'hits'
     ? !item.archived
     : objective.kind === 'pieces'
@@ -1536,6 +1722,7 @@ export function describeEffect(effect: EnvEffect): string {
   }
   if (effect.kind === 'hideTomorrow') return 'Niebla de rosas · Mañana oculta'
   if (effect.kind === 'disableFreeze') return 'Mirada · protecciones bloqueadas'
+  if (effect.kind === 'eternalNight') return 'Noche eterna'
   return 'Relámpagos · EXP y daño ×2 en una zona'
 }
 
@@ -1548,6 +1735,7 @@ export function describeEffectLong(effect: EnvEffect): string {
   }
   if (effect.kind === 'hideTomorrow') return 'Una niebla de rosas oculta el panel de «Mañana» mientras el boss esté activo.'
   if (effect.kind === 'disableFreeze') return 'Las congelaciones de racha y el escudo no protegen los fallos mientras este efecto esté activo.'
+  if (effect.kind === 'eternalNight') return 'La noche permanece sobre el castillo durante todo el encuentro.'
   return 'Cada día una zona queda cargada: sus tareas dan el doble de EXP y causan el doble de daño por fallo.'
 }
 
@@ -1557,6 +1745,10 @@ export function hidesTomorrow(boss: BossDefinition): boolean {
 
 /** Texto corto del avance: días conseguidos o daño hecho. */
 export function encounterSummaryLine(summary: BossSummary): string {
+  if (summary.kind === 'dracula' && summary.dracula) {
+    const phase = DRACULA_PHASE_LABELS[summary.dracula.phase]
+    return `${phase}: ${summary.dracula.progress}/${summary.dracula.goal}${summary.dracula.phase === 'bat' ? ' de daño' : ' días'}`
+  }
   if (summary.kind === 'hits') return `${summary.damage}/${summary.goal} de daño`
   if (summary.kind === 'pieces') return `${summary.damage}/${summary.goal} piezas`
   if (summary.kind === 'lifeSteal') return `${summary.damage}/${summary.goal} de sangre recuperada`
@@ -1616,6 +1808,9 @@ export function bestiaryUnlocks(victories: number): Record<BestiaryUnlockKey, bo
 
 /** Cómo se vence al boss, en una frase derivada de su objetivo. */
 export function bestiaryMechanic(boss: BossDefinition): string {
+  if (boss.objective.kind === 'dracula') {
+    return 'Supera tres fases de hasta cuatro días: completa dos días con todas tus obligaciones, inflige daño según la dificultad de las tareas mientras Drácula es murciélago y termina cuatro días sin fallos de obligaciones ni pergaminos en su forma demoníaca. Las fases siguientes comienzan al día operativo posterior a superar la anterior.'
+  }
   if (boss.objective.kind === 'days') {
     return `Completa todas tus obligaciones durante ${boss.objective.targetDays} días dentro de una ventana de ${boss.windowDays} días.`
   }
@@ -1862,6 +2057,49 @@ interface Verdict {
   resolvedOn?: string
 }
 
+const DRACULA_LEVELS = [10, 20, 30] as const
+
+function updateDraculaMilestones(profile: PlayerProfile, today: string): PlayerProfile {
+  const completed = profile.draculaMilestones ?? []
+  const eligible = [
+    ...DRACULA_LEVELS
+      .filter((level) => profile.level >= level)
+      .map((level) => `level:${level}`),
+    ...ROUTE_IDS
+      .filter((routeId) => (profile.routes[routeId]?.level ?? 0) >= MAX_ROUTE_LEVEL)
+      .map((routeId) => `route:${routeId}`),
+  ]
+  const newMilestones = eligible.filter((milestone) => !completed.includes(milestone))
+  const revengeDue = Boolean(profile.draculaRevengeOn && profile.draculaRevengeOn <= today)
+  if (newMilestones.length === 0 && !revengeDue) return profile
+  return {
+    ...profile,
+    draculaMilestones: newMilestones.length > 0
+      ? [...completed, ...newMilestones]
+      : completed,
+    draculaPending: Boolean(profile.draculaPending) || newMilestones.length > 0 || revengeDue,
+    ...(newMilestones.length > 0 || revengeDue ? { draculaRevengeOn: undefined } : {}),
+  }
+}
+
+function allDraculaMilestonesCompleted(profile: PlayerProfile): boolean {
+  const completed = new Set(profile.draculaMilestones ?? [])
+  return [
+    ...DRACULA_LEVELS.map((level) => `level:${level}`),
+    ...ROUTE_IDS.map((routeId) => `route:${routeId}`),
+  ].every((milestone) => completed.has(milestone))
+}
+
+function sameDraculaState(left: BossEncounter, right: DraculaProgress): boolean {
+  const leftPhases = left.draculaPhasesCompleted ?? []
+  return left.draculaPhase === right.phase
+    && left.draculaPhaseStartedOn === right.phaseStartedOn
+    && left.draculaPhaseEndsOn === right.phaseEndsOn
+    && left.goal === right.goal
+    && leftPhases.length === right.completedPhases.length
+    && leftPhases.every((phase, index) => phase === right.completedPhases[index])
+}
+
 function verdictOf(
   encounter: BossEncounter,
   items: Item[],
@@ -1914,6 +2152,7 @@ function verdictOf(
     const progress = doppelgangerProgress(encounter, items, completionsByItem, events, today, runStartedAt)
     return { won: progress.won, resolvedOn: progress.resolvedOn }
   }
+  if (boss.objective.kind === 'dracula') return { won: false }
   const progress = hitProgress(encounter, items, completionsByItem, today)
   if (boss.objective.guard && (progress.guardHits ?? 0) < boss.objective.guard.hits) {
     return { won: false }
@@ -2013,6 +2252,7 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
     dailyPassiveActivations: [],
   }
 
+  profile = updateDraculaMilestones(profile, today)
   const tick = tickCurses(profile.curses, profile.hp, today, eclipseMultiplierForDay)
   if (tick.changed) profile = { ...profile, curses: tick.curses, hp: tick.hp }
   if (profile.runStartedAt) {
@@ -2055,9 +2295,12 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
   let current = latestEncounter([...records.values()])
   // Sin encuentros, o con el último ya resuelto y sin sucesor (p. ej. tras renacer), se programa otro.
   if (!current || isResolved(current)) {
-    const first = pickBoss(current?.bossId, random)
+    const first = profile.draculaPending ? 'dracula' : pickBoss(current?.bossId, random)
     current = newEncounter(
-      first, (current?.sequence ?? 0) + 1, 'scheduled', shiftKey(today, rollDelay(BOSSES[first], random)),
+      first,
+      (current?.sequence ?? 0) + 1,
+      'scheduled',
+      profile.draculaPending ? today : shiftKey(today, rollDelay(BOSSES[first], random)),
     )
     save(current)
   }
@@ -2065,10 +2308,12 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
   // Una resolución crea la siguiente aparición; el tope evita bucles tras una ausencia muy larga.
   for (let step = 0; step < 4 && current; step += 1) {
     if (isPending(current)) {
-      if (today < current.scheduledFor) break
+      if (today < current.scheduledFor && !profile.draculaPending) break
       const context = { today, profile, items, completionsByItem, encounters: [...records.values()], events }
-      const chosen = reactiveBoss(context)
-        ?? (current.bossId === 'sukamon' ? pickBoss(current.bossId, random) : current.bossId)
+      const chosen = profile.draculaPending || current.bossId === 'dracula'
+        ? 'dracula'
+        : reactiveBoss(context)
+          ?? (current.bossId === 'sukamon' ? pickBoss(current.bossId, random) : current.bossId)
       const boss = BOSSES[chosen]
       const goal = boss.objective.kind === 'lifeSteal'
         ? initialLifeStolen(profile)
@@ -2091,13 +2336,49 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
         ...(headGoals ? { headGoals } : {}),
         ...(targetItemIds ? { targetItemIds } : {}),
         zones: bossZones(boss, items),
+        ...(boss.objective.kind === 'dracula' ? {
+          goal: 2,
+          draculaPhase: 'human' as const,
+          draculaPhaseStartedOn: today,
+          draculaPhaseEndsOn: shiftKey(today, 3),
+          draculaBatGoal: goal,
+          draculaPhasesCompleted: [],
+        } : {}),
+      }
+      if (chosen === 'dracula') {
+        profile = { ...profile, draculaPending: false, draculaRevengeOn: undefined }
       }
       save(current)
     }
     if (current.status !== 'active') break
 
     const boss = BOSSES[current.bossId]
-    const verdict = verdictOf(current, items, completionsByItem, events, today, profile.runStartedAt)
+    let verdict: Verdict | undefined
+    if (boss.objective.kind === 'dracula') {
+      const progress = draculaProgress(
+        current,
+        items,
+        completionsByItem,
+        events,
+        today,
+        profile.runStartedAt,
+      )
+      if (!sameDraculaState(current, progress)) {
+        current = {
+          ...current,
+          draculaPhase: progress.phase,
+          draculaPhaseStartedOn: progress.phaseStartedOn,
+          draculaPhaseEndsOn: progress.phaseEndsOn,
+          draculaPhasesCompleted: progress.completedPhases,
+          goal: progress.goal,
+        }
+        save(current)
+      }
+      verdict = progress.verdict
+    } else {
+      verdict = verdictOf(current, items, completionsByItem, events, today, profile.runStartedAt)
+    }
+    if (!verdict) break
     let resolved: BossEncounter | null = null
     if (verdict.won) {
       const baseRewards = rollRewards(boss, profile.level, random)
@@ -2108,6 +2389,16 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
       profile = applyBossRevenge(soulResult.profile, boss)
       if (boss.id === 'legion') {
         profile = { ...profile, legionVictories: (profile.legionVictories ?? 0) + 1 }
+      }
+      const cosmetics = boss.firstVictoryCosmetic
+        && !profile.unlockedCosmetics?.includes(boss.firstVictoryCosmetic)
+        ? [boss.firstVictoryCosmetic]
+        : []
+      if (cosmetics.length > 0) {
+        profile = {
+          ...profile,
+          unlockedCosmetics: [...(profile.unlockedCosmetics ?? []), ...cosmetics],
+        }
       }
       const relics = boss.firstVictoryRelic
         && !profile.relics?.includes(boss.firstVictoryRelic)
@@ -2126,14 +2417,23 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
       const awardedRewards = {
         ...rewards,
         ...(digivice ? { digivice: true } : {}),
+        ...(cosmetics.length > 0 ? { cosmetics } : {}),
         ...(soulResult.award ? { souls: { [boss.id]: soulResult.award } } : {}),
         ...(relics.length > 0 ? { relics } : {}),
       }
       const applied = applyBossReward(profile, awardedRewards)
       profile = digivice ? { ...applied.profile, digivice: true } : applied.profile
+      if (boss.id === 'dracula') {
+        profile = { ...profile, draculaRevengeOn: undefined }
+      }
       leveledUp = leveledUp || applied.leveledUp
       resolved = {
-        ...current, status: 'victory', resolvedOn: verdict.resolvedOn, rewardGranted: true, rewards: awardedRewards,
+        ...current,
+        status: 'victory',
+        ...(boss.id === 'dracula' ? { windowEnd: verdict.resolvedOn ?? today } : {}),
+        resolvedOn: verdict.resolvedOn,
+        rewardGranted: true,
+        rewards: awardedRewards,
       }
     } else if (verdict.lost || today > (current.windowEnd as string)) {
       const damageDate = verdict.resolvedOn ?? shiftKey(current.windowEnd as string, 1)
@@ -2157,15 +2457,34 @@ export function planBossSync(input: BossSyncInput): BossSyncResult {
       resolved = {
         ...current,
         status: 'defeat',
+        ...(boss.id === 'dracula' && current.draculaPhaseEndsOn
+          ? { windowEnd: current.draculaPhaseEndsOn }
+          : {}),
         resolvedOn: verdict.resolvedOn ?? shiftKey(current.windowEnd as string, 1),
         damageApplied: true,
         curse: boss.defeatCurse?.id,
       }
+      if (boss.id === 'dracula') {
+        const revengeOn = !profile.draculaPending && allDraculaMilestonesCompleted(profile)
+          ? shiftKey(resolved.resolvedOn ?? today, rollDelay(boss, random))
+          : undefined
+        profile = { ...profile, draculaRevengeOn: revengeOn }
+      }
     }
     if (!resolved) break
 
-    const next = pickBoss(boss.id, random)
-    const nextActivationOn = shiftKey(resolved.resolvedOn as string, rollDelay(boss, random))
+    const pendingDracula = Boolean(profile.draculaPending)
+    const scheduledRevenge = boss.id === 'dracula'
+      && resolved.status === 'defeat'
+      && profile.draculaRevengeOn
+    const next = pendingDracula || scheduledRevenge
+      ? 'dracula'
+      : pickBoss(boss.id, random)
+    const nextActivationOn = pendingDracula
+      ? today
+      : scheduledRevenge
+        ? profile.draculaRevengeOn as string
+        : shiftKey(resolved.resolvedOn as string, rollDelay(boss, random))
     save({ ...resolved, nextActivationOn })
     current = newEncounter(next, resolved.sequence + 1, 'cooldown', nextActivationOn)
     save(current)

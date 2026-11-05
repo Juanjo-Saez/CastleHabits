@@ -4,6 +4,7 @@ import {
   describeEffect,
   describeEffectLong,
   bestiaryMechanic,
+  DRACULA_PHASE_LABELS,
   RESOURCE_LABEL,
   rewardMultiplier,
   type BossSummary,
@@ -64,7 +65,10 @@ function headline(summary: BossSummary, mode: BossDialogMode): string | null {
       })
       .join(', ')
     const relics = (rewards.relics ?? []).map((id) => RELICS[id].name).join(', ')
-    const extras = [items, rewards.digivice ? 'Digivice' : '', souls, relics].filter(Boolean).join(', ')
+    const cosmetics = (rewards.cosmetics ?? [])
+      .map((cosmetic) => cosmetic === 'nightCrown' ? 'Corona de la noche' : cosmetic)
+      .join(', ')
+    const extras = [items, rewards.digivice ? 'Digivice' : '', souls, relics, cosmetics].filter(Boolean).join(', ')
     return `¡Has vencido ${definition.grammar.object}! Recibes ${rewards.xp} EXP, ${rewards.coins} monedas${extras ? ` y ${extras}` : ''}.`
   }
   if (encounter.status === 'defeat' && mode === 'result') {
@@ -159,7 +163,12 @@ function BossDialog({
             className="absolute top-5 left-1/2 h-[72px] w-[72px] -translate-x-1/2"
           />
           <div className="absolute inset-0 flex items-center justify-center pb-4">
-            <BossSprite bossId={definition.id} scale={definition.id === 'giant-bat' ? 4 : 3} className="cv-boss-float" />
+            <BossSprite
+              bossId={definition.id}
+              phase={summary.dracula?.phase}
+              scale={definition.id === 'giant-bat' ? 4 : 3}
+              className="cv-boss-float"
+            />
           </div>
           <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-night-950 to-transparent" />
           <button
@@ -174,7 +183,10 @@ function BossDialog({
 
         <div className="flex flex-col gap-4 px-4 pt-3 pb-4">
           <header className="text-center">
-            <p className="cv-label">Encuentro con boss · {definition.mechanic}</p>
+            <p className="cv-label">
+              Encuentro con boss · {definition.mechanic}
+              {summary.dracula ? ` · Fase ${DRACULA_PHASE_LABELS[summary.dracula.phase]}` : ''}
+            </p>
             <h2 id="boss-dialog-title" className="cv-title mt-1 text-4xl">{definition.name}</h2>
             <Ornament className="mt-2" />
             <p className={`cv-tag cv-tag--still mt-3 inline-block ${active ? 'cv-tag--blood' : 'cv-tag--gold'}`}>{stateText(summary)}</p>
@@ -199,7 +211,9 @@ function BossDialog({
                   <Plate label="Hoy" value={today.due === 0 ? '—' : `${today.done}/${today.due}`} />
                 ) : (
                   <Plate
-                    label={kind === 'pieces'
+                    label={kind === 'dracula'
+                      ? 'Fase'
+                      : kind === 'pieces'
                       ? 'Piezas'
                       : kind === 'lifeSteal'
                         ? 'Sangre'
@@ -214,7 +228,9 @@ function BossDialog({
                                   : kind === 'heads' || kind === 'growingHeads'
                                                   ? 'Cabezas'
                                                   : 'Golpes'}
-                                        value={kind === 'duel'
+                                        value={kind === 'dracula'
+                                          ? DRACULA_PHASE_LABELS[summary.dracula?.phase ?? 'human']
+                                          : kind === 'duel'
                                           ? `${duel?.currentCompletions ?? 0}/${duel?.targetCompletions ?? 1}`
                                           : kind === 'postponedTasks'
                                             ? `${summary.sukamon?.completedItemIds.length ?? 0}/${summary.sukamon?.targetItemIds.length ?? 0}`
@@ -224,6 +240,35 @@ function BossDialog({
                   />
                 )}
               </div>
+
+              {kind === 'dracula' && summary.dracula && (
+                <section className="cv-plate flex flex-col gap-2 p-3" aria-label="Fases de Drácula">
+                  <p className="cv-label text-center">Fases superadas</p>
+                  <div className="flex justify-center gap-2">
+                    {(['human', 'bat', 'demon'] as const).map((phase) => {
+                      const completed = summary.dracula?.completedPhases.includes(phase) ?? false
+                      return (
+                        <span
+                          key={phase}
+                          className={`cv-tag ${completed ? 'cv-tag--gold' : 'cv-tag--still'}`}
+                        >
+                          {completed ? '✓ ' : ''}{DRACULA_PHASE_LABELS[phase]}
+                        </span>
+                      )
+                    })}
+                  </div>
+                  <p className="text-center font-body text-sm text-silver-300">
+                    Fase actual: {DRACULA_PHASE_LABELS[summary.dracula.phase]} · vence el {dayLabel(summary.dracula.phaseEndsOn)}
+                  </p>
+                  <p className="text-center font-body text-sm text-silver-400">
+                    {summary.dracula.phase === 'human'
+                      ? 'Completa todas las obligaciones y pergaminos debidos en dos días con al menos una obligación; hábitos y misiones secundarias no cuentan.'
+                      : summary.dracula.phase === 'bat'
+                        ? `Cada tarea cumplida golpea según su dificultad. Meta fijada: ${summary.dracula.goal} de daño.`
+                        : 'Cierra los cuatro días sin fallos de obligaciones ni pergaminos; también cuentan los fallos protegidos.'}
+                  </p>
+                </section>
+              )}
 
               {kind === 'days' ? (
                 <section aria-label="Progreso">
@@ -248,7 +293,9 @@ function BossDialog({
               ) : (
                 <section
                   aria-label={
-                    kind === 'pieces'
+                    kind === 'dracula'
+                      ? 'Progreso de fase'
+                      : kind === 'pieces'
                       ? 'Piezas del boss'
                       : kind === 'lifeSteal'
                         ? 'Sangre robada'
@@ -378,7 +425,13 @@ function BossDialog({
               </Rule>
             )}
             <Rule icon={<PixelArt rows={DIAMOND} palette={GOLD_GEM_PALETTE} scale={3} />} title="Cómo vencerlo">
-              {objective.kind === 'days' ? (
+              {objective.kind === 'dracula' ? (
+                <>
+                  {bestiaryMechanic(definition)} La fase actual debe completarse antes del {summary.dracula
+                    ? dayLabel(summary.dracula.phaseEndsOn)
+                    : 'fin de su ventana'}.
+                </>
+              ) : objective.kind === 'days' ? (
                 <>
                   Cumple todas las obligaciones recurrentes y pergaminos que vencen ese día (al menos una) en {objective.targetDays} días,
                   seguidos o no, dentro de {definition.windowDays} días. Hábitos y misiones secundarias no cuentan.
@@ -432,6 +485,9 @@ function BossDialog({
             <Rule icon={<PixelArt rows={COIN} palette={COIN_PALETTE} scale={3} />} title="Recompensa">
               {Math.round(definition.reward.xp * multiplier)} EXP y {Math.round(definition.reward.coins * multiplier)} monedas,
               {definition.drops.length > 0 ? ` más objetos al azar: ${dropLabels}.` : ' sin consumibles regulares.'}
+              {definition.firstVictoryCosmetic && (
+                <> La primera victoria concede permanentemente la insignia <strong>Corona de la noche</strong>; no es equipable.</>
+              )}
               {definition.specialDrop && (
                 <> Tiene un {percent(definition.specialDrop.chance)} de probabilidad de soltar <strong>{definition.specialDrop.name}</strong>;
                   {' '}{definition.specialDrop.description}</>

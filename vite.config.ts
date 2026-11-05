@@ -10,7 +10,15 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'app-icon.svg', 'icon-192.png', 'icon-512.png'],
+      includeAssets: [
+        'favicon.svg',
+        'app-icon.svg',
+        'icon-192.png',
+        'icon-512.png',
+        'images/dracula-human.webp',
+        'images/dracula-bat.jpg',
+        'images/dracula-demon.webp',
+      ],
       manifest: {
         name: 'Hábitos',
         short_name: 'Hábitos',

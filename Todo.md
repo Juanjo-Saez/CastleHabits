@@ -50,10 +50,6 @@ deben acordarse al concretar el OpenSpec.
 
 ### Bosses, almas y premios
 
-- Completar el encuentro pendiente de Drácula; Sukamon ya cuenta con un change
-  OpenSpec individual en `openspec/changes/boss-sukamon/`.
-- Añadir y validar el disparador reactivo de Drácula; Sukamon se activa con
-  tres aplazamientos en siete días y Doppelgänger con sus reglas específicas.
 - Pasivas runtime de las almas equipadas completadas: Death salva 1/2/3 golpes
   mortales por expedición, Medusa concede congelaciones gratuitas con
   enfriamiento móvil de 7/5/3 días, Cerbero reduce el daño por fallo un
@@ -154,8 +150,9 @@ pendientes.
 - [Rutas y oficios — base implementada](./openspec/changes/routes-missions-jobs/).
   La evolución de rutas está en borrador y pendiente de validar en
   [route-evolution](./openspec/changes/route-evolution/).
-- [Plantel de bosses](./openspec/changes/boss-roster/): queda el encuentro final
-  de Drácula y su disparador específico. El minijefe Sukamon está en
+- [Plantel de bosses](./openspec/changes/boss-roster/): encuentro y arte de
+  Drácula implementados según [su change](./openspec/changes/boss-dracula/).
+  El minijefe Sukamon está en
   [su change](./openspec/changes/boss-sukamon/).
 - [Pasivas runtime de almas](./openspec/changes/soul-passives/).
 - [Élite, látigo y títulos](./openspec/changes/boss-premios-elite/).
