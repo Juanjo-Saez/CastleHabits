@@ -12,12 +12,14 @@ import {
   type RecurrenceDraft,
 } from '../lib/recurrenceDraft'
 import { ROUTES } from '../lib/routes'
+import { zoneLabel } from '../lib/zones'
 import { useItemsStore } from '../store/useItemsStore'
 import type { Difficulty, Item, RouteId, TrackingType } from '../types'
 import DifficultyPicker from './DifficultyPicker'
 import RecurrencePicker from './RecurrencePicker'
 import RoutePicker from './RoutePicker'
 import TodoDatesPicker from './TodoDatesPicker'
+import WeekdayPicker from './WeekdayPicker'
 import ZonePicker from './ZonePicker'
 
 function recurrenceDraftFor(item: Item): RecurrenceDraft {
@@ -46,7 +48,7 @@ function recurrenceDraftFor(item: Item): RecurrenceDraft {
 
 function itemTypeLabel(type: Item['type']): string {
   switch (type) {
-    case 'habit': return 'Misión secundaria'
+    case 'habit': return 'Actividad voluntaria'
     case 'chore': return 'Obligación recurrente'
     case 'todo': return 'Tarea puntual'
   }
@@ -77,6 +79,7 @@ function ItemDetails({ item, onClose }: Readonly<{ item: Item; onClose: () => vo
   const canSave = Boolean(title.trim()) &&
     (item.type !== 'todo' || isTodoScheduleValid(startDate, dueDate)) &&
     (item.type !== 'chore' || isDraftValid(recurrence, true)) &&
+    (item.type !== 'habit' || !item.recurrenceRule || recurrence.weekdays.length > 0) &&
     (trackingType !== 'quantity' || quantityGoal > 0)
 
   const handleSave = async (event: SyntheticEvent<HTMLFormElement>) => {
@@ -96,6 +99,15 @@ function ItemDetails({ item, onClose }: Readonly<{ item: Item; onClose: () => vo
       changes.recurrenceRule = ruleFromDraft(recurrence)
       changes.startDate = recurrence.startDate
       changes.windowDays = windowFromDraft(recurrence)
+    }
+    if (item.type === 'habit' && item.recurrenceRule) {
+      changes.recurrenceRule = ruleFromDraft({
+        ...recurrence,
+        unit: 'week',
+        interval: 1,
+      })
+      changes.startDate = recurrence.startDate
+      changes.windowDays = undefined
     }
     if (item.type === 'todo') {
       changes.dueDate = dueDate
@@ -155,6 +167,13 @@ function ItemDetails({ item, onClose }: Readonly<{ item: Item; onClose: () => vo
             {item.type === 'chore' && (
               <RecurrencePicker value={recurrence} onChange={setRecurrence} allowPastStartDate />
             )}
+            {item.type === 'habit' && item.recurrenceRule && (
+              <WeekdayPicker
+                label="Se repite cada semana"
+                value={recurrence.weekdays}
+                onChange={(weekdays) => setRecurrence((current) => ({ ...current, weekdays }))}
+              />
+            )}
             {item.type === 'todo' && (
               <TodoDatesPicker
                 startDate={startDate}
@@ -202,9 +221,10 @@ function ItemDetails({ item, onClose }: Readonly<{ item: Item; onClose: () => vo
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 font-body text-base">
               <dt className="text-silver-500">Dificultad</dt>
               <dd className="text-silver-100">{DIFFICULTY_LABEL[item.difficulty]}</dd>
-              {item.zone && <><dt className="text-silver-500">Estancia</dt><dd className="text-silver-100">{item.zone}</dd></>}
+              {item.zone && <><dt className="text-silver-500">Espacio</dt><dd className="text-silver-100">{zoneLabel(item.zone)}</dd></>}
               {item.routeId && <><dt className="text-silver-500">Ruta</dt><dd className="text-silver-100">{ROUTES[item.routeId].name}</dd></>}
               {item.type === 'chore' && <><dt className="text-silver-500">Frecuencia</dt><dd className="text-silver-100">{describeRecurrence(item.recurrenceRule)}{describeWindow(item) ? ` · ${describeWindow(item)}` : ''}</dd></>}
+              {item.type === 'habit' && item.recurrenceRule && <><dt className="text-silver-500">Frecuencia</dt><dd className="text-silver-100">{describeRecurrence(item.recurrenceRule)}</dd></>}
               {item.type === 'todo' && item.startDate && <><dt className="text-silver-500">Aparece</dt><dd className="text-silver-100">{format(new Date(`${item.startDate}T12:00:00`), 'dd/MM/yyyy')}{describeWindow(item) ? ` · ${describeWindow(item)}` : ''}</dd></>}
               {item.type === 'todo' && item.dueDate && <><dt className="text-silver-500">Vence</dt><dd className="text-silver-100">{format(new Date(`${item.dueDate}T12:00:00`), 'dd/MM/yyyy')}</dd></>}
               {item.trackingType === 'quantity' && <><dt className="text-silver-500">Meta</dt><dd className="text-silver-100">{item.quantityGoal} {item.unit}</dd></>}

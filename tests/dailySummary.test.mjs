@@ -155,7 +155,7 @@ test('rachas y rutas se calculan a la fecha del resumen, no con el estado de hoy
   assert.equal(route.levelBefore, 0)
   assert.equal(route.levelAfter, 1)
   assert.equal(route.levelUp, true)
-  assert.equal(route.passiveName, 'Resonancia Arcana')
+  assert.equal(route.passiveName, 'EXP adicional')
   assert.equal(route.goodDay, true)
   assert.equal(summary.hasContent, true)
 })

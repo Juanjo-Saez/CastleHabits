@@ -65,7 +65,7 @@ function StatsPage() {
 
   return (
     <>
-      <PageHeader title="Crónicas" subtitle="El rastro de tus victorias recientes." />
+      <PageHeader title="Progreso" subtitle="Tu actividad y estadísticas recientes." />
       <section className="relative z-10 flex flex-col gap-4 px-3">
         {eventsError && <p role="alert" className="font-body text-sm text-blood-400">{eventsError}</p>}
         {!historyVisible && (

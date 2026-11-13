@@ -20,6 +20,7 @@ import { canPostpone as postponeAllowed, streaksEnabled } from '../lib/modifiers
 import { isFirstZoneCompletionOn } from '../lib/souls'
 import { playWhip } from '../lib/sound'
 import { computeMissStreak, computeStreak } from '../lib/streak'
+import { zoneLabel } from '../lib/zones'
 import { coinsAfterModifiers, useBossStore, xpAfterModifiers } from '../store/useBossStore'
 import { useItemsStore } from '../store/useItemsStore'
 import { usePlayerStore } from '../store/usePlayerStore'
@@ -42,8 +43,10 @@ function isDueTodayBadge(item: Item): boolean {
 
 function getItemMeta(item: Item, effectiveDueDate?: string | null): string[] {
   const meta: string[] = []
-  if (item.zone) meta.push(item.zone)
-  if (item.type === 'chore' && item.recurrenceRule) meta.push(describeRecurrence(item.recurrenceRule))
+  if (item.zone) meta.push(zoneLabel(item.zone) ?? item.zone)
+  if ((item.type === 'chore' || item.type === 'habit') && item.recurrenceRule) {
+    meta.push(describeRecurrence(item.recurrenceRule))
+  }
   const windowText = describeWindow(item)
   if (windowText) meta.push(windowText)
   if (item.type === 'todo' && effectiveDueDate) {
@@ -221,7 +224,7 @@ function ItemCard({ item, onOpen }: Readonly<{ item: Item; onOpen: () => void }>
               Boss<span className="sr-only">: cuenta para el boss</span>
             </span>
           )}
-          {!isObligation(item) && <span className="cv-tag cv-tag--gold">Misión</span>}
+          {!isObligation(item) && <span className="cv-tag cv-tag--gold">Voluntaria</span>}
           {overdue && <span className="cv-tag cv-tag--blood">Vencida</span>}
           {lastWindowDay && <span className="cv-tag cv-tag--blood">¡Último día!</span>}
         </div>

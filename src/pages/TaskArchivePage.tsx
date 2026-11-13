@@ -8,7 +8,7 @@ import { todayKey } from '../lib/date'
 import { describeRecurrence } from '../lib/recurrence'
 import { ROUTES } from '../lib/routes'
 import { computeBestStreak, computeStreak } from '../lib/streak'
-import { ZONES } from '../lib/zones'
+import { ZONES, zoneLabel } from '../lib/zones'
 import { useItemsStore } from '../store/useItemsStore'
 import type { Item } from '../types'
 
@@ -129,7 +129,7 @@ function TaskArchivePage() {
             </select>
           </label>
           <label className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className="cv-label">Estancia</span>
+            <span className="cv-label">Espacio</span>
             <select
               value={zone}
               onChange={(event) => setZone(event.target.value)}
@@ -138,7 +138,7 @@ function TaskArchivePage() {
               <option value="all">Todas</option>
               <option value={NO_ZONE}>Sin estancia</option>
               {ZONES.map((option) => (
-                <option key={option.name} value={option.name}>{option.name}</option>
+                <option key={option.name} value={option.name}>{option.home}</option>
               ))}
             </select>
           </label>
@@ -208,7 +208,7 @@ function TaskArchivePage() {
                 <dd className="text-right text-parchment-100">{DIFFICULTY_LABELS[item.difficulty]}</dd>
                 <dt className="text-silver-500">Compromiso</dt>
                 <dd className="text-right text-parchment-100">
-                  {item.commitment === 'sideQuest' ? 'Misión secundaria' : 'Obligación'}
+                  {item.commitment === 'sideQuest' ? 'Actividad voluntaria' : 'Obligación'}
                 </dd>
                 <dt className="text-silver-500">Seguimiento</dt>
                 <dd className="text-right text-parchment-100">
@@ -232,8 +232,8 @@ function TaskArchivePage() {
                 )}
                 {item.zone && (
                   <>
-                    <dt className="text-silver-500">Estancia</dt>
-                    <dd className="text-right text-parchment-100">{item.zone}</dd>
+                    <dt className="text-silver-500">Espacio</dt>
+                    <dd className="text-right text-parchment-100">{zoneLabel(item.zone)}</dd>
                   </>
                 )}
                 {item.trackingType === 'quantity' && (

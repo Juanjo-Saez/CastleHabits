@@ -4,6 +4,7 @@ import { todayKey } from '../lib/date'
 import { migrateLegacyZone } from '../lib/zones'
 import type {
   Achievement,
+  AppSetting,
   BossEncounter,
   Completion,
   DaySnapshot,
@@ -16,6 +17,7 @@ import type {
 } from '../types'
 
 const PLAYER_PROFILE_ID = 1
+const ONBOARDING_SETTING = 'onboarding-state'
 
 export class AppDatabase extends Dexie {
   items!: Table<Item, string>
@@ -28,6 +30,7 @@ export class AppDatabase extends Dexie {
   daySnapshots!: Table<DaySnapshot, string>
   bossEncounters!: Table<BossEncounter, string>
   soulPassiveActivations!: Table<SoulPassiveActivation, string>
+  appSettings!: Table<AppSetting, string>
 
   constructor() {
     super('habitos-db')
@@ -127,10 +130,45 @@ export class AppDatabase extends Dexie {
       bossEncounters: 'id, bossId, status, scheduledFor',
       soulPassiveActivations: 'id, date, runStartedAt, passiveId, soulId, [runStartedAt+passiveId+date]',
     })
+    this.version(9).stores({
+      items: 'id, type',
+      completions: 'id, itemId, date, [itemId+date]',
+      itemEvents: 'id, itemId, kind, scheduledDate, [itemId+scheduledDate+kind]',
+      profile: 'id',
+      achievements: 'id',
+      rewards: 'id',
+      reminders: 'id',
+      daySnapshots: 'date',
+      bossEncounters: 'id, bossId, status, scheduledFor',
+      soulPassiveActivations: 'id, date, runStartedAt, passiveId, soulId, [runStartedAt+passiveId+date]',
+      appSettings: 'key',
+    })
+    this.on('populate', (transaction) => {
+      return transaction.table('appSettings').add({
+        key: ONBOARDING_SETTING,
+        value: 'tutorial-pending',
+      })
+    })
   }
 }
 
 export const db = new AppDatabase()
+
+export type OnboardingStartupState = 'tutorial' | null
+
+export async function getOnboardingStartupState(): Promise<OnboardingStartupState> {
+  let setting = await db.appSettings.get(ONBOARDING_SETTING)
+  if (!setting) {
+    await db.appSettings.put({ key: ONBOARDING_SETTING, value: 'legacy' })
+    setting = { key: ONBOARDING_SETTING, value: 'legacy' }
+  }
+  if (setting?.value === 'pending' || setting?.value === 'tutorial-pending') return 'tutorial'
+  return null
+}
+
+export async function markOnboardingHandled(): Promise<void> {
+  await db.appSettings.put({ key: ONBOARDING_SETTING, value: 'handled' })
+}
 
 export async function ensurePlayerProfile(): Promise<PlayerProfile> {
   const existing = await db.profile.get(PLAYER_PROFILE_ID)

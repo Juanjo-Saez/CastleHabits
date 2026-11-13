@@ -1,4 +1,5 @@
 import type { Item } from '../types'
+import { zoneLabel } from '../lib/zones'
 import SectionTitle from './SectionTitle'
 import Skulls from './Skulls'
 
@@ -6,7 +7,7 @@ import Skulls from './Skulls'
 function TomorrowPanel({ items }: Readonly<{ items: Item[] }>) {
   return (
     <section className="flex flex-col gap-2">
-      <SectionTitle>Mañana en el castillo</SectionTitle>
+      <SectionTitle>Mañana</SectionTitle>
       {items.length === 0 ? (
         <p className="py-2 text-center font-pixel text-lg text-silver-700">
           — NADA PREVISTO PARA MAÑANA —
@@ -23,7 +24,7 @@ function TomorrowPanel({ items }: Readonly<{ items: Item[] }>) {
                   {item.title}
                 </p>
                 {item.zone && (
-                  <p className="font-body text-sm text-silver-500 italic">{item.zone}</p>
+                  <p className="font-body text-sm text-silver-500 italic">{zoneLabel(item.zone)}</p>
                 )}
               </div>
               <Skulls difficulty={item.difficulty} />

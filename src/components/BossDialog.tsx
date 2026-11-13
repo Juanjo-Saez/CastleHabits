@@ -416,7 +416,7 @@ function BossDialog({
           <ul className="flex flex-col gap-3">
             {objective.kind === 'duel' && (
               <Rule icon={<span className="font-pixel text-2xl text-silver-100">◈</span>} title="Espejo">
-                Mientras dure el encuentro, el mapa de constancia de Crónicas se muestra en orden cronológico inverso; los datos reales no cambian.
+                Mientras dure el encuentro, el mapa de constancia de Progreso se muestra en orden cronológico inverso; los datos reales no cambian.
               </Rule>
             )}
             {definition.effects.length > 0 && (

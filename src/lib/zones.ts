@@ -11,6 +11,11 @@ export const ZONES = [
   { name: 'Castle', home: 'Hogar' },
 ] as const
 
+export function zoneLabel(value: string | undefined): string | undefined {
+  if (!value) return value
+  return ZONES.find((zone) => zone.name === value || zone.home === value)?.home ?? value
+}
+
 export function migrateLegacyZone(value: string | undefined): string | undefined {
   if (!value) return value
   const normalized = value.trim().toLocaleLowerCase('es')

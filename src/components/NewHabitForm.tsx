@@ -37,7 +37,7 @@ function NewHabitForm({ onClose }: Readonly<{ onClose: () => void }>) {
       }}
       className="cv-panel flex flex-col gap-3 p-3"
     >
-      <SectionTitle>Nueva misión secundaria</SectionTitle>
+      <SectionTitle>Nueva actividad voluntaria</SectionTitle>
 
       <label className="flex flex-col gap-1">
         <span className="cv-label">Nombre</span>
@@ -105,7 +105,7 @@ function NewHabitForm({ onClose }: Readonly<{ onClose: () => void }>) {
           Cancelar
         </button>
         <button type="submit" className="cv-btn cv-btn--gold">
-          Invocar
+          Añadir actividad
         </button>
       </div>
     </form>

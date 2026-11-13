@@ -54,6 +54,7 @@ interface ItemsState {
   loading: boolean
   load: () => Promise<void>
   addItem: (input: NewItemInput) => Promise<void>
+  saveOnboardingPlan: (inputs: NewItemInput[]) => Promise<void>
   updateItem: (itemId: string, changes: Partial<Omit<Item, 'id' | 'createdAt'>>) => Promise<void>
   archiveItem: (itemId: string) => Promise<void>
   toggleBoolean: (itemId: string) => Promise<void>
@@ -137,6 +138,18 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     }
     await db.items.add(item)
     set({ items: [...get().items, item] })
+  },
+
+  saveOnboardingPlan: async (inputs) => {
+    const now = new Date().toISOString()
+    const items: Item[] = inputs.map((input) => ({
+      id: uuid(),
+      archived: false,
+      createdAt: now,
+      ...input,
+    }))
+    if (items.length > 0) await db.items.bulkAdd(items)
+    set({ items: [...get().items, ...items] })
   },
 
   updateItem: async (itemId, changes) => {

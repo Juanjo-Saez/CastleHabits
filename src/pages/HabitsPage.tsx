@@ -71,7 +71,7 @@ function HabitsPage() {
 
   return (
     <>
-      <PageHeader title="Misiones" subtitle="Mejora tu poder sin convertirlo en una deuda." />
+      <PageHeader title="Hábitos" subtitle="Actividades voluntarias para tus objetivos." />
       <section className="relative z-10 flex flex-col gap-3 px-3">
         <SectionTitle
           action={
@@ -84,7 +84,7 @@ function HabitsPage() {
             </button>
           }
         >
-          Misiones secundarias
+          Actividades voluntarias
         </SectionTitle>
 
         {showForm && <NewHabitForm onClose={() => setShowForm(false)} />}

@@ -22,7 +22,7 @@ function NewTaskForm({
   onCreated,
 }: Readonly<{ onClose: () => void; initialTitle?: string; onCreated?: () => void }>) {
   const addItem = useItemsStore((s) => s.addItem)
-  const [kind, setKind] = useState<'chore' | 'todo'>(initialTitle ? 'todo' : 'chore')
+  const [kind, setKind] = useState<'chore' | 'todo'>('todo')
   const [title, setTitle] = useState(initialTitle ?? '')
   const [zone, setZone] = useState('Castle')
   const [difficulty, setDifficulty] = useState<Difficulty>('easy')
@@ -104,6 +104,7 @@ function NewTaskForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Fregar, barrer, pagar el alquiler..."
+          autoFocus={Boolean(initialTitle)}
           className="cv-input"
         />
       </label>

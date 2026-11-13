@@ -343,6 +343,67 @@ body {
     inset 0 1px 0 rgb(243 227 168 / 0.12);
 }
 
+.cv-bestiary-book {
+  position: relative;
+  border: 1px solid rgb(143 114 40 / 0.8);
+  background:
+    linear-gradient(90deg, #240f1b 0, #4a1724 0.55rem, #130b18 0.75rem, #0a0b1c 100%);
+  box-shadow:
+    inset 0 0 0 3px rgb(0 0 0 / 0.75),
+    0 8px 20px rgb(0 0 0 / 0.55);
+}
+
+.cv-bestiary-book::before {
+  position: absolute;
+  inset: 0.65rem auto 0.65rem 0.48rem;
+  width: 0.18rem;
+  border-inline: 1px solid rgb(243 227 168 / 0.4);
+  background: linear-gradient(180deg, #8f7228, #3e1a24 18%, #8f7228 50%, #3e1a24 82%, #8f7228);
+  content: "";
+}
+
+.cv-bestiary-page {
+  position: relative;
+  min-width: 0;
+  border: 1px solid rgb(201 162 75 / 0.7);
+  background:
+    linear-gradient(90deg, rgb(8 6 20 / 0.55), transparent 0.9rem),
+    linear-gradient(180deg, rgb(30 42 120 / 0.76), rgb(8 10 29 / 0.97));
+  box-shadow:
+    inset 0 0 0 2px rgb(0 0 0 / 0.55),
+    inset 0 0 24px rgb(0 0 0 / 0.45);
+}
+
+.cv-bestiary-illustration {
+  border: 1px solid rgb(201 162 75 / 0.55);
+  background:
+    linear-gradient(180deg, rgb(3 4 12 / 0.65), rgb(20 28 82 / 0.5)),
+    repeating-linear-gradient(0deg, rgb(243 227 168 / 0.035) 0 1px, transparent 1px 4px);
+  box-shadow: inset 0 0 0 2px rgb(0 0 0 / 0.55);
+  image-rendering: pixelated;
+}
+
+.cv-bestiary-turn {
+  animation: bestiary-turn 180ms steps(3, end);
+}
+
+@keyframes bestiary-turn {
+  from {
+    transform: translateX(0.35rem);
+    opacity: 0.7;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cv-bestiary-turn {
+    animation: none;
+  }
+}
+
 /* Cada golpe sacude la barra de vida del boss. */
 .cv-boss-hit {
   animation: boss-hit 0.45s ease-out;
@@ -509,7 +570,11 @@ body {
 .cv-btn:focus-visible {
   color: var(--color-gold-300);
   border-color: var(--color-gold-400);
-  outline: none;
+}
+
+.cv-btn:focus-visible {
+  outline: 3px solid var(--color-gold-300);
+  outline-offset: 3px;
 }
 
 .cv-btn:active:not(:disabled) {
@@ -559,7 +624,8 @@ body {
 }
 
 .cv-input:focus {
-  outline: none;
+  outline: 3px solid var(--color-gold-300);
+  outline-offset: 2px;
   border-color: var(--color-gold-500);
 }
 
@@ -1034,4 +1100,30 @@ select.cv-input {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+@media (max-height: 480px) {
+  .cv-page-header {
+    position: static;
+  }
+}
+
+.cv-tutorial-highlight {
+  outline: 3px double var(--color-gold-300);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px var(--color-night-950);
+}
+
+.cv-tutorial-progress {
+  width: 100%;
+  height: 0.5rem;
+  overflow: hidden;
+  border: 1px solid var(--color-gold-600);
+  background: var(--color-night-900);
+}
+
+.cv-tutorial-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--color-gold-300);
 }

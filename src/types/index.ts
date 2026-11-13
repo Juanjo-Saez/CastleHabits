@@ -62,6 +62,11 @@ export interface Item {
   createdAt: string
 }
 
+export interface AppSetting {
+  key: string
+  value: string
+}
+
 export interface Completion {
   id: string
   itemId: string

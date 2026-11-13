@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import BackupSettings from '../components/BackupSettings'
-import BestiaryPanel from '../components/BestiaryPanel'
 import CursesPanel from '../components/CursesPanel'
 import HunterPortrait from '../components/HunterPortrait'
 import NotificationSettings from '../components/NotificationSettings'
@@ -22,7 +21,13 @@ import { useItemsStore } from '../store/useItemsStore'
 import { usePlayerStore } from '../store/usePlayerStore'
 import { useRewardsStore } from '../store/useRewardsStore'
 
-function ProfilePage() {
+function ProfilePage({
+  onReplayTutorial,
+  onOpenHabitPlanner,
+}: Readonly<{
+  onReplayTutorial: () => void
+  onOpenHabitPlanner: () => void
+}>) {
   const profile = usePlayerStore((s) => s.profile)
   const encounters = useBossStore((s) => s.encounters)
   const clearLevelUp = usePlayerStore((s) => s.clearLevelUp)
@@ -67,7 +72,20 @@ function ProfilePage() {
 
   return (
     <>
-      <PageHeader title="El Cazador" subtitle="Tu progreso queda escrito en la piedra." />
+      <PageHeader
+        title="Perfil"
+        subtitle="Tu progreso, ajustes y ayuda."
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <button type="button" onClick={onReplayTutorial} className="cv-btn cv-btn--ghost px-2 py-1">
+              Repetir tutorial
+            </button>
+            <button type="button" onClick={onOpenHabitPlanner} className="cv-btn cv-btn--ghost px-2 py-1">
+              Plan de hábitos
+            </button>
+          </div>
+        }
+      />
       <section className="relative z-10 flex flex-col gap-4 px-3">
         <div className="cv-panel cv-panel--gold flex items-center gap-3 p-3">
           <HunterPortrait level={profile.level} scale={4} sukamon={sukamonDefeatToday} />
@@ -107,8 +125,6 @@ function ProfilePage() {
         <CursesPanel />
 
         <SoulsPanel />
-
-        <BestiaryPanel />
 
         <RewardsShop />
 

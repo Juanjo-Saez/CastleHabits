@@ -245,7 +245,7 @@ function DayCorrection({ date }: Readonly<{ date: string }>) {
               )}
               {routeGroups.length > 0 && (
                 <section>
-                  <h3 className="cv-label">Misiones secundarias ({groups.sideQuests.length})</h3>
+                  <h3 className="cv-label">Actividades voluntarias ({groups.sideQuests.length})</h3>
                   <div className="mt-1 flex flex-col gap-2">
                     {routeGroups.map((route) => (
                       <details key={route.id} className="cv-panel p-2">

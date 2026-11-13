@@ -2,6 +2,7 @@ import { format, startOfDay } from 'date-fns'
 import { es } from 'date-fns/locale/es'
 import { buildDaySummary } from '../lib/calendar'
 import { logicalNow } from '../lib/date'
+import { zoneLabel } from '../lib/zones'
 import { useItemsStore } from '../store/useItemsStore'
 import DayCorrection from './DayCorrection'
 
@@ -54,7 +55,7 @@ function DayDetail({ date }: Readonly<{ date: Date }>) {
             {summary.open.map((item) => (
               <li key={item.id} className={`font-body ${isPast ? 'text-blood-400' : 'text-silver-300'}`}>
                 {item.title}
-                {item.zone && <span className="text-silver-500"> · {item.zone}</span>}
+                {item.zone && <span className="text-silver-500"> · {zoneLabel(item.zone)}</span>}
               </li>
             ))}
           </ul>

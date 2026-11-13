@@ -15,14 +15,14 @@ function ZonePicker({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between gap-2">
-        <label htmlFor={id} className="cv-label">Estancia</label>
+        <label htmlFor={id} className="cv-label">Espacio del hogar</label>
         <button
           type="button"
           onClick={() => setShowLegend((visible) => !visible)}
-          aria-label={showLegend ? 'Ocultar equivalencias de las estancias' : 'Mostrar equivalencias de las estancias'}
+          aria-label={showLegend ? 'Ocultar nombres de fantasía de los espacios' : 'Mostrar nombres de fantasía de los espacios'}
           aria-expanded={showLegend}
           aria-controls={`${id}-legend`}
-          title="Equivalencias de las estancias"
+          title="Nombres de fantasía de los espacios"
           className="cv-btn cv-btn--gold flex size-7 items-center justify-center !p-0 text-xl"
         >
           ?
@@ -36,7 +36,7 @@ function ZonePicker({
       >
         {isLegacyZone && <option value={value}>Anterior: {value}</option>}
         {ZONES.map((zone) => (
-          <option key={zone.name} value={zone.name}>{zone.name}</option>
+          <option key={zone.name} value={zone.name}>{zone.home}</option>
         ))}
       </select>
       {showLegend && (
@@ -46,8 +46,8 @@ function ZonePicker({
         >
           {ZONES.map((zone) => (
             <div key={zone.name} className="contents">
-              <dt className="text-gold-300">{zone.name}</dt>
-              <dd className="text-right text-silver-300">{zone.home}</dd>
+              <dt className="text-gold-300">{zone.home}</dt>
+              <dd className="text-right text-silver-300">{zone.name}</dd>
             </div>
           ))}
         </dl>

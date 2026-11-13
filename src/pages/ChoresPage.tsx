@@ -40,7 +40,13 @@ function prefersReducedMotion(): boolean {
   return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-function ChoresPage() {
+function ChoresPage({
+  openNewTask,
+  onNewTaskRequestHandled,
+}: Readonly<{
+  openNewTask: boolean
+  onNewTaskRequestHandled: () => void
+}>) {
   const items = useItemsStore((s) => s.items)
   const completionsByItem = useItemsStore((s) => s.completionsByItem)
   const loading = useItemsStore((s) => s.loading)
@@ -183,6 +189,12 @@ function ChoresPage() {
   const tomorrow = addDays(today, 1)
   const tomorrowKey = format(tomorrow, 'yyyy-MM-dd')
   const active = items.filter((item) => !item.archived)
+  const formVisible = showForm || openNewTask
+  const initialTaskTitle = openNewTask ? 'Leer 10 páginas' : undefined
+  const closeTaskForm = () => {
+    setShowForm(false)
+    if (openNewTask) onNewTaskRequestHandled()
+  }
   // Una tarea con margen cumplida en un día anterior de su ventana deja de aparecer hasta su siguiente vez.
   // Una obligación fallada sigue pendiente hoy hasta cumplirla una vez.
   const dueToday = sortTasks(
@@ -271,7 +283,7 @@ function ChoresPage() {
         }}
       />
       <div className="cv-castle-snap-stop min-h-[calc(100dvh-5rem)]">
-        <PageHeader title="El Castillo" subtitle="Cada estancia guarda una tarea pendiente." />
+        <PageHeader title="Tareas" subtitle="Obligaciones recurrentes y tareas puntuales." />
         <section className="relative z-10 flex flex-col gap-3 px-3">
           <button
             type="button"
@@ -287,17 +299,20 @@ function ChoresPage() {
             action={
               <button
                 type="button"
-                onClick={() => setShowForm((visible) => !visible)}
+                onClick={() => {
+                  if (formVisible) closeTaskForm()
+                  else setShowForm(true)
+                }}
                 className="cv-btn cv-btn--gold px-2 py-1 text-base"
               >
-                {showForm ? 'Cerrar' : '+ Nueva'}
+                {formVisible ? 'Cerrar' : '+ Nueva'}
               </button>
             }
           >
             Hoy en el castillo
           </SectionTitle>
 
-          {showForm && <NewTaskForm onClose={() => setShowForm(false)} />}
+          {formVisible && <NewTaskForm initialTitle={initialTaskTitle} onClose={closeTaskForm} />}
 
           <SortPicker value={sortKey} onChange={setSortKey} />
 

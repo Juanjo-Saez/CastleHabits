@@ -42,10 +42,10 @@ export interface RouteDef {
 export const ROUTES: Record<RouteId, RouteDef> = {
   'vampire-hunter': {
     id: 'vampire-hunter',
-    name: 'Vampire Hunter',
+    name: 'Movimiento',
     icon: '\u{1F5E1}\uFE0F',
     summary: 'Forja el cuerpo con ejercicio constante.',
-    passiveName: 'Favor del Mercader',
+    passiveName: 'Descuento en la tienda',
     passive: (percent) => `Precios de la tienda -${percent} %`,
     baseMinPerDay: 3,
     activities: [
@@ -58,10 +58,10 @@ export const ROUTES: Record<RouteId, RouteDef> = {
   },
   technomancer: {
     id: 'technomancer',
-    name: 'Technomancer',
+    name: 'Aprendizaje',
     icon: '\u{1F52E}',
     summary: 'Domina la programaci\u00f3n y construye esta aplicaci\u00f3n.',
-    passiveName: 'Resonancia Arcana',
+    passiveName: 'EXP adicional',
     passive: (percent) => `+${percent} % de EXP`,
     baseMinPerDay: 2,
     activities: [
@@ -79,10 +79,10 @@ export const ROUTES: Record<RouteId, RouteDef> = {
   },
   'castle-within': {
     id: 'castle-within',
-    name: 'Castle Within',
+    name: 'Bienestar',
     icon: '\u{1F54A}\uFE0F',
     summary: 'Cuida tu mente y tu mejora personal.',
-    passiveName: 'La Fortaleza Interior',
+    passiveName: 'Vitalidad y escudo',
     passive: (percent) =>
       `+${percent} % de vida m\u00e1xima y un escudo que absorbe 1 fallo (se recarga en ${SHIELD_RECHARGE_DAYS} d\u00edas)`,
     baseMinPerDay: 2,

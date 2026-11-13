@@ -83,11 +83,14 @@ pendientes.
   coherencia entre pantallas y componentes; ahora mismo se percibe demasiado
   dispar. Acordar primero una dirección visual común y revisar el conjunto
   antes de rehacer pantallas por separado.
-- Mejorar la accesibilidad y la facilidad de uso para personas nuevas. Revisar
-  la organización de las habitaciones y sus contenidos para que la navegación y
-  las funciones disponibles se entiendan sin conocer previamente la app.
-- Crear un tutorial para las primeras sesiones que explique el funcionamiento
-  de la aplicación y permita volver a consultarlo desde un botón en el perfil.
+- Mejorar la accesibilidad y la facilidad de uso para personas nuevas, con
+  nombres funcionales para la navegación, las estancias y las rutas. El borrador
+  de alcance y tareas está en
+  [onboarding-plan-personalizado](./openspec/changes/onboarding-plan-personalizado/).
+- Crear un onboarding visual e interactivo que enseñe a crear y completar un
+  pergamino y simule las recompensas sin alterar el perfil. El recomendador de
+  hábitos será opcional, accesible desde el tutorial y Perfil. Se detalla en
+  [onboarding-plan-personalizado](./openspec/changes/onboarding-plan-personalizado/).
 - Diseñar una curva de inicio gradual: retrasar la aparición de bosses hasta
   que la persona lleve unos días usando la app o alcance cierto nivel, para que
   primero pueda familiarizarse con sus funciones.

@@ -97,9 +97,9 @@ function RouteCard({ def }: Readonly<{ def: RouteDef }>) {
 function RoutesPanel() {
   return (
     <div className="flex flex-col gap-3">
-      <SectionTitle>Rutas y oficios</SectionTitle>
+      <SectionTitle>Rutas y bonificaciones</SectionTitle>
       <p className="font-body text-sm text-silver-500 italic">
-        Completa tramos de 30 días para desbloquear y mejorar la pasiva. Solo un oficio puede estar equipado.
+        Completa tramos de 30 días para desbloquear y mejorar una bonificación. Solo puedes activar una a la vez.
       </p>
       {ROUTE_IDS.map((id) => <RouteCard key={id} def={ROUTES[id]} />)}
     </div>
